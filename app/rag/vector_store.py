@@ -1,0 +1,114 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import chromadb
+
+from app.rag.chunking import Chunk
+from app.rag.embedding import embed_text
+
+
+# --------------------------------------------------
+# Chroma configuration
+# --------------------------------------------------
+
+CHROMA_PATH = Path("chroma_db")
+COLLECTION_NAME = "drone_knowledge"
+
+
+# --------------------------------------------------
+# Chroma client
+# --------------------------------------------------
+
+client = chromadb.PersistentClient(
+    path=str(CHROMA_PATH)
+)
+
+
+collection = client.get_or_create_collection(
+    name=COLLECTION_NAME
+)
+
+
+# --------------------------------------------------
+# Add chunks
+# --------------------------------------------------
+
+def add_chunks(
+    chunks: list[Chunk],
+) -> None:
+    """
+    Add text chunks and their embeddings to Chroma.
+    """
+
+    if not chunks:
+        return
+
+    ids: list[str] = []
+    documents: list[str] = []
+    embeddings: list[list[float]] = []
+    metadatas: list[dict[str, str]] = []
+    seen_ids: set[str] = set()
+
+    for idx, chunk in enumerate(chunks, start=1):
+
+        if idx % 10 == 0 or idx == len(chunks):
+            print(f"    Embedding progress: {idx}/{len(chunks)} chunks...", flush=True)
+
+        chunk_id = chunk.id
+        if chunk_id in seen_ids:
+            counter = 1
+            while f"{chunk_id}_{counter}" in seen_ids:
+                counter += 1
+            chunk_id = f"{chunk_id}_{counter}"
+        seen_ids.add(chunk_id)
+
+        ids.append(chunk_id)
+
+        documents.append(
+            chunk.content
+        )
+
+        embeddings.append(
+            embed_text(chunk.content)
+        )
+
+        metadatas.append(
+            chunk.metadata
+        )
+
+    collection.upsert(
+        ids=ids,
+        documents=documents,
+        embeddings=embeddings,
+        metadatas=metadatas,
+    )
+
+
+# --------------------------------------------------
+# Query
+# --------------------------------------------------
+
+def search(
+    query: str,
+    n_results: int = 5,
+):
+    """
+    Search the knowledge base using semantic similarity.
+    """
+
+    if not query.strip():
+        raise ValueError(
+            "Query cannot be empty"
+        )
+
+    query_embedding = embed_text(
+        query
+    )
+
+    return collection.query(
+        query_embeddings=[
+            query_embedding
+        ],
+        n_results=n_results,
+    )

@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+line-bot-sdk
+python-dotenv
+openai
+chromadb
+tavily-python
+google-genai
+pypdf
+PyMuPDF
