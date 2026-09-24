@@ -20,6 +20,8 @@ def ingest_pdf(
     pdf_path: str,
     document_id: str,
     force_vision: bool = False,
+    start_page: int = 1,
+    end_page: int | None = None,
 ) -> None:
     """
     Ingest one PDF into Chroma.
@@ -52,11 +54,14 @@ def ingest_pdf(
     finally:
         doc.close()
 
+    actual_start = max(1, start_page)
+    actual_end = min(total_pages, end_page) if end_page else total_pages
+
     print("=" * 60)
     print("PDF INGESTION")
     print("=" * 60)
     print(f"File : {pdf.name}")
-    print(f"Pages: {total_pages}")
+    print(f"Pages: {actual_start} to {actual_end} (Total document: {total_pages})")
     print()
 
     all_units = []
@@ -66,8 +71,8 @@ def ingest_pdf(
     # --------------------------------------------------
 
     for page_number in range(
-        1,
-        total_pages + 1,
+        actual_start,
+        actual_end + 1,
     ):
 
         print(
@@ -159,7 +164,7 @@ def main():
         print(
             "Usage:\n"
             "python -m scripts.ingest_pdf "
-            '"<pdf_path>" <document_id> [--force-vision]'
+            '"<pdf_path>" <document_id> [--force-vision] [--pages <start>-<end>]'
         )
 
         raise SystemExit(1)
@@ -168,10 +173,23 @@ def main():
     document_id = sys.argv[2]
     force_vision = "--force-vision" in sys.argv
 
+    start_page = 1
+    end_page = None
+
+    if "--pages" in sys.argv:
+        idx = sys.argv.index("--pages")
+        if idx + 1 < len(sys.argv):
+            parts = sys.argv[idx + 1].split("-")
+            start_page = int(parts[0])
+            if len(parts) > 1 and parts[1]:
+                end_page = int(parts[1])
+
     ingest_pdf(
         pdf_path=pdf_path,
         document_id=document_id,
         force_vision=force_vision,
+        start_page=start_page,
+        end_page=end_page,
     )
 
 

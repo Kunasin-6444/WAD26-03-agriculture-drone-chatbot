@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Header, Request
+import logging
+
+from fastapi import APIRouter, Header, HTTPException, Request
 from linebot.v3 import WebhookParser
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
@@ -7,6 +9,7 @@ from app.config import LINE_CHANNEL_SECRET
 from app.services.ai_service import ask_ai
 from app.services.line_service import reply_text
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -27,9 +30,11 @@ async def webhook(
             x_line_signature,
         )
     except InvalidSignatureError:
-        return {
-            "message": "Invalid signature"
-        }
+        logger.warning("Received webhook request with invalid signature.")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid signature",
+        )
 
     for event in events:
         if (
@@ -37,14 +42,22 @@ async def webhook(
             and isinstance(event.message, TextMessageContent)
         ):
             user_message = event.message.text
+            reply_token = event.reply_token
 
-            answer = ask_ai(user_message)
+            try:
+                answer = ask_ai(user_message)
+            except Exception as e:
+                logger.error(f"Error processing user query in ask_ai: {e}")
+                answer = (
+                    "ขออภัยครับ ระบบกำลังประสบปัญหาชั่วคราวในการประมวลผล "
+                    "กรุณาลองใหม่อีกครั้งในภายหลังครับ"
+                )
 
             reply_text(
-                event.reply_token,
+                reply_token,
                 answer,
             )
 
     return {
-        "message": "OK"
+        "status": "OK"
     }

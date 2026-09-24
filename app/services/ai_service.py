@@ -1,9 +1,13 @@
-from app.rag.rag_service import generate_grounded_answer, retrieve_context
+from app.rag.crag_service import run_crag_pipeline
 
 
 def ask_ai(user_message: str) -> str:
     """
-    Answer user query grounded in agricultural drone knowledge base.
+    Answer user query using Corrective RAG (CRAG) pipeline:
+    1. Local knowledge base retrieval & relevance grading
+    2. Web fallback (Tavily & official sources) if insufficient
+    3. Designated CAAT UAS portal routing for Air Law/Air Space
+    4. Abstain path if unverified (zero hallucination)
     """
-    context = retrieve_context(user_message)
-    return generate_grounded_answer(user_message, context)
+    response = run_crag_pipeline(user_message)
+    return response.answer

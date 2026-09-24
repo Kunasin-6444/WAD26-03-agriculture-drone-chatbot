@@ -89,11 +89,61 @@ def retrieve_context(
     )
 
 
+FALLBACK_MODELS = [
+    "gpt-5.6-luna",
+    "nova-2-lite-v1",
+    "llama-4-scout",
+    "gemini-3.5-flash-lite",
+    "deepseek-v4-flash",
+]
+
+_EXHAUSTED_MODELS: set[str] = set()
+
+
+def call_llm(
+    messages: list[dict],
+    client: OpenAI | None = None,
+    preferred_model: str = "gpt-5.6-luna",
+    temperature: float = 0.0,
+) -> str:
+    """
+    Call KKU GenAI OpenAI-compatible API with automatic fallback across models.
+    Caches models that hit daily limit (401) to eliminate cascading retry delay.
+    """
+    ai_client = client or get_llm_client()
+    candidates = [preferred_model] + [m for m in FALLBACK_MODELS if m != preferred_model]
+    available = [m for m in candidates if m not in _EXHAUSTED_MODELS]
+    models_to_try = available if available else candidates
+
+    last_error: Exception | None = None
+    for model_name in models_to_try:
+        try:
+            response = ai_client.chat.completions.create(
+                model=model_name,
+                messages=messages,
+                temperature=temperature,
+                stream=False,
+            )
+            return response.choices[0].message.content or ""
+        except Exception as e:
+            last_error = e
+            err_msg = str(e).lower()
+            if "daily limit" in err_msg or "401" in err_msg or "rate limit" in err_msg:
+                _EXHAUSTED_MODELS.add(model_name)
+                logger.warning(
+                    f"Model '{model_name}' hit daily limit. Bypassing and falling back to next available model."
+                )
+                continue
+            raise
+
+    raise RuntimeError(f"All LLM models failed or reached limit: {last_error}")
+
+
 def generate_grounded_answer(
     query: str,
     context: str,
     client: OpenAI | None = None,
-    model: str = "gemini-3.5-flash-lite",
+    model: str = "gpt-5.6-luna",
 ) -> str:
     """
     Generate an answer strictly grounded in the retrieved context,
@@ -102,8 +152,6 @@ def generate_grounded_answer(
 
     if not context.strip():
         return "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้"
-
-    ai_client = client or get_llm_client()
 
     system_prompt = (
         "คุณคือผู้ช่วยผู้เชี่ยวชาญด้านโดรนการเกษตร หน้าที่ของคุณคือตอบคำถามของผู้ใช้โดยอิงจาก 'บริบทที่กำหนดให้' (Retrieved Context) เท่านั้น\n\n"
@@ -122,8 +170,7 @@ def generate_grounded_answer(
         f"คำตอบ:"
     )
 
-    response = ai_client.chat.completions.create(
-        model=model,
+    return call_llm(
         messages=[
             {
                 "role": "system",
@@ -134,8 +181,7 @@ def generate_grounded_answer(
                 "content": user_prompt,
             },
         ],
+        client=client,
+        preferred_model=model,
         temperature=0.0,
-        stream=False,
     )
-
-    return response.choices[0].message.content or ""
