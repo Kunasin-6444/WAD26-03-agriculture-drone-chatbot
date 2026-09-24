@@ -1,0 +1,19 @@
+hi this is git test
+
+NEW BRANCH
+> git branch <branch>
+
+LIST BRANCH
+> git branch
+
+SWITCH BRANCH
+> git switch <branch>
+
+ADD ALL CHANGES AND COMMIT
+> git add .
+> git commit -m "Your descriptive commit message"
+
+PUSH
+> git push -u origin <branch>
+
+
