@@ -22,66 +22,70 @@ from app.config import LINE_CHANNEL_ACCESS_TOKEN
 
 def build_rich_menu_request() -> RichMenuRequest:
     """
-    Build the RichMenuRequest structure based on the project requirements:
-    - Grid: 2500 x 1686 (3 columns x 2 rows = 6 buttons)
-    - Priority 1 (Top Row): Laws & Registration (CAAT Link + Self-registration PDF query)
-    - Priority 2 (Middle Row): Spraying Drones & Weed Control (UAV06/07 & UAV08/09)
-    - Priority 3 (Bottom Row): Survey Mapping & AI Assistant Help (UAV10/11/12 & Prompt Guide)
+    Build the RichMenuRequest structure based on the project requirements and image:
+    - Image layout: 2500 x 1686 px (3 columns x 2 rows = 6 buttons)
+    - Row 1 (y: 0 to 843, h: 843):
+        * Col 1 (x: 0, w: 833): กฎหมายและน่านฟ้า CAAT (Direct link to CAAT Infographics)
+        * Col 2 (x: 833, w: 834): ขั้นตอนลงทะเบียนโดรน (Registration Workflow)
+        * Col 3 (x: 1667, w: 833): โดรนฉีดพ่นและหัวฉีด (Spraying & Nozzles UAV06/07)
+    - Row 2 (y: 843 to 1686, h: 843):
+        * Col 1 (x: 0, w: 833): การใช้สารกำจัดวัชพืช (Herbicides & Weed Control UAV08/09)
+        * Col 2 (x: 833, w: 834): โดรนสำรวจและภาพถ่ายแปลง (Aerial Mapping UAV10/11/12)
+        * Col 3 (x: 1667, w: 833): สอบถามผู้ช่วย AI (AI Prompt Assistant Help)
     """
     return RichMenuRequest(
         size=RichMenuSize(width=2500, height=1686),
         selected=True,
-        name="Agriculture Drone Main Menu",
+        name="Agriculture Drone Main Menu (3x2)",
         chat_bar_text="เมนูหลัก",
         areas=[
-            # --- Top Row (Priority 1: Laws & Registration) ---
-            # Button 1: Air Law & Airspace (Direct link to CAAT Infographics)
+            # --- Row 1 (y: 0 to 843) ---
+            # Button 1 (Top Left): Air Law & Airspace (Direct link to CAAT Infographics)
             RichMenuArea(
-                bounds=RichMenuBounds(x=0, y=0, width=1250, height=562),
+                bounds=RichMenuBounds(x=0, y=0, width=833, height=843),
                 action=URIAction(
                     label="กฎหมายน่านฟ้า CAAT",
                     uri="https://uasportal.caat.or.th/infographic",
                 ),
             ),
-            # Button 2: Drone Registration Workflow
+            # Button 2 (Top Middle): Drone Registration Workflow
             RichMenuArea(
-                bounds=RichMenuBounds(x=1250, y=0, width=1250, height=562),
+                bounds=RichMenuBounds(x=833, y=0, width=834, height=843),
                 action=MessageAction(
                     label="ขั้นตอนลงทะเบียนโดรน",
                     text="ขั้นตอนการยื่นขออนุญาตปฏิบัติการบินโดรนเกษตรเพื่อตนเองต้องทำอย่างไร?",
                 ),
             ),
-            # --- Middle Row (Priority 2: Spraying & Weed Control) ---
-            # Button 3: Nozzle Selection & Spraying Operation
+            # Button 3 (Top Right): Spraying Drone & Nozzle Selection
             RichMenuArea(
-                bounds=RichMenuBounds(x=0, y=562, width=1250, height=562),
+                bounds=RichMenuBounds(x=1667, y=0, width=833, height=843),
                 action=MessageAction(
-                    label="เลือกใช้หัวฉีดโดรน",
+                    label="โดรนฉีดพ่นและหัวฉีด",
                     text="แนะนำการเลือกใช้หัวฉีดโดรนเกษตรและอัตราการไหล",
                 ),
             ),
-            # Button 4: Chemical Spraying & Weed Control
+            # --- Row 2 (y: 843 to 1686) ---
+            # Button 4 (Bottom Left): Herbicides & Chemical Weed Control
             RichMenuArea(
-                bounds=RichMenuBounds(x=1250, y=562, width=1250, height=562),
+                bounds=RichMenuBounds(x=0, y=843, width=833, height=843),
                 action=MessageAction(
-                    label="การพ่นยากำจัดวัชพืช",
+                    label="การใช้สารกำจัดวัชพืช",
                     text="วิธีการใช้สารกำจัดวัชพืชและควบคุมการพ่นด้วยโดรน",
                 ),
             ),
-            # --- Bottom Row (Priority 3: Survey & AI Guidance) ---
-            # Button 5: Aerial Mapping & Survey
+            # Button 5 (Bottom Middle): Aerial Mapping & Crop Survey
             RichMenuArea(
-                bounds=RichMenuBounds(x=0, y=1124, width=1250, height=562),
+                bounds=RichMenuBounds(x=833, y=843, width=834, height=843),
                 action=MessageAction(
-                    label="โดรนสำรวจแปลง",
+                    label="โดรนสำรวจภาพถ่ายแปลง",
                     text="หลักการตั้งค่าโดรนสำรวจแปลงและถ่ายภาพทางอากาศ",
                 ),
             ),
-            # Button 6: How to ask AI / Help Guide
+            # Button 6 (Bottom Right): How to ask AI / Help Guide
             RichMenuArea(
-                bounds=RichMenuBounds(x=1250, y=1124, width=1250, height=562),
+                bounds=RichMenuBounds(x=1667, y=843, width=833, height=843),
                 action=MessageAction(
-                    label="วิธีใช้งานผู้ช่วย AI",
+                    label="สอบถามผู้ช่วย AI",
                     text="แนะนำวิธีพิมพ์คำถามเพื่อขอข้อมูลโดรนเกษตร",
                 ),
             ),
@@ -91,30 +95,28 @@ def build_rich_menu_request() -> RichMenuRequest:
 
 def generate_default_rich_menu_image(output_path: str | Path) -> str:
     """
-    Generates a high-quality 2500x1686 PNG background image with 6 color-coded button cards
+    Generates a 2500x1686 PNG background image with 3 columns x 2 rows
     when no custom image file is provided.
     """
     width, height = 2500, 1686
     img = Image.new("RGB", (width, height), color=(245, 247, 250))
     draw = ImageDraw.Draw(img)
 
-    # Grid specifications: 2 columns x 3 rows
+    # Grid specifications: 3 columns x 2 rows
     card_margin = 20
-    cols, rows = 2, 3
+    cols, rows = 3, 2
     col_w = width // cols
     row_h = height // rows
 
-    # 6 Color-coded themes (Laws/Registration highlighted in deep forest green)
     cards = [
-        # Row 1 (Laws & Registration - Priority 1)
-        {"title": "1. กฎหมายและน่านฟ้า CAAT", "subtitle": "Air Law & Airspace Regulations", "color": (34, 112, 62)},
-        {"title": "2. ขั้นตอนลงทะเบียนโดรน", "subtitle": "CAAT & NBTC Registration Guide", "color": (16, 92, 48)},
-        # Row 2 (Spraying & Chemical - Priority 2)
-        {"title": "3. การเลือกใช้หัวฉีดโดรน", "subtitle": "Nozzle Selection & Spraying Rate", "color": (41, 128, 185)},
-        {"title": "4. การพ่นยากำจัดวัชพืช", "subtitle": "Herbicides & Chemical Control", "color": (39, 174, 96)},
-        # Row 3 (Mapping & Help - Priority 3)
-        {"title": "5. โดรนสำรวจแปลงเกษตร", "subtitle": "Aerial Mapping & Survey Setup", "color": (142, 68, 173)},
-        {"title": "6. วิธีใช้งานผู้ช่วย AI", "subtitle": "Chatbot Guide & Help", "color": (44, 62, 80)},
+        # Row 1
+        {"title": "1. กฎหมายและน่านฟ้า CAAT", "subtitle": "Air Law & Airspace", "color": (34, 112, 62)},
+        {"title": "2. ขั้นตอนลงทะเบียนโดรน", "subtitle": "Drone Registration", "color": (16, 92, 48)},
+        {"title": "3. โดรนฉีดพ่นและหัวฉีด", "subtitle": "Spraying & Nozzles", "color": (41, 128, 185)},
+        # Row 2
+        {"title": "4. การใช้สารกำจัดวัชพืช", "subtitle": "Weed Control", "color": (39, 174, 96)},
+        {"title": "5. โดรนสำรวจและภาพถ่ายแปลง", "subtitle": "Mapping & Survey", "color": (142, 68, 173)},
+        {"title": "6. สอบถามผู้ช่วย AI", "subtitle": "AI Assistant Guide", "color": (44, 62, 80)},
     ]
 
     font_large = ImageFont.load_default()
@@ -129,12 +131,10 @@ def generate_default_rich_menu_image(output_path: str | Path) -> str:
         x2 = (c + 1) * col_w - card_margin
         y2 = (r + 1) * row_h - card_margin
 
-        # Draw rounded rectangle background card
         draw.rounded_rectangle([x1, y1, x2, y2], radius=30, fill=card["color"])
 
-        # Text position
-        tx = x1 + 50
-        ty = y1 + 180
+        tx = x1 + 30
+        ty = y1 + 300
         draw.text((tx, ty), card["title"], fill=(255, 255, 255), font=font_large)
         draw.text((tx, ty + 100), card["subtitle"], fill=(220, 240, 230), font=font_small)
 
