@@ -13,20 +13,20 @@
 
 ### P1 — CRAG
 
-- [ ] Relevance grader
-- [ ] Grader tests
-- [ ] Tavily fallback
-- [ ] Fallback tests
-- [ ] Abstain path
-- [ ] Abstain tests
+- [x] Relevance grader
+- [x] Grader tests
+- [x] Tavily fallback
+- [x] Fallback tests
+- [x] Abstain path
+- [x] Abstain tests
 
 ### P2 — LINE
 
-- [ ] Connect CRAG service to webhook
-- [ ] Verify LINE signature
-- [ ] Reply through LINE
-- [ ] Error handling
-- [ ] LINE integration tests
+- [x] Connect CRAG service to webhook
+- [x] Verify LINE signature
+- [x] Reply through LINE
+- [x] Error handling
+- [x] LINE integration tests
 
 ### P3 — Deployment
 
@@ -37,13 +37,13 @@
 
 ### P4 — Final verification
 
-- [ ] 20-30 real Thai questions
-- [ ] In-scope questions
-- [ ] Out-of-scope questions
-- [ ] Ambiguous questions
-- [ ] Unsupported questions
-- [ ] Latency check
-- [ ] Final documentation
+- [x] 20-30 real Thai questions
+- [x] In-scope questions
+- [x] Out-of-scope questions
+- [x] Ambiguous questions
+- [x] Unsupported questions
+- [x] Latency check
+- [x] Final documentation
 
 ## Optional — Do only after core is stable
 

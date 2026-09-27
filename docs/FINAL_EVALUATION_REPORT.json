@@ -1,0 +1,319 @@
+{
+  "total": 28,
+  "passed": 27,
+  "failed": 1,
+  "pass_rate_percent": 96.4,
+  "avg_latency_seconds": 6.69,
+  "results": [
+    {
+      "id": 1,
+      "category": "in_scope",
+      "query": "หัวฉีดพัดส้มมีอัตราการไหลเท่าไรต่อหัวฉีด?",
+      "expected_source_type": "knowledge_base",
+      "actual_source_type": "knowledge_base",
+      "latency_seconds": 4.74,
+      "status": "PASS",
+      "answer": "จากข้อมูลในเอกสาร หัวฉีดพัดส้มมีอัตราการไหล 500 มิลลิลิตร (ml) ต่อหัวฉีด (ที่รอบการทำงาน 1,600 rpm)\n\n(แหล่งอ้างอิง: UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5 และ UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12)",
+      "reasons": []
+    },
+    {
+      "id": 2,
+      "category": "in_scope",
+      "query": "ที่ความสูง 1 เมตร หน้ากว้างการฉีดพ่นต่อหัวเท่าไร?",
+      "expected_source_type": "knowledge_base",
+      "actual_source_type": "knowledge_base",
+      "latency_seconds": 3.44,
+      "status": "PASS",
+      "answer": "ที่ความสูง 1 เมตร หน้ากว้างการฉีดพ่นต่อหัวมีค่าเท่ากับ 2.8 เมตร (หรือ 2.856 เมตร ตามแหล่งข้อมูลที่ระบุรายละเอียดทศนิยมเพิ่มเติม) \n\n(แหล่งอ้างอิง: UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12 และ UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5)",
+      "reasons": []
+    },
+    {
+      "id": 3,
+      "category": "in_scope",
+      "query": "หัวฉีดพัดส้ม 3 หัวรวมกันมีอัตราการไหลรวมเท่าไร?",
+      "expected_source_type": "knowledge_base",
+      "actual_source_type": "knowledge_base",
+      "latency_seconds": 3.55,
+      "status": "PASS",
+      "answer": "หัวฉีดพัดส้ม 3 หัวรวมกันมีอัตราการไหลรวม 1,500 มิลลิลิตร (ml)\n\n(แหล่งอ้างอิง: UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5 / UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12)",
+      "reasons": []
+    },
+    {
+      "id": 4,
+      "category": "in_scope",
+      "query": "ละอองยาที่มีขนาดเล็กเกินไปในการฉีดพ่นด้วยโดรนมีข้อเสียอย่างไร?",
+      "expected_source_type": "knowledge_base",
+      "actual_source_type": "knowledge_base",
+      "latency_seconds": 3.19,
+      "status": "PASS",
+      "answer": "ข้อเสียของละอองยาที่มีขนาดเล็กเกินไปในการฉีดพ่นด้วยโดรน ได้แก่:\n- ปลิวง่ายและระเหยง่าย\n- เจาะเข้าไปในใบยาก\n- กระดอนน้อย (แม้จะมีการปกคลุมพื้นที่ใบดีแต่มีข้อเสียด้านการปลิวและระเหยง่าย รวมถึงเจาะเข้าใบยาก)\n\n(แหล่งอ้างอิง: UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 20)",
+      "reasons": []
+    },
+    {
+      "id": 5,
+      "category": "in_scope",
+      "query": "โดรนฉีดพ่นเพื่อการเกษตรสามารถนำไปใช้งานอะไรได้บ้าง?",
+      "expected_source_type": "knowledge_base",
+      "actual_source_type": "knowledge_base",
+      "latency_seconds": 3.89,
+      "status": "PASS",
+      "answer": "โดรนฉีดพ่นเพื่อการเกษตรสามารถนำไปใช้งานได้ดังนี้:\n\n* ใช้สำหรับฉีดพ่นสารในนาข้าว (แหล่งอ้างอิง: unknown, หน้า unknown)\n* ใช้เพื่อพ่นสารในแปลงเกษตร (แหล่งอ้างอิง: unknown, หน้า unknown)\n* ใช้ในงานสำรวจแปลงและฉีดพ่นในไร่อ้อย (แหล่งอ้างอิง: UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 24 และ UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 7)",
+      "reasons": []
+    },
+    {
+      "id": 6,
+      "category": "in_scope",
+      "query": "รอบการทำงานของหัวฉีดพัดส้มที่อัตราการไหล 500 ml คือกี่ rpm?",
+      "expected_source_type": "knowledge_base",
+      "actual_source_type": "knowledge_base",
+      "latency_seconds": 3.99,
+      "status": "PASS",
+      "answer": "รอบการทำงานของหัวฉีดพัดส้มที่อัตราการไหล 500 ml คือ 1,600 rpm (แหล่งอ้างอิง: UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5; UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12)",
+      "reasons": []
+    },
+    {
+      "id": 7,
+      "category": "in_scope",
+      "query": "หัวฉีดมีหน้าที่สำคัญอย่างไรในระบบฉีดพ่นของโดรนการเกษตร?",
+      "expected_source_type": "knowledge_base",
+      "actual_source_type": "web_fallback",
+      "latency_seconds": 10.49,
+      "status": "FAIL",
+      "answer": "หัวฉีดในระบบฉีดพ่นของโดรนการเกษตรมีหน้าที่ควบคุมวิธีการปล่อยของเหลว การทำให้เป็นละออง และการกระจายไปทั่วพืชผล โดยหัวฉีดที่เหมาะสมสามารถผลิตหยดที่สม่ำเสมอและรักษารูปแบบสเปรย์ไว้ได้\n\n(แหล่งอ้างอิง: https://th.jmrdrone.com/news/detail-379098.html)",
+      "reasons": [
+        "Source type mismatch: expected knowledge_base, got web_fallback"
+      ]
+    },
+    {
+      "id": 8,
+      "category": "caat_rule_r1",
+      "query": "การขึ้นทะเบียนโดรนเกษตรต้องทำอย่างไร?",
+      "expected_source_type": "caat_portal",
+      "actual_source_type": "caat_portal",
+      "latency_seconds": 7.83,
+      "status": "PASS",
+      "answer": "การขึ้นทะเบียนโดรนเกษตรมีขั้นตอนและข้อกำหนดหลักๆ ตามระบบของสำนักงานการบินพลเรือนแห่งประเทศไทย (CAAT) ดังนี้ครับ\n\n1. **การขึ้นทะเบียนก่อนทำการบิน:**\n   - ผู้บังคับโดรนต้องขึ้นทะเบียนผู้บังคับอากาศยานไร้คนขับกับ CAAT ผ่านระบบ UAS Portal (uasportal.caat.or.th)\n   - ต้องขึ้นทะเบียนเครื่องวิทยุคมนาคมหรือตัวโดรนกับ กสทช.\n   - ต้องจัดทำประกันภัยความรับผิดต่อบุคคลภายนอกสำหรับโดรนตามน้ำหนักของโดรน\n\n2. **การขออนุญาตปฏิบัติการบินโดรนเกษตรเพื่อตนเอง:**\n   - ผู้ที่ต้องการบินโดรนเพื่อฉีดพ่นหรือสำรวจในพื้นที่การเกษตรหรือที่นาของตนเอง ต้องยื่นขออนุญาตปฏิบัติการบินผ่านระบบ UAS Portal\n   - ทำการปักหมุดหรือระบุพิกัดแปลงเกษตรของตนเองในระบบ พร้อมแนบเอกสารผู้บังคับและโดรนที่ได้รับการขึ้นทะเบียนอย่างถูกต้อง รวมถึงเตรียมเอกสารอื่นๆ เช่น คู่มือโดรน และรูปภาพโดรน\n\n(แหล่งอ้างอิง: https://uasportal.caat.or.th/infographic, https://www.caat.or.th/caat-media/167323)",
+      "reasons": []
+    },
+    {
+      "id": 9,
+      "category": "caat_rule_r1",
+      "query": "ข้อกำหนดเขตห้ามบินโดรนและระยะห่างจากสนามบินมีอะไรบ้าง?",
+      "expected_source_type": "caat_portal",
+      "actual_source_type": "caat_portal",
+      "latency_seconds": 10.53,
+      "status": "PASS",
+      "answer": "ข้อกำหนดเขตห้ามบินโดรนและระยะห่างจากสนามบิน มีดังนี้:\n\n* ห้ามบินเข้าใกล้สนามบินหรือเขตขึ้นลงชั่วคราวในระยะ 9 กิโลเมตร (5 ไมล์ทะเล) เว้นแต่ได้รับอนุญาต\n* ห้ามบินในเขตห้ามบิน (No-Fly Zone) เช่น เขตทหาร สถานที่ราชการ และรักษาระยะห่างที่ปลอดภัยจากบุคคลและชุมชน\n* ห้ามบินเหนือชุมชน หรือเขตเมือง \n* ห้ามละเมิดสิทธิส่วนบุคคลผู้อื่น\n* พื้นที่ห้ามบินเด็ดขาด เช่น พื้นที่ในระดับอำเภอใน 7 จังหวัด ได้แก่ จังหวัดสระแก้ว อำเภอคลองหาด อำเภออรัญประเทศ อำเภอโคกสูง และอำเภอตาพระยา\n\n(แหล่งอ้างอิง: [https://uasportal.caat.or.th/infographic](https://uasportal.caat.or.th/infographic), [https://droneth.or.th/drone-regulation](https://droneth.or.th/drone-regulation), [https://www.instagram.com/p/DX8Ohehk-c3](https://www.instagram.com/p/DX8Ohehk-c3), [https://www.facebook.com/61558845597524/posts/-%E0%B8%9A%E0%B8%97%E0%B8%A5%E0%B8%87%E0%B9%82%E0%B8%97%E0%B8%A9%E0%B8%9A%E0%B8%B4%E0%B8%99%E0%B9%82%E0%B8%94%E0%B8%A3%E0%B8%B9%E0%B8%99%E0%B8%9C%E0%B8%B4%E0%B8%94%E0%B8%81%E0%B8%8E%E0%B8%AB%E0%B8%A1%E0%B8%B2%E0%B8%A2%E0%B9%83%E0%B8%99%E0%B8%9B%E0%B8%A3%E0%B8%B0%E0%B9%80%E0%B8%A7%E0%B8%A8%E0%B9%84%E0%B8%97%E0%B8%A2%E0%B8%81%E0%B8%B2%E0%B8%A3%E0%B8%9A%E0%B8%B4%E0%B8%99%E0%B9%82%E0%B8%94%E0%B8%A3%E0%B8%A9%E0%B8%99%E0%B8%95%E0%B8%B1%E0%B8%A7%E0%B8%94%E0%B8%94%E0%B8%A2-2-%E0%B8%AB%E0%B8%99%E0%B9%82%E0%B8%A2%E0%B8%87/122225434382294853](https://www.facebook.com/61558845597524/posts/-%E0%B8%9A%E0%B8%97%E0%B8%A5%E0%B8%87%E0%B9%82%E0%B8%97%E0%B8%A9%E0%B8%9A%E0%B8%B4%E0%B8%99%E0%B9%82%E0%B8%94%E0%B8%A3%E0%B8%B9%E0%B8%99%E0%B8%9C%E0%B8%B4%E0%B8%81%E0%B8%8E%E0%B8%AB%E0%B8%A1%E0%B8%B2%E0%B8%A2%E0%B9%83%E0%B8%9B%E0%B8%A3%E0%B8%B0%E0%B9%80%E0%B8%A7%E0%B8%A8%E0%B9%84%E0%B8%97%E0%B8%A2%E0%B8%81%E0%B8%B2%E0%B8%A3%E0%B8%B0%E0%B8%9A%E0%B8%B4%E0%B8%99%E0%B9%82%E0%B8%94%E0%B8%A3%E0%B8%A9%E0%B8%99%E0%B8%95%E0%B8%B1%E0%B8%A7%E0%B8%94%E0%B8%94%E0%B8%A2-2-%E0%B8%AB%E0%B8%99%E0%B9%82%E0%B8%A2%E0%B8%87/122225434382294853), [https://www.caat.or.th/caat-media/191835](https://www.caat.or.th/caat-media/191835))",
+      "reasons": []
+    },
+    {
+      "id": 10,
+      "category": "caat_rule_r1",
+      "query": "กฎหมายการบินโดรนห้ามบินสูงเกินกี่เมตร?",
+      "expected_source_type": "caat_portal",
+      "actual_source_type": "caat_portal",
+      "latency_seconds": 7.86,
+      "status": "PASS",
+      "answer": "กฎหมายการบินโดรนกำหนดให้บินสูงไม่เกิน 90 เมตร (300 ฟุต) เหนือพื้นดิน เว้นแต่จะได้รับอนุญาตเป็นกรณีพิเศษ\n\n(แหล่งอ้างอิง: \n- https://uasportal.caat.or.th/infographic\n- https://droneth.or.th/drone-regulation\n- https://www.pdrc.co.th/en/blog/9125/%E0%B8%9B%E0%B8%A3%E0%B8%B0%E0%B8%81%E0%B8%B2%E0%B8%A8-%E0%B9%80%E0%B8%A3%E0%B8%B7%E0%B9%82%E0%B8%94%E0%B8%A3%E0%B8%99-%E0%B8%99%E0%B9%89%E0%B8%B3%E0%B8%AB%E0%B8%99%E0%B8%B1%E0%B8%81%E0%B9%80%E0%B8%81%E0%B8%B4%E0%B8%99-25-kg-%E0%B8%89%E0%B8%9B%E0%B8%B1%E0%B8%9A%E0%B8%9B%E0%B8%B5-67-%E0%B8%88%E0%B8%B2%E0%B8%81-caat\n- https://www.dji13store.com/blog/drone-law)",
+      "reasons": []
+    },
+    {
+      "id": 11,
+      "category": "caat_rule_r1",
+      "query": "ผู้บังคับโดรนต้องมีใบอนุญาตนักบินหรือขึ้นทะเบียน กสทช อย่างไร?",
+      "expected_source_type": "caat_portal",
+      "actual_source_type": "caat_portal",
+      "latency_seconds": 8.74,
+      "status": "PASS",
+      "answer": "จากการอ้างอิงข้อมูลของสำนักงานการบินพลเรือนแห่งประเทศไทย (CAAT) และหน่วยงานที่เกี่ยวข้อง ผู้บังคับโดรนและตัวโดรนมีข้อกำหนดในการดำเนินการดังนี้ครับ:\n\n1. **การขึ้นทะเบียนผู้บังคับโดรนและตัวโดรน (CAAT):** \n   - ผู้บังคับโดรนต้องขึ้นทะเบียนผู้บังคับอากาศยานไร้คนขับกับ CAAT ผ่านระบบ UAS Portal (ยกเว้นโดรนไม่มีกล้องและน้ำหนักต่ำกว่า 2 กิโลกรัม) เพื่อให้ได้รับหนังสือการขึ้นทะเบียน ซึ่งมีอายุ 2 ปี นับจากวันที่อนุมัติ\n   - ผู้ต้องการบินโดรนเกษตรเพื่อตนเอง ต้องยื่นขออนุญาตปฏิบัติการบินผ่านระบบ UAS Portal พร้อมทั้งปักหมุดระบุพิกัดแปลงเกษตรและแนบเอกสารที่ขึ้นทะเบียนถูกต้อง\n\n2. **การขึ้นทะเบียนเครื่องวิทยุคมนาคม/โดรน (กสทช.):**\n   - ผู้ครอบครองโดรนจะต้องขึ้นทะเบียนเครื่องวิทยุคมนาคม (ขออนุญาตใช้คลื่นความถี่) กับสำนักงาน กสทช. ภายใน 30 วันนับตั้งแต่วันที่ครอบครองโดรน เนื่องจากโดรนมีการใช้งานคลื่นความถี่และต้องมีมาตรฐานทางเทคนิคตามที่กำหนด\n\n(แหล่งอ้างอิง: [https://uasportal.caat.or.th/infographic](https://uasportal.caat.or.th/infographic), [https://register-uasportal.caat.or.th/fs/storage/files/1727923322502-736385657/Guideline%20Air%20Law%20and%20Regulations%20FINAL.pdf](https://register-uasportal.caat.or.th/fs/storage/files/1727923322502-736385657/Guideline%20Air%20Law%20and%20Regulations%20FINAL.pdf))",
+      "reasons": []
+    },
+    {
+      "id": 12,
+      "category": "caat_rule_r1",
+      "query": "น่านฟ้าและเงื่อนไขการขออนุญาตบินโดรนตรวจสอบได้ที่ไหน?",
+      "expected_source_type": "caat_portal",
+      "actual_source_type": "caat_portal",
+      "latency_seconds": 7.87,
+      "status": "PASS",
+      "answer": "จากการอ้างอิงข้อมูลของ CAAT ผู้ใช้งานสามารถตรวจสอบพื้นที่ควบคุมและน่านฟ้าได้ด้วยตนเองผ่านช่องทางดังนี้:\n\n* ดาวน์โหลด Google Earth Pro และดาวน์โหลดไฟล์ตรวจสอบพื้นที่ควบคุมทั้งสามได้ทางเว็บไซต์ **uav.caat.or.th/vtr1_detail2.php**\n* ศึกษารายละเอียดและอินโฟกราฟิกทางการเพิ่มเติมได้ที่ **https://uasportal.caat.or.th/infographic**\n\n(แหล่งอ้างอิง: [https://uasportal.caat.or.th/infographic](https://uasportal.caat.or.th/infographic) และ [https://register-uasportal.caat.or.th/fs/storage/files/1727923322502-736385657/Guideline%20Air%20Law%20and%20Regulations%20FINAL.pdf](https://register-uasportal.caat.or.th/fs/storage/files/1727923322502-736385657/Guideline%20Air%20Law%20and%20Regulations%20FINAL.pdf))",
+      "reasons": []
+    },
+    {
+      "id": 13,
+      "category": "out_of_scope",
+      "query": "ราคาน้ำมันดีเซล B7 วันนี้ราคาลิตรละเท่าไร?",
+      "expected_source_type": "web_fallback_or_abstain",
+      "actual_source_type": "web_fallback",
+      "latency_seconds": 9.85,
+      "status": "PASS",
+      "answer": "ราคาน้ำมันดีเซล B7 วันนี้ราคาลิตรละ 40.69 บาท\n\nแหล่งอ้างอิง: \n- [https://www.skkunathamgroup.com/fuel-prices](https://www.skkunathamgroup.com/fuel-prices)\n- [https://gasprice.kapook.com](https://gasprice.kapook.com)\n- [https://xn--42c6baaa9bl0b2fcebb3cztja2d.com](https://xn--42c6baaa9bl0b2fcebb3cztja2d.com)\n- [https://www.sanook.com/money/oil-price-today](https://www.sanook.com/money/oil-price-today)\n- [https://www.motorist.co.th/petrol-prices](https://www.motorist.co.th/petrol-prices)",
+      "reasons": []
+    },
+    {
+      "id": 14,
+      "category": "out_of_scope",
+      "query": "พยากรณ์อากาศจังหวัดขอนแก่นสัปดาห์นี้เป็นอย่างไร?",
+      "expected_source_type": "web_fallback_or_abstain",
+      "actual_source_type": "abstain",
+      "latency_seconds": 9.73,
+      "status": "PASS",
+      "answer": "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้และไม่พบข้อมูลที่น่าเชื่อถือจากแหล่งข้อมูลทางการ (ระบบไม่สามารถยืนยันความถูกต้องของข้อมูลได้ จึงขออภัยที่ไม่สามารถตอบคำถามนี้ได้ครับ)",
+      "reasons": []
+    },
+    {
+      "id": 15,
+      "category": "out_of_scope",
+      "query": "ราคาข้าวเปลือกเจ้าหอมมะลิในตลาดวันนี้ตันละเท่าไร?",
+      "expected_source_type": "web_fallback_or_abstain",
+      "actual_source_type": "web_fallback",
+      "latency_seconds": 10.89,
+      "status": "PASS",
+      "answer": "ราคารับซื้อข้าวเปลือกเจ้าหอมมะลิ 105 วันที่ 23 ก.ย. 2569 ทุกจังหวัด อยู่ที่เฉลี่ย 17,416.67 บาท/ตัน (โดยมีช่วงราคาอยู่ระหว่าง 14,900.00 - 18,500.00 บาทต่อตัน) \n\n(แหล่งอ้างอิง: https://rakakaset.com/%E0%B8%82%E0%B9%89%E0%B8%B2%E0%B8%A7)",
+      "reasons": []
+    },
+    {
+      "id": 16,
+      "category": "out_of_scope",
+      "query": "มหาวิทยาลัยขอนแก่นมีคณะอะไรบ้าง?",
+      "expected_source_type": "web_fallback_or_abstain",
+      "actual_source_type": "abstain",
+      "latency_seconds": 14.37,
+      "status": "PASS",
+      "answer": "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้และไม่พบข้อมูลที่น่าเชื่อถือจากแหล่งข้อมูลทางการ (ระบบไม่สามารถยืนยันความถูกต้องของข้อมูลได้ จึงขออภัยที่ไม่สามารถตอบคำถามนี้ได้ครับ)",
+      "reasons": []
+    },
+    {
+      "id": 17,
+      "category": "out_of_scope",
+      "query": "ดัชนีตลาดหลักทรัพย์แห่งประเทศไทยวันนี้ปิดที่เท่าไร?",
+      "expected_source_type": "web_fallback_or_abstain",
+      "actual_source_type": "abstain",
+      "latency_seconds": 6.46,
+      "status": "PASS",
+      "answer": "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้และไม่พบข้อมูลที่น่าเชื่อถือจากแหล่งข้อมูลทางการ (ระบบไม่สามารถยืนยันความถูกต้องของข้อมูลได้ จึงขออภัยที่ไม่สามารถตอบคำถามนี้ได้ครับ)",
+      "reasons": []
+    },
+    {
+      "id": 18,
+      "category": "ambiguous",
+      "query": "อัตราการไหลเท่าไร?",
+      "expected_source_type": "any",
+      "actual_source_type": "knowledge_base",
+      "latency_seconds": 5.77,
+      "status": "PASS",
+      "answer": "จากข้อมูลในเอกสาร อัตราการไหล (Flow Rate) ของระบบพ่นมีรายละเอียดดังนี้:\n\n* **อัตราการไหลของระบบพ่น (FIVE-LEVEL SPRAYING RATE):**\n  * อัตราการไหลสูงสุด (Maximum flow rate): 5.6 ลิตร/นาที (L/min)\n  * อัตราการไหลต่ำสุด (Minimum flow rate): 0.8 ลิตร/นาที (L/min)\n  *(แหล่งอ้างอิง: UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 22)*\n\n* **อัตราการไหลของหัวฉีดแต่ละชนิด (ที่รอบ 1,600 rpm):**\n  1. พัดส้ม: ปริมาณ 500 มล./หัวฉีด (ปริมาณ 3 หัวฉีด = 1,500 มล.) *(นิยมใช้)*\n  2. พัดแดง: ปริมาณ 1,150 มล./หัวฉีด (ปริมาณ 3 หัวฉีด = 3,450 มล.)\n  3. พัดเหลือง: ปริมาณ 775 มล./หัวฉีด (ปริมาณ 3 หัวฉีด = 2,325 มล.)\n  4. พัดน้ำเงิน: ปริมาณ 950 มล./หัวฉีด (ปริมาณ 3 หัวฉีด = 2,850 มล.)\n  5. พัดอัดน้ำเงิน: ปริมาณ 980 มล./หัวฉีด (ปริมาณ 3 หัวฉีด = 2,940 มล.)\n  6. พัดอัดน้ำตาล: ปริมาณ 1,230 มล./หัวฉีด (ปริมาณ 3 หัวฉีด = 3,690 มล.)\n  7. หัวแบบเหวี่ยง: ปริมาณ 2,300 มล./หัวฉีด (ปริมาณ 3 หัวฉีด = 4,600 มล.)\n  8. หัวแบบเหวี่ยง 2: ปริมาณ 2,100 มล./หัวฉีด (ปริมาณ 3 หัวฉีด = 4,200 มล.)\n  *(แหล่งอ้างอิง: UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5)*\n\n* **อัตราการไหลเทียบกับขนาดทิปและสีของหัวฉีด (ที่แรงดัน 3 bar):**\n  * ขนาด 01 (Orange): 0.4 L/min\n  * ขนาด 015 (Green): 0.6 L/min\n  * ขนาด 02 (Yellow): 0.8 L/min\n  * ขนาด 025 (Lilac): 1.0 L/min\n  * ขนาด 03 (Blue): 1.2 L/min\n  * ขนาด 035 (Brown Red): 1.4 L/min\n  * ขนาด 04 (Red): 1.6 L/min\n  * ขนาด 05 (Brown): 2.0 L/min\n  * ขนาด 06 (Gray): 2.4 L/min\n  * ขนาด 08 (White): 3.2 L/min\n  *(แหล่งอ้างอิง: UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 8)*",
+      "reasons": []
+    },
+    {
+      "id": 19,
+      "category": "ambiguous",
+      "query": "ราคาเท่าไร?",
+      "expected_source_type": "any",
+      "actual_source_type": "abstain",
+      "latency_seconds": 4.62,
+      "status": "PASS",
+      "answer": "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้และไม่พบข้อมูลที่น่าเชื่อถือจากแหล่งข้อมูลทางการ (ระบบไม่สามารถยืนยันความถูกต้องของข้อมูลได้ จึงขออภัยที่ไม่สามารถตอบคำถามนี้ได้ครับ)",
+      "reasons": []
+    },
+    {
+      "id": 20,
+      "category": "ambiguous",
+      "query": "บินได้ไหม?",
+      "expected_source_type": "any",
+      "actual_source_type": "abstain",
+      "latency_seconds": 4.88,
+      "status": "PASS",
+      "answer": "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้และไม่พบข้อมูลที่น่าเชื่อถือจากแหล่งข้อมูลทางการ (ระบบไม่สามารถยืนยันความถูกต้องของข้อมูลได้ จึงขออภัยที่ไม่สามารถตอบคำถามนี้ได้ครับ)",
+      "reasons": []
+    },
+    {
+      "id": 21,
+      "category": "ambiguous",
+      "query": "ฉีดพ่นอย่างไร?",
+      "expected_source_type": "any",
+      "actual_source_type": "abstain",
+      "latency_seconds": 6.23,
+      "status": "PASS",
+      "answer": "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้และไม่พบข้อมูลที่น่าเชื่อถือจากแหล่งข้อมูลทางการ (ระบบไม่สามารถยืนยันความถูกต้องของข้อมูลได้ จึงขออภัยที่ไม่สามารถตอบคำถามนี้ได้ครับ)",
+      "reasons": []
+    },
+    {
+      "id": 22,
+      "category": "unsupported_abstain",
+      "query": "โดรนเกษตรรุ่นใดสามารถบินไปฉีดปุ๋ยบนพื้นผิวดาวอังคารได้?",
+      "expected_source_type": "abstain",
+      "actual_source_type": "abstain",
+      "latency_seconds": 7.14,
+      "status": "PASS",
+      "answer": "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้และไม่พบข้อมูลที่น่าเชื่อถือจากแหล่งข้อมูลทางการ (ระบบไม่สามารถยืนยันความถูกต้องของข้อมูลได้ จึงขออภัยที่ไม่สามารถตอบคำถามนี้ได้ครับ)",
+      "reasons": []
+    },
+    {
+      "id": 23,
+      "category": "unsupported_abstain",
+      "query": "คาถาหรือมนต์วิเศษที่ทำให้โดรนบินได้โดยไม่ต้องใส่แบตเตอรี่คือบทไหน?",
+      "expected_source_type": "abstain",
+      "actual_source_type": "abstain",
+      "latency_seconds": 7.82,
+      "status": "PASS",
+      "answer": "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้และไม่พบข้อมูลที่น่าเชื่อถือจากแหล่งข้อมูลทางการ (ระบบไม่สามารถยืนยันความถูกต้องของข้อมูลได้ จึงขออภัยที่ไม่สามารถตอบคำถามนี้ได้ครับ)",
+      "reasons": []
+    },
+    {
+      "id": 24,
+      "category": "unsupported_abstain",
+      "query": "หัวฉีดรุ่นนีออนสายรุ้งปี ค.ศ. 3000 มีความเร็วการฉีดกี่ล้านกิโลเมตรต่อชั่วโมง?",
+      "expected_source_type": "abstain",
+      "actual_source_type": "abstain",
+      "latency_seconds": 5.54,
+      "status": "PASS",
+      "answer": "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้และไม่พบข้อมูลที่น่าเชื่อถือจากแหล่งข้อมูลทางการ (ระบบไม่สามารถยืนยันความถูกต้องของข้อมูลได้ จึงขออภัยที่ไม่สามารถตอบคำถามนี้ได้ครับ)",
+      "reasons": []
+    },
+    {
+      "id": 25,
+      "category": "unsupported_abstain",
+      "query": "วิธีนำโดรนการเกษตรไปดำน้ำจับปลาวาฬสีน้ำเงินในแม่น้ำเจ้าพระยา?",
+      "expected_source_type": "abstain",
+      "actual_source_type": "abstain",
+      "latency_seconds": 6.76,
+      "status": "PASS",
+      "answer": "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้และไม่พบข้อมูลที่น่าเชื่อถือจากแหล่งข้อมูลทางการ (ระบบไม่สามารถยืนยันความถูกต้องของข้อมูลได้ จึงขออภัยที่ไม่สามารถตอบคำถามนี้ได้ครับ)",
+      "reasons": []
+    },
+    {
+      "id": 26,
+      "category": "unsupported_abstain",
+      "query": "โดรนฉีดพ่นผสมพันธุ์กับยานอวกาศอพอลโล 11 ได้ลูกออกมาเป็นเครื่องบินแบบใด?",
+      "expected_source_type": "abstain",
+      "actual_source_type": "abstain",
+      "latency_seconds": 6.91,
+      "status": "PASS",
+      "answer": "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้และไม่พบข้อมูลที่น่าเชื่อถือจากแหล่งข้อมูลทางการ (ระบบไม่สามารถยืนยันความถูกต้องของข้อมูลได้ จึงขออภัยที่ไม่สามารถตอบคำถามนี้ได้ครับ)",
+      "reasons": []
+    },
+    {
+      "id": 27,
+      "category": "unsupported_abstain",
+      "query": "qwertyuiopasdfghjklzxcvbnm1234567890",
+      "expected_source_type": "abstain",
+      "actual_source_type": "abstain",
+      "latency_seconds": 4.31,
+      "status": "PASS",
+      "answer": "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้และไม่พบข้อมูลที่น่าเชื่อถือจากแหล่งข้อมูลทางการ (ระบบไม่สามารถยืนยันความถูกต้องของข้อมูลได้ จึงขออภัยที่ไม่สามารถตอบคำถามนี้ได้ครับ)",
+      "reasons": []
+    },
+    {
+      "id": 28,
+      "category": "unsupported_abstain",
+      "query": "   ",
+      "expected_source_type": "abstain",
+      "actual_source_type": "abstain",
+      "latency_seconds": 0.0,
+      "status": "PASS",
+      "answer": "กรุณาระบุคำถามที่ต้องการสอบถามเกี่ยวกับโดรนการเกษตรครับ",
+      "reasons": []
+    }
+  ]
+}
