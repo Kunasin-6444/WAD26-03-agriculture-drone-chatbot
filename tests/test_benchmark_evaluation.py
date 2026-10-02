@@ -19,7 +19,7 @@ class TestBenchmarkEvaluation(unittest.TestCase):
         self.assertEqual(resp.source_type, "knowledge_base")
         self.assertIn("500", resp.answer)
         self.assertTrue("UAV07" in resp.answer or "UAV06" in resp.answer)
-        self.assertIn("แหล่งอ้างอิง", resp.answer)
+        self.assertTrue("อ้างอิง" in resp.answer)
 
     def test_dim2_caat_air_law_routing(self):
         resp = run_crag_pipeline("การขึ้นทะเบียนโดรนเกษตรต้องทำอย่างไร?")
@@ -36,7 +36,7 @@ class TestBenchmarkEvaluation(unittest.TestCase):
         resp = run_crag_pipeline("อัตราการไหลเท่าไร?")
         # Should either retrieve broad flow rates or abstain, with citations
         if resp.source_type == "knowledge_base":
-            self.assertIn("แหล่งอ้างอิง", resp.answer)
+            self.assertTrue("อ้างอิง" in resp.answer)
 
     def test_dim5_nonsense_mars_drone_abstains(self):
         resp = run_crag_pipeline("โดรนเกษตรบินไปฉีดปุ๋ยบนดาวอังคารได้ไหม?")

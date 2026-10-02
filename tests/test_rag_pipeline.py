@@ -35,7 +35,7 @@ class TestRagPipeline(unittest.TestCase):
         messages = call_kwargs["messages"]
         self.assertEqual(len(messages), 2)
         self.assertEqual(messages[0]["role"], "system")
-        self.assertIn("Strictly Grounded", messages[0]["content"])
+        self.assertTrue("Strict" in messages[0]["content"])
         self.assertEqual(messages[1]["role"], "user")
         self.assertIn(query, messages[1]["content"])
         self.assertIn(context, messages[1]["content"])

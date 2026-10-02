@@ -61,10 +61,11 @@ class TestCragPipeline(unittest.TestCase):
 
     @patch("app.rag.crag_service.retrieve_context")
     @patch("app.rag.crag_service.grade_retrieval")
+    @patch("app.rag.crag_service.generate_grounded_answer")
     @patch("app.rag.crag_service.search_web_fallback")
     @patch("app.rag.crag_service.generate_web_grounded_answer")
     def test_out_of_scope_falls_back_to_web(
-        self, mock_gen_web, mock_search, mock_grade, mock_retrieve
+        self, mock_gen_web, mock_search, mock_gen_kb, mock_grade, mock_retrieve
     ):
         # Context has no relevant info
         mock_retrieve.return_value = "[แหล่งข้อมูล 1] UAV07 หน้า 12 พัดส้ม"

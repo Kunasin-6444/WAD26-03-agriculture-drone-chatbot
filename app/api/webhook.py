@@ -7,7 +7,7 @@ from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 from app.config import LINE_CHANNEL_SECRET
 from app.services.ai_service import ask_ai
-from app.services.line_service import reply_text
+from app.services.line_service import reply_text, show_loading_animation
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,10 @@ async def webhook(
         ):
             user_message = event.message.text
             reply_token = event.reply_token
+            user_id = getattr(event.source, "user_id", None)
+
+            # Trigger native LINE Loading Animation (bouncing dots) immediately
+            show_loading_animation(user_id, loading_seconds=20)
 
             try:
                 answer = ask_ai(user_message)

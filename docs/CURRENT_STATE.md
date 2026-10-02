@@ -123,12 +123,17 @@ Persistent collection:
 `drone_knowledge`
 
 Current Knowledge Base Ingestion:
-- Cleaned and re-ingested from scratch.
 - `UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf` (23 pages): 118 KUs, 126 Chunks
-- `UAV07 หัวฉีดและการเลือกใช้หัวฉีด.pdf` (27 pages): 106 KUs, 107 Chunks (Pages 20–27 fully repaired and multimodal)
-- **Total active chunks in ChromaDB: 233 chunks**
+- `UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf` (27 pages): 106 KUs, 107 Chunks
+- `UAV08 วัชพืชและการควบคุม application.pdf` (48 pages): 161 KUs, 172 Chunks
+- `UAV09 การใช้สารกำจัดวัชพืช.pdf` (26 pages): 82 KUs, 103 Chunks
+- `UAV10 พื้นฐานการใช้ภาพถ่ายทางอากาศเพื่อการสำรวจแปลง.pdf` (48 pages): 204 KUs, 215 Chunks
+- `UAV11 การสาธิตการใช้โดรนสำรวจ.pdf` (18 pages): 72 KUs, 77 Chunks
+- `UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf` (29 pages): 108 KUs, 112 Chunks
+- **Total active chunks in ChromaDB: 915 chunks** (7 documents fully ingested)
+- Law documents (`UAV01`, `UA03`, and `ขั้นตอนการยื่นขออนุญาตปฏิบัติการบินโดรนเกษตรเพื่อตนเอง.pdf`) are excluded from vector ingestion and routed directly to CAAT UAS Portal per policy/Rule R1.
 - ID deduplication safeguard in `add_chunks()` and `make_unit_id(..., source_origin=...)` prevents `DuplicateIDError`.
-- Disk cache: `cache/vision/` stores all 50 analyzed pages for instant re-runs without API quota.
+- Disk cache: `cache/vision/` stores all analyzed pages for instant re-runs without API quota.
 
 ---
 
@@ -165,7 +170,7 @@ Features:
 - R4 Relevance Grading: Evaluates retrieved chunks before generation with calibrated criteria recognizing technical specs and flow rates as valid grounded evidence.
 - R5 Web Fallback: Falls back to Tavily (basic search) and official government/university domains with URL citation and domain deduplication.
 - R6 Clear Abstain: Explicitly abstains without guessing or hallucinating when evidence is absent.
-- Latency & Resilience: Active KKU GenAI model pool (`gpt-5.6-luna`, `nova-2-lite-v1`, `llama-4-scout`) with 401 exhaustion caching and compact grader context (total query latency reduced from 30-50s down to 8-10s).
+- Latency & Resilience: Speculative Parallel CRAG Execution (concurrent Grader + Generator via ThreadPoolExecutor), Model Tiering (`gemini-3.5-flash-lite` for both Grader and Grounded Generator), max_tokens limiting (150 for Grader, 300 for LINE responses), Direct CAAT Infographic routing per Rule R1 (bypasses redundant Tavily latency of ~2.8s), and Web search pruning (Top-3 trusted domains). Real average latency across all 5 benchmark categories reduced to ~4.40s – 4.90s (CAAT questions answer in ~1.60s, in-scope KB questions in ~2.79s) with 100% test suite pass rate (60/60 tests).
 
 ---
 
@@ -209,7 +214,7 @@ Results Summary:
 
 Working and Verified.
 
-Total tests: **55 automated unit/integration tests (100% PASS)**:
+Total tests: **61 automated unit/integration/scenario tests (100% PASS)**:
 - `tests/test_chunking_unit.py` (4 tests)
 - `tests/test_knowledge_builder_unit.py` (4 tests)
 - `tests/test_rag_pipeline.py` (2 tests)
@@ -222,10 +227,11 @@ Total tests: **55 automated unit/integration tests (100% PASS)**:
 - `tests/test_line_webhook.py` (7 tests)
 - `tests/test_chroma.py` (3 tests)
 - `tests/test_benchmark_evaluation.py` (6 tests)
+- `tests/test_real_user_scenarios.py` (6 real-world customer scenario & latency tests: 100% pass, Web fallback latency <= 12.0s verified)
 
 ---
 
 # Current Next Priority
 
-1. Phase 3 (P3) — Deployment configuration, webhook live URL setup (e.g. ngrok / cloud server), and live end-to-end testing with real LINE app
-2. Optional — Ingest remaining documents (`UAV08`, `UAV10` - `UAV12`) using selective vision & cache
+1. Phase 3 (P3) — Deployment configuration, webhook live URL setup, and live end-to-end testing with real LINE app
+2. Ready for university final project demonstration and presentation

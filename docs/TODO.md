@@ -45,6 +45,11 @@
 - [x] Latency check
 - [x] Final documentation
 
-## Optional — Do only after core is stable
+## Future Roadmap — Planned after Core RAG is 100% Stable
 
-- [ ] SQLite conversation memory
+### P5 — Multi-turn Conversation Context (Session Memory)
+- Note: Explicitly deferred until Core RAG & Full Ingestion are 100% stable per project plan.
+- [ ] Session ID / User ID tracking (LINE User ID state mapping)
+- [ ] SQLite Conversation Memory (Sliding window of last 2-3 turns)
+- [ ] Query contextualizer / rephraser using previous turn context
+- [ ] Multi-turn regression test suite
