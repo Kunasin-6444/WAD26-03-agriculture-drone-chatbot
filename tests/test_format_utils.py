@@ -47,6 +47,21 @@ class TestFormatUtils(unittest.TestCase):
         formatted = format_response_layout(sample)
         self.assertIn("\n\n(แหล่งอ้างอิง: https://uasportal.caat.or.th/infographic)", formatted)
 
+    def test_inline_and_duplicate_citations_merged_into_one_line(self):
+        sample = (
+            "- ลมแรง: บินต่ำ (แหล่งอ้างอิง: UAV08 a.pdf, หน้า 35)\n"
+            "- ไม่มีลม: บินปกติ\n\n"
+            "(แหล่งข้อมูล: UAV07 b.pdf, หน้า 23)\n\n"
+            "(แหล่งอ้างอิง: UAV08 a.pdf, หน้า 35)"
+        )
+        formatted = format_response_layout(sample)
+        self.assertNotIn("แหล่งข้อมูล", formatted)
+        self.assertEqual(formatted.count("แหล่งอ้างอิง"), 1)
+        self.assertIn("- ลมแรง: บินต่ำ\n", formatted)
+        self.assertTrue(
+            formatted.endswith("\n\n(แหล่งอ้างอิง: UAV08 a.pdf, หน้า 35 / UAV07 b.pdf, หน้า 23)")
+        )
+
     def test_abstain_message_remains_clean(self):
         msg = "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้"
         self.assertEqual(format_response_layout(msg), msg)

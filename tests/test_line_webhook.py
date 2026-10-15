@@ -103,7 +103,7 @@ class TestLineWebhook(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "OK"})
-        mock_ask_ai.assert_called_once_with("หัวฉีดพัดส้มมีอัตราการไหลเท่าไร")
+        mock_ask_ai.assert_called_once_with("หัวฉีดพัดส้มมีอัตราการไหลเท่าไร", user_id="Uuser123")
         mock_reply_text.assert_called_once_with(
             "test_reply_token_abc123",
             "อัตราการไหล 500 ml/หัวฉีด (แหล่งอ้างอิง: UAV07, หน้า 12)",
@@ -153,6 +153,15 @@ class TestLineWebhook(unittest.TestCase):
         mock_reply_text.assert_called_once()
         sent_reply = mock_reply_text.call_args[0][1]
         self.assertIn("ขออภัย", sent_reply)
+
+    @patch("app.api.webhook.push_text")
+    @patch("app.api.webhook.reply_text", return_value=False)
+    @patch("app.api.webhook.ask_ai", return_value="คำตอบ")
+    def test_push_fallback_when_reply_token_fails(self, mock_ask_ai, mock_reply_text, mock_push_text):
+        from app.api.webhook import process_message
+
+        process_message("คำถาม", "expired_token", "Uuser123")
+        mock_push_text.assert_called_once_with("Uuser123", "คำตอบ")
 
     def test_reply_text_ignores_dummy_tokens(self):
         # Dummy verification tokens from LINE should be skipped cleanly

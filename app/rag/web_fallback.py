@@ -213,7 +213,7 @@ def generate_web_grounded_answer(
     is_caat_topic: bool = False,
     client: OpenAI | None = None,
     model: str = "gemini-3.5-flash-lite",
-    max_tokens: int = 420,
+    max_tokens: int = 1200,
 ) -> str:
     """
     Generate an answer grounded in web search results, citing URLs.

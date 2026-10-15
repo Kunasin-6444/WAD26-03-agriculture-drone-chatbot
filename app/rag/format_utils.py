@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import re
 
+_CITATION_LABEL = r"(?:แหล่งอ้างอิง|อ้างอิง|แหล่งที่มา|แหล่งข้อมูล)"
+_PAREN_CITATION_RE = re.compile(rf"\(\s*{_CITATION_LABEL}\s*:\s*([^()]+?)\s*\)")
+_LINE_CITATION_RE = re.compile(rf"^[ \t]*\(?\s*{_CITATION_LABEL}\s*:\s*(.+?)\)?[ \t]*$", re.MULTILINE)
+
 
 def format_response_layout(text: str, default_citation: str = "") -> str:
     """
@@ -9,8 +13,8 @@ def format_response_layout(text: str, default_citation: str = "") -> str:
     1. Strips unrendered Markdown (**bold**, *italic*, ### headers, backticks).
     2. Converts bullet indicators (*, -) into consistent bullet circles (•) and ensures
        each bullet point starts on its own line.
-    3. Guarantees that citations (e.g. '(แหล่งอ้างอิง: ...)' or '(อ้างอิง: ...)')
-       are cleanly isolated on their own line at the very bottom, preceded by a blank line (\\n\\n).
+    3. Collects every citation ('(แหล่งอ้างอิง: ...)', 'แหล่งข้อมูล: ...', inline or at the end),
+       de-duplicates them and merges them into ONE line at the very bottom, preceded by a blank line (\\n\\n).
     4. If the LLM omitted the citation on a grounded answer, uses default_citation as a safety guardrail.
     """
     if not text or not text.strip():
@@ -35,32 +39,20 @@ def format_response_layout(text: str, default_citation: str = "") -> str:
     # Remove any dangling or unpaired Markdown tokens
     cleaned = cleaned.replace("**", "").replace("###", "").replace("##", "")
 
-    # 2. Extract isolated citation block from the text (supports parenthesized and unparenthesized)
-    citation = ""
-    body = cleaned
+    # 2. Collect every citation (end, inline, or broken across lines) and merge them into one
+    citations: list[str] = []
 
-    # Try matching parenthesized citation at the end: (แหล่งอ้างอิง: ...) or (อ้างอิง: ...) or (แหล่งที่มา: ...)
-    paren_match = re.search(
-        r"(\((?:แหล่งอ้างอิง|อ้างอิง|แหล่งที่มา):\s*[\s\S]+?\))\s*$",
-        cleaned,
-    )
-    if paren_match:
-        citation = paren_match.group(1).strip()
-        body = cleaned[: paren_match.start()].strip()
-    else:
-        # Try matching unparenthesized citation block at the end
-        unparen_match = re.search(
-            r"((?:แหล่งอ้างอิง|อ้างอิง|แหล่งที่มา):\s*[\s\S]+)$",
-            cleaned,
-        )
-        if unparen_match:
-            raw_cite = unparen_match.group(1).strip()
-            # If it's a simple single line or URL list, wrap in parentheses if needed or format nicely
-            if not raw_cite.startswith("(") and "\n" not in raw_cite:
-                citation = f"({raw_cite})"
-            else:
-                citation = raw_cite
-            body = cleaned[: unparen_match.start()].strip()
+    def _collect(match: re.Match) -> str:
+        cite = re.sub(r"\s+", " ", match.group(1)).strip().rstrip(".")
+        if cite and cite not in citations:
+            citations.append(cite)
+        return ""
+
+    body = _PAREN_CITATION_RE.sub(_collect, cleaned)
+    body = _LINE_CITATION_RE.sub(_collect, body)
+    body = re.sub(r"\(\s*\)", "", body)
+    body = re.sub(r"[ \t]+$", "", body, flags=re.MULTILINE).strip()
+    citation = f"(แหล่งอ้างอิง: {' / '.join(citations)})" if citations else ""
 
     # 3. Standardize bullet points in the body
     # Convert asterisk bullets at line start to '• ', while keeping dashes (-) for sub-items

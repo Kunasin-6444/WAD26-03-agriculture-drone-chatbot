@@ -4,6 +4,7 @@ from linebot.v3.messaging import (
     ApiClient,
     Configuration,
     MessagingApi,
+    PushMessageRequest,
     ReplyMessageRequest,
     ShowLoadingAnimationRequest,
     TextMessage,
@@ -48,6 +49,29 @@ def reply_text(reply_token: str, text: str) -> bool:
             return True
     except Exception as e:
         logger.error(f"Failed to send LINE reply: {e}")
+        return False
+
+
+def push_text(user_id: str | None, text: str) -> bool:
+    """
+    Fallback delivery via Push API when the reply token has expired or failed
+    (e.g. a slow answer). Consumes push quota, so it is used only as a backup.
+    """
+    if not user_id or user_id.startswith("test_"):
+        return False
+
+    try:
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.push_message(
+                PushMessageRequest(
+                    to=user_id,
+                    messages=[TextMessage(text=text[:4950])],
+                )
+            )
+            return True
+    except Exception as e:
+        logger.error(f"Failed to push LINE message: {e}")
         return False
 
 
