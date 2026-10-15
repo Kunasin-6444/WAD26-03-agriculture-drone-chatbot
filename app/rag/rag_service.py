@@ -73,7 +73,14 @@ def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model
     ai_client = client or get_llm_client()
     preferred = preferred_model or os.getenv("RAG_MODEL", "gemini-3.5-flash-lite")
     candidates = list(dict.fromkeys([preferred] + FALLBACK_MODELS))
-    candidates = [m for m in candidates if _EXHAUSTED_MODELS.get(m, 0) <= time.monotonic()]
+    now = time.monotonic()
+    available = [m for m in candidates if _EXHAUSTED_MODELS.get(m, 0) <= now]
+    if not available:
+        # Everything is cooling down. A short (transient) cooldown means the provider throttled a
+        # burst, not that quota is gone: keep trying instead of failing every request for a
+        # minute. Long (daily-limit) cooldowns still fail fast so they don't burn the budget.
+        available = [m for m in candidates if _EXHAUSTED_MODELS.get(m, 0) - now <= TRANSIENT_COOLDOWN_SECONDS]
+    candidates = available
     if not candidates:
         raise LLMUnavailableError("All LLM models are in quota/rate-limit cooldown")
     attempted = failed = 0
@@ -100,6 +107,7 @@ def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model
                 continue
             content = choice.message.content
             if isinstance(content, str) and content.strip():
+                _EXHAUSTED_MODELS.pop(model, None)
                 return content
         except Exception as exc:
             failed += 1
