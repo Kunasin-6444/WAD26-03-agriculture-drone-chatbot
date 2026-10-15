@@ -10,13 +10,20 @@ from threading import Lock
 
 from openai import OpenAI
 
-from app.config import API_KEY
+from app.config import LLM_API_KEY, LLM_BASE_URL
 from app.rag.evidence import Evidence, GroundedResult, parse_grounded_result
 
 logger = logging.getLogger(__name__)
 _llm_client: OpenAI | None = None
 _client_lock = Lock()
-FALLBACK_MODELS = ["gemini-3.5-flash-lite", "gpt-5.6-luna", "nova-2-lite-v1"]
+_DEFAULT_FALLBACK_MODELS = ["gemini-3.5-flash-lite", "gpt-5.6-luna", "nova-2-lite-v1"]
+# LLM_FALLBACK_MODELS (comma-separated) overrides this; set it empty to disable fallbacks.
+# Needed when LLM_BASE_URL is not the KKU gateway, since those model names don't exist elsewhere.
+_fallback_env = os.getenv("LLM_FALLBACK_MODELS")
+FALLBACK_MODELS = (
+    _DEFAULT_FALLBACK_MODELS if _fallback_env is None
+    else [m.strip() for m in _fallback_env.split(",") if m.strip()]
+)
 _EXHAUSTED_MODELS: dict[str, float] = {}
 # A "daily limit" 401 won't clear until the quota resets; a transient 401/429 usually will.
 DAILY_LIMIT_COOLDOWN_SECONDS = 30 * 60
@@ -34,7 +41,7 @@ def get_llm_client() -> OpenAI:
     global _llm_client
     with _client_lock:
         if _llm_client is None:
-            _llm_client = OpenAI(api_key=API_KEY, base_url="https://gen.ai.kku.ac.th/api/v1", timeout=8.0, max_retries=0)
+            _llm_client = OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL, timeout=8.0, max_retries=0)
     return _llm_client
 
 
