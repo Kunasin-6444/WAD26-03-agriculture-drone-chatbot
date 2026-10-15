@@ -25,6 +25,28 @@ FALLBACK_MODELS = (
     else [m.strip() for m in _fallback_env.split(",") if m.strip()]
 )
 _EXHAUSTED_MODELS: dict[str, float] = {}
+# Optional thinking-budget hint (e.g. none/minimal/low/medium/high) for reasoning-capable models
+# such as Gemini 3.x; unset sends nothing so providers that reject the field are unaffected.
+REASONING_EFFORT = (os.getenv("LLM_REASONING_EFFORT") or "").strip().lower()
+# Enforce the grounded-answer JSON schema server-side (response_format json_schema). Off by
+# default because not every OpenAI-compatible provider supports it; parse_grounded_result stays
+# the real gate either way.
+STRUCTURED_OUTPUT = (os.getenv("LLM_STRUCTURED_OUTPUT") or "").strip().lower() in {"1", "true", "yes", "on"}
+_GROUNDED_RESPONSE_FORMAT = {"type": "json_schema", "json_schema": {"name": "grounded_answer", "strict": True, "schema": {
+    "type": "object",
+    "properties": {
+        "status": {"type": "string", "enum": ["sufficient", "partial", "insufficient"]},
+        "reason": {"type": "string"},
+        "is_caat_topic": {"type": "boolean"},
+        "missing_aspects": {"type": "array", "items": {"type": "string"}},
+        "claims": {"type": "array", "items": {"type": "object", "properties": {
+            "text": {"type": "string"},
+            "evidence": {"type": "array", "items": {"type": "object", "properties": {
+                "source_id": {"type": "string"}, "quote": {"type": "string"}},
+                "required": ["source_id", "quote"]}}},
+            "required": ["text", "evidence"]}},
+    },
+    "required": ["status", "reason", "is_caat_topic", "missing_aspects", "claims"]}}}
 # A "daily limit" 401 won't clear until the quota resets; a transient 401/429 usually will.
 DAILY_LIMIT_COOLDOWN_SECONDS = 30 * 60
 TRANSIENT_COOLDOWN_SECONDS = 60
@@ -64,8 +86,11 @@ def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model
             # Generous headroom for the structured JSON (claims + citation quotes): a
             # real production chat log showed truncated answers at a lower limit. Output
             # that still hits this limit is discarded below rather than used truncated.
+            extra = {"extra_body": {"reasoning_effort": REASONING_EFFORT}} if REASONING_EFFORT else {}
+            if STRUCTURED_OUTPUT:
+                extra["response_format"] = _GROUNDED_RESPONSE_FORMAT
             response = ai_client.chat.completions.create(model=model, messages=messages, temperature=temperature,
-                max_tokens=max_tokens or 2200, stream=False, timeout=min(8.0, remaining))
+                max_tokens=max_tokens or 2200, stream=False, timeout=min(8.0, remaining), **extra)
             _log_model_quota(model, response)
             if not response or not response.choices:
                 continue
