@@ -14,6 +14,8 @@ Professional Multimodal RAG Retrieval Architecture for Agriculture Drone Slides:
 from __future__ import annotations
 
 import logging
+import math
+import os
 import re
 from typing import Any
 
@@ -26,6 +28,17 @@ logger = logging.getLogger(__name__)
 
 # Crops known in the knowledge base
 SUPPORTED_CROPS = ["อ้อย", "ข้าว", "ข้าวโพด", "ถั่วเหลือง", "ถั่วลิสง", "มันสำปะหลัง"]
+
+# Retrieval switches. Defaults are the best configuration measured with scripts/eval_retrieval.py
+# (global/none: dev hit@8 17/17 MRR .87, holdout hit@8 8/8 MRR .82; the hand-tuned `legacy`
+# multipliers scored 16/17 .80 and 7/8 .58). `legacy`/`top50` are kept only for comparison.
+#   RETRIEVER_BM25   top50  = BM25 only over the dense top-50 (legacy)
+#                    global = BM25 with IDF over the whole collection, fused with dense by RRF
+#   RETRIEVER_RERANK legacy = hand-tuned topic/keyword multipliers + topic quotas
+#                    crop   = only the crop metadata boost/penalty, plain top-k
+#                    none   = fused RRF order, plain top-k
+RETRIEVER_BM25 = os.getenv("RETRIEVER_BM25", "global").strip().lower()
+RETRIEVER_RERANK = os.getenv("RETRIEVER_RERANK", "none").strip().lower()
 
 
 def tokenize_thai_terms(text: str) -> list[str]:
@@ -66,6 +79,7 @@ def compute_bm25_score(
     avg_dl: float,
     k1: float = 1.5,
     b: float = 0.75,
+    idf: dict[str, float] | None = None,
 ) -> float:
     """Compute standard BM25 score for a document given query tokens."""
     if not doc_tokens or not query_tokens:
@@ -81,8 +95,57 @@ def compute_bm25_score(
             tf = tf_map[qt]
             numerator = tf * (k1 + 1.0)
             denominator = tf + k1 * (1.0 - b + b * (doc_len / (avg_dl or 1.0)))
-            score += numerator / denominator
+            weight = idf.get(qt, 0.0) if idf is not None else 1.0
+            score += weight * numerator / denominator
     return score
+
+
+_bm25_cache: dict[str, Any] = {}
+
+
+def _bm25_index() -> dict[str, Any]:
+    """In-memory BM25 statistics over every chunk (the collection is small); rebuilt when it changes."""
+    count = collection.count()
+    if _bm25_cache.get("count") == count and _bm25_cache.get("index"):
+        return _bm25_cache["index"]
+    data = collection.get(include=["documents", "metadatas"])
+    docs, metas = data["documents"], data["metadatas"]
+    tokens = [tokenize_thai_terms(d or "") for d in docs]
+    df: dict[str, int] = {}
+    for toks in tokens:
+        for term in set(toks):
+            df[term] = df.get(term, 0) + 1
+    n = len(docs)
+    idf = {term: math.log(1.0 + (n - c + 0.5) / (c + 0.5)) for term, c in df.items()}
+    index = {"docs": docs, "metas": metas, "tokens": tokens, "idf": idf,
+             "avgdl": sum(len(t) for t in tokens) / (n or 1)}
+    _bm25_cache.update(count=count, index=index)
+    return index
+
+
+def _apply_global_bm25(candidates: list[dict[str, Any]], q_tokens: list[str], dense_count: int) -> None:
+    """Replace top-50-only BM25 by corpus-wide BM25 and add lexical hits dense search missed."""
+    index = _bm25_index()
+    scored = sorted(((compute_bm25_score(q_tokens, toks, index["avgdl"], idf=index["idf"]), i)
+                     for i, toks in enumerate(index["tokens"])), reverse=True)
+    position: dict[str, tuple[int, float]] = {}
+    for pos, (score, i) in enumerate(scored, 1):
+        position.setdefault(index["docs"][i], (pos, score))
+    known = {c["doc"] for c in candidates}
+    for c in candidates:
+        c["bm25_rank"], c["bm25_score"] = position.get(c["doc"], (len(scored) + 1, 0.0))
+    extra = 0
+    for pos, (score, i) in enumerate(scored[:50], 1):
+        doc, meta = index["docs"][i], index["metas"][i] or {}
+        if score <= 0 or not doc or doc in known or is_excluded_document(meta.get("source_file", "")):
+            continue
+        known.add(doc)
+        extra += 1
+        candidates.append({"doc": doc, "meta": meta, "dense_rank": dense_count + extra, "dense_sim": 0.0,
+                           "bm25_score": score, "bm25_rank": pos,
+                           "source_file": meta.get("source_file", "unknown"),
+                           "page_number": str(meta.get("page_number", "unknown")),
+                           "source_type": meta.get("source_type", "text")})
 
 
 def classify_slide_topic(content: str) -> str:
@@ -219,6 +282,12 @@ def search_slides_pipeline(
     for b_rank, cand in enumerate(candidates_by_bm25):
         cand["bm25_rank"] = b_rank + 1
 
+    if RETRIEVER_BM25 == "global":
+        try:
+            _apply_global_bm25(candidates, q_tokens, len(raw_docs))
+        except Exception as exc:  # keep the dense + top-50 ranking rather than failing the request
+            logger.warning("Global BM25 unavailable (%s); using top-50 BM25", type(exc).__name__)
+
     # -----------------------------------------------------------------
     # Step 3: Visual & Structured Expansion + Step 4: Merge and Deduplicate
     # -----------------------------------------------------------------
@@ -302,7 +371,7 @@ def search_slides_pipeline(
         content = page["content"]
 
         # Crop alignment: boost matching crop, heavily penalize conflicting crops
-        if target_crop:
+        if target_crop and RETRIEVER_RERANK != "none":
             if target_crop in content:
                 score *= 2.0
             other_crops = [
@@ -313,45 +382,73 @@ def search_slides_pipeline(
             if other_crops:
                 score *= 0.05
 
-        # Timeline alignment: for queries specifying crop age (e.g. 2 เดือน)
-        if any(term in norm_query for term in ["2 เดือน", "60 วัน", "แตกกอ"]):
-            if any(term in content for term in ["1-4 เดือน", "แตกกอ", "30-120 วัน", "2 เดือน", "60 วัน"]):
+        if RETRIEVER_RERANK == "legacy":
+            # Timeline alignment: for queries specifying crop age (e.g. 2 เดือน)
+            if any(term in norm_query for term in ["2 เดือน", "60 วัน", "แตกกอ"]):
+                if any(term in content for term in ["1-4 เดือน", "แตกกอ", "30-120 วัน", "2 เดือน", "60 วัน"]):
+                    score *= 2.5
+
+            # Herbicide & weed spraying alignment:
+            is_spraying_or_weed_query = any(
+                term in norm_query
+                for term in ["ฉีด", "พ่น", "วัชพืช", "กำจัดวัชพืช", "ยาคุม", "ยาฆ่า", "สารเคมี", "หญ้า"]
+            )
+            if is_spraying_or_weed_query:
+                # Boost official chemical recommendation tables (e.g. UAV06 p.18)
+                has_chemical_table = any(
+                    k in content
+                    for k in ["พ่นหลังวัชพืชงอก", "พ่นก่อนวัชพืชงอก", "สารกำจัดวัชพืช", "ใบแคบและกว้าง", "วัชพืชที่ควบคุมได้", "อัตราการใช้"]
+                )
+                if has_chemical_table:
+                    score *= 3.5
+                    # If query asks about standing crop (e.g. 2 เดือน / 60 วัน / แตกกอ), boost post-emergence specifically
+                    if any(k in norm_query for k in ["2 เดือน", "60 วัน", "หลังงอก", "แตกกอ"]) and "พ่นหลังวัชพืชงอก" in content:
+                        score *= 2.0
+
+                # Also boost operational flight parameters for drone spraying (e.g. altitude, speed, droplet density)
+                has_flight_specs = any(
+                    k in content
+                    for k in ["ความสูง", "ความเร็ว", "m/s", "1.5", "2.0", "รอบการทำงาน", "1600", "การพ่นละอองของโดรน"]
+                ) and any(k in content for k in ["โดรน", "พ่น", "ฉีด"])
+                if has_flight_specs:
+                    score *= 1.8
+
+            # Nozzle alignment: for queries about nozzles / droplet size / flow rate
+            is_nozzle_query = any(
+                term in norm_query
+                for term in ["หัวฉีด", "อัตราการไหล", "ละออง", "พัดส้ม", "พัดฟ้า", "พัดน้ำเงิน"]
+            )
+            if is_nozzle_query and page["topic"] == "nozzles":
                 score *= 2.5
 
-        # Herbicide & weed spraying alignment:
-        is_spraying_or_weed_query = any(
-            term in norm_query
-            for term in ["ฉีด", "พ่น", "วัชพืช", "กำจัดวัชพืช", "ยาคุม", "ยาฆ่า", "สารเคมี", "หญ้า"]
-        )
-        if is_spraying_or_weed_query:
-            # Boost official chemical recommendation tables (e.g. UAV06 p.18)
-            has_chemical_table = any(
-                k in content
-                for k in ["พ่นหลังวัชพืชงอก", "พ่นก่อนวัชพืชงอก", "สารกำจัดวัชพืช", "ใบแคบและกว้าง", "วัชพืชที่ควบคุมได้", "อัตราการใช้"]
+            # Survey alignment: for queries about aerial survey, GSD, overlap, altitude, flight conditions
+            is_survey_query = any(
+                term in norm_query
+                for term in [
+                    "สำรวจ", "ภาพถ่าย", "gsd", "overlap", "ความละเอียด",
+                    "แผนการบิน", "เงื่อนไขการบิน", "ตั้งค่าการบิน", "คุณภาพของภาพถ่าย"
+                ]
             )
-            if has_chemical_table:
-                score *= 3.5
-                # If query asks about standing crop (e.g. 2 เดือน / 60 วัน / แตกกอ), boost post-emergence specifically
-                if any(k in norm_query for k in ["2 เดือน", "60 วัน", "หลังงอก", "แตกกอ"]) and "พ่นหลังวัชพืชงอก" in content:
+            if is_survey_query:
+                if page["topic"] == "survey":
+                    score *= 2.5
+                if any(term in content.lower() for term in ["gsd", "overlap", "คุณภาพของภาพถ่าย", "speed", "ความสูง"]):
                     score *= 2.0
 
-            # Also boost operational flight parameters for drone spraying (e.g. altitude, speed, droplet density)
-            has_flight_specs = any(
-                k in content
-                for k in ["ความสูง", "ความเร็ว", "m/s", "1.5", "2.0", "รอบการทำงาน", "1600", "การพ่นละอองของโดรน"]
-            ) and any(k in content for k in ["โดรน", "พ่น", "ฉีด"])
-            if has_flight_specs:
-                score *= 1.8
+        page["rerank_score"] = score
 
-        # Nozzle alignment: for queries about nozzles / droplet size / flow rate
+    reranked = sorted(deduped_pages, key=lambda x: x["rerank_score"], reverse=True)
+
+    if RETRIEVER_RERANK != "legacy":
+        selected = reranked[:top_k]
+    else:
+        # Topic-diverse selection (MMR): preserve breadth while honoring query focus
+        selected = []
+        seen_topics: dict[str, int] = {}
         is_nozzle_query = any(
             term in norm_query
             for term in ["หัวฉีด", "อัตราการไหล", "ละออง", "พัดส้ม", "พัดฟ้า", "พัดน้ำเงิน"]
         )
-        if is_nozzle_query and page["topic"] == "nozzles":
-            score *= 2.5
-
-        # Survey alignment: for queries about aerial survey, GSD, overlap, altitude, flight conditions
         is_survey_query = any(
             term in norm_query
             for term in [
@@ -359,55 +456,32 @@ def search_slides_pipeline(
                 "แผนการบิน", "เงื่อนไขการบิน", "ตั้งค่าการบิน", "คุณภาพของภาพถ่าย"
             ]
         )
-        if is_survey_query:
-            if page["topic"] == "survey":
-                score *= 2.5
-            if any(term in content.lower() for term in ["gsd", "overlap", "คุณภาพของภาพถ่าย", "speed", "ความสูง"]):
-                score *= 2.0
-
-        page["rerank_score"] = score
-
-    reranked = sorted(deduped_pages, key=lambda x: x["rerank_score"], reverse=True)
-
-    # Topic-diverse selection (MMR): preserve breadth while honoring query focus
-    selected = []
-    seen_topics: dict[str, int] = {}
-    is_nozzle_query = any(
-        term in norm_query
-        for term in ["หัวฉีด", "อัตราการไหล", "ละออง", "พัดส้ม", "พัดฟ้า", "พัดน้ำเงิน"]
-    )
-    is_survey_query = any(
-        term in norm_query
-        for term in [
-            "สำรวจ", "ภาพถ่าย", "gsd", "overlap", "ความละเอียด",
-            "แผนการบิน", "เงื่อนไขการบิน", "ตั้งค่าการบิน", "คุณภาพของภาพถ่าย"
-        ]
-    )
-    is_spraying_query = any(
-        term in norm_query
-        for term in ["ฉีด", "พ่น", "วัชพืช", "กำจัดวัชพืช", "ยาคุม", "ยาฆ่า", "สารเคมี", "หญ้า"]
-    )
-
-    for p in reranked:
-        topic = p["topic"]
-        max_per_topic = (
-            top_k
-            if (is_nozzle_query and topic == "nozzles")
-            or (is_survey_query and topic == "survey")
-            else (4 if (is_spraying_query and topic == "herbicides") else 2)
+        is_spraying_query = any(
+            term in norm_query
+            for term in ["ฉีด", "พ่น", "วัชพืช", "กำจัดวัชพืช", "ยาคุม", "ยาฆ่า", "สารเคมี", "หญ้า"]
         )
-        if seen_topics.get(topic, 0) < max_per_topic:
-            selected.append(p)
-            seen_topics[topic] = seen_topics.get(topic, 0) + 1
-        if len(selected) >= top_k:
-            break
 
-    if len(selected) < top_k:
         for p in reranked:
-            if p not in selected:
+            topic = p["topic"]
+            max_per_topic = (
+                top_k
+                if (is_nozzle_query and topic == "nozzles")
+                or (is_survey_query and topic == "survey")
+                else (4 if (is_spraying_query and topic == "herbicides") else 2)
+            )
+            if seen_topics.get(topic, 0) < max_per_topic:
                 selected.append(p)
+                seen_topics[topic] = seen_topics.get(topic, 0) + 1
             if len(selected) >= top_k:
                 break
+
+        if len(selected) < top_k:
+            for p in reranked:
+                if p not in selected:
+                    selected.append(p)
+                if len(selected) >= top_k:
+                    break
+
 
     # -----------------------------------------------------------------
     # Step 6: Context Assembly

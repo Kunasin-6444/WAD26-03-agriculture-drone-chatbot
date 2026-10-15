@@ -54,7 +54,7 @@ class RetrievalStorageContractTests(unittest.TestCase):
             "metadatas": [[metadata, {**metadata, "page_number": "13"}]], "distances": [[0.1, 0.2]]}
         fake.get.return_value = {"documents": ["TEXT_EVIDENCE", "TABLE_EVIDENCE", "CHART_EVIDENCE", "OTHER_PAGE"],
             "metadatas": [metadata, {**metadata, "source_type": "table"}, {**metadata, "source_type": "chart"}, {**metadata, "page_number": "13"}]}
-        with patch("app.rag.slide_retriever.collection", fake), patch("app.rag.slide_retriever.embed_text", return_value=[1.0]) as embed:
+        with patch("app.rag.slide_retriever.RETRIEVER_BM25", "top50"), patch("app.rag.slide_retriever.RETRIEVER_RERANK", "legacy"), patch("app.rag.slide_retriever.collection", fake), patch("app.rag.slide_retriever.embed_text", return_value=[1.0]) as embed:
             result = search_slides_pipeline("หัวฉีด", top_k=2)
         for content in ["TEXT_EVIDENCE", "TABLE_EVIDENCE", "CHART_EVIDENCE", "OTHER_PAGE"]:
             self.assertIn(content, result["context"])
@@ -66,7 +66,7 @@ class RetrievalStorageContractTests(unittest.TestCase):
     def test_retrieval_filters_excluded_documents_even_if_already_indexed(self):
         fake = MagicMock()
         fake.query.return_value = {"documents": [["old law"]], "metadatas": [[{"source_file": "UAV01 Air Law.pdf", "page_number": "1"}]], "distances": [[0.1]]}
-        with patch("app.rag.slide_retriever.collection", fake), patch("app.rag.slide_retriever.embed_text", return_value=[1.0]):
+        with patch("app.rag.slide_retriever.RETRIEVER_BM25", "top50"), patch("app.rag.slide_retriever.RETRIEVER_RERANK", "legacy"), patch("app.rag.slide_retriever.collection", fake), patch("app.rag.slide_retriever.embed_text", return_value=[1.0]):
             self.assertEqual(search_slides_pipeline("โดรน")["context"], "")
         fake.get.assert_not_called()
 
@@ -74,5 +74,5 @@ class RetrievalStorageContractTests(unittest.TestCase):
         fake = MagicMock()
         fake.query.return_value = {"documents": [["หัวฉีด 500 ml"]], "metadatas": [[{"source_file": "UAV07.pdf", "page_number": "12", "source_type": "text"}]], "distances": [[0.1]]}
         fake.get.side_effect = RuntimeError("failed")
-        with patch("app.rag.slide_retriever.collection", fake), patch("app.rag.slide_retriever.embed_text", return_value=[1.0]):
+        with patch("app.rag.slide_retriever.RETRIEVER_BM25", "top50"), patch("app.rag.slide_retriever.RETRIEVER_RERANK", "legacy"), patch("app.rag.slide_retriever.collection", fake), patch("app.rag.slide_retriever.embed_text", return_value=[1.0]):
             self.assertIn("500 ml", search_slides_pipeline("หัวฉีด")["context"])
