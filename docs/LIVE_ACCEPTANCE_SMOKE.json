@@ -1,0 +1,165 @@
+{
+  "generated_at": "2026-10-15T07:40:55.221782+07:00",
+  "mode": "live",
+  "note": "Automatic evidence/routing/aspect checks; full semantic support requires manual source review. Provider timeouts are request budgets, not latency guarantees.",
+  "total": 3,
+  "contract_passed": 3,
+  "latency_passed": 2,
+  "mean_seconds": 8.339,
+  "p95_seconds": 18.484,
+  "results": [
+    {
+      "id": 1,
+      "query": "หัวฉีดพัดส้มมีอัตราการไหลเท่าไรต่อหัวฉีด",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "500",
+        "1600"
+      ],
+      "citations": [],
+      "citation_groups": [
+        [
+          "UAV07",
+          "หน้า 12"
+        ],
+        [
+          "UAV06",
+          "หน้า 5"
+        ]
+      ],
+      "target_seconds": 8,
+      "answer": "• หัวฉีดพัดส้มมีปริมาณ 500 มล. ต่อหัวฉีด ที่รอบ 1600 rpm [1]\n\nยังยืนยันไม่ได้: ช่วงเวลาอ้างอิงของปริมาณ 500 มล./หัวฉีดเพื่อแปลงเป็นลิตรต่อนาที\n\nแหล่งอ้างอิง:\n[1] UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+      "source_type": "knowledge_base",
+      "grade": "AMBIGUOUS",
+      "grade_reason": "มีค่าปริมาณต่อหัวฉีดและรอบการทำงาน แต่ไม่ได้ระบุช่วงเวลา จึงยังแปลงเป็นอัตราไหล เช่น ลิตร/นาทีไม่ได้",
+      "timings": {
+        "retrieval_ms": 3469.0,
+        "kb_generation_ms": 6593.0,
+        "web_search_ms": 4547.0,
+        "final_generation_ms": 3875.0,
+        "total_ms": 18484.0
+      },
+      "evidence_trace": [
+        {
+          "text": "หัวฉีดพัดส้มมีปริมาณ 500 มล. ต่อหัวฉีด ที่รอบ 1600 rpm",
+          "evidence": [
+            {
+              "source_id": "D4",
+              "quote": "1 | พัดส้ม | 1600 | 500 | 1500",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5"
+            }
+          ]
+        }
+      ],
+      "seconds": 18.484,
+      "contract_pass": true,
+      "latency_pass": false,
+      "reasons": []
+    },
+    {
+      "id": 2,
+      "query": "ที่ความสูง 1 เมตร หน้ากว้างการฉีดพ่นต่อหัวเท่าไร",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "2.8"
+      ],
+      "citations": [],
+      "citation_groups": [
+        [
+          "UAV07",
+          "หน้า 12"
+        ],
+        [
+          "UAV06",
+          "หน้า 5"
+        ]
+      ],
+      "target_seconds": 8,
+      "answer": "• ที่ความสูง 1 เมตร หน้ากว้างการฉีดพ่นต่อหัวคือ 2.856 เมตร [1]\n\nแหล่งอ้างอิง:\n[1] UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "มีตารางระบุหน้ากว้างการฉีดพ่นต่อหัวที่ความสูง 1.0 เมตรโดยตรง",
+      "timings": {
+        "retrieval_ms": 672.0,
+        "kb_generation_ms": 1985.0,
+        "total_ms": 2657.0
+      },
+      "evidence_trace": [
+        {
+          "text": "ที่ความสูง 1 เมตร หน้ากว้างการฉีดพ่นต่อหัวคือ 2.856 เมตร",
+          "evidence": [
+            {
+              "source_id": "D3",
+              "quote": "Height (m) | Width (m) / nozzle | Width (m) / 3 nozzle \n 0.5 | 1.428 | 3.128 \n 1.0 | 2.856 | 4.556",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5"
+            }
+          ]
+        }
+      ],
+      "seconds": 2.657,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 3,
+      "query": "พัดส้มมีอัตราการไหลและหน้ากว้างพ่นที่ความสูง 1 เมตรเท่าไร",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "500",
+        "2.8"
+      ],
+      "citations": [],
+      "citation_groups": [
+        [
+          "UAV07"
+        ],
+        [
+          "UAV06"
+        ]
+      ],
+      "target_seconds": 8,
+      "answer": "• พัดส้มมีอัตราการไหล 500 มล./หัวฉีด หรือ 1,500 มล. สำหรับ 3 หัวฉีด ที่รอบ 1600 rpm [1]\n• ที่ความสูง 1 เมตร หน้ากว้างพ่นคือ 2.856 เมตรต่อหัวฉีด และ 4.556 เมตรสำหรับ 3 หัวฉีด [1]\n\nแหล่งอ้างอิง:\n[1] UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "มีข้อมูลอัตราการไหลของพัดส้มและหน้ากว้างที่ความสูง 1 เมตรครบถ้วน โดยระบุเงื่อนไขรอบ 1600 rpm",
+      "timings": {
+        "retrieval_ms": 563.0,
+        "kb_generation_ms": 3312.0,
+        "total_ms": 3875.0
+      },
+      "evidence_trace": [
+        {
+          "text": "พัดส้มมีอัตราการไหล 500 มล./หัวฉีด หรือ 1,500 มล. สำหรับ 3 หัวฉีด ที่รอบ 1600 rpm",
+          "evidence": [
+            {
+              "source_id": "D3",
+              "quote": "1 | พัดส้ม | 1600 | 500 | 1500",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5"
+            }
+          ]
+        },
+        {
+          "text": "ที่ความสูง 1 เมตร หน้ากว้างพ่นคือ 2.856 เมตรต่อหัวฉีด และ 4.556 เมตรสำหรับ 3 หัวฉีด",
+          "evidence": [
+            {
+              "source_id": "D3",
+              "quote": "1.0 | 2.856 | 4.556",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5"
+            }
+          ]
+        }
+      ],
+      "seconds": 3.875,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    }
+  ]
+}

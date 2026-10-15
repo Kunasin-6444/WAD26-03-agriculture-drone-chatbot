@@ -4,6 +4,7 @@ from linebot.v3.messaging import (
     ApiClient,
     Configuration,
     MessagingApi,
+    PushMessageRequest,
     ReplyMessageRequest,
     ShowLoadingAnimationRequest,
     TextMessage,
@@ -32,7 +33,8 @@ def reply_text(reply_token: str, text: str) -> bool:
         logger.info("Ignoring dummy/test reply token from LINE verification.")
         return True
 
-    safe_text = text[:4950] if len(text) > 4950 else text
+    # Never silently remove a citation at the end of a long answer.
+    safe_text = text if len(text) <= 4950 else "คำตอบยาวเกินขอบเขต กรุณาระบุประเด็นให้เฉพาะเจาะจงขึ้นครับ"
 
     try:
         with ApiClient(configuration) as api_client:
@@ -48,6 +50,32 @@ def reply_text(reply_token: str, text: str) -> bool:
             return True
     except Exception as e:
         logger.error(f"Failed to send LINE reply: {e}")
+        return False
+
+
+def push_text(user_id: str | None, text: str) -> bool:
+    """
+    Fallback delivery via the Push API for when the reply token has expired or
+    failed (e.g. a slow answer). Consumes push quota, so use only as a backup
+    to reply_text, never as the primary send path.
+    """
+    if not user_id or user_id.startswith("test_") or user_id in DUMMY_REPLY_TOKENS:
+        return False
+
+    safe_text = text if len(text) <= 4950 else "คำตอบยาวเกินขอบเขต กรุณาระบุประเด็นให้เฉพาะเจาะจงขึ้นครับ"
+
+    try:
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.push_message(
+                PushMessageRequest(
+                    to=user_id,
+                    messages=[TextMessage(text=safe_text)],
+                )
+            )
+            return True
+    except Exception as e:
+        logger.error(f"Failed to push LINE message: {e}")
         return False
 
 

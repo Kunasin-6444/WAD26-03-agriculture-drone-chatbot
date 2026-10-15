@@ -1,13 +1,15 @@
 import logging
+import asyncio
 
 from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from linebot.v3 import WebhookParser
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 from app.config import LINE_CHANNEL_SECRET
 from app.services.ai_service import ask_ai
-from app.services.line_service import reply_text, show_loading_animation
+from app.services.line_service import DUMMY_REPLY_TOKENS, push_text, reply_text, show_loading_animation
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +47,14 @@ async def webhook(
             reply_token = event.reply_token
             user_id = getattr(event.source, "user_id", None)
 
+            if not reply_token or reply_token in DUMMY_REPLY_TOKENS:
+                continue
+
             # Trigger native LINE Loading Animation (bouncing dots) immediately
-            show_loading_animation(user_id, loading_seconds=20)
+            loading = asyncio.create_task(run_in_threadpool(show_loading_animation, user_id, loading_seconds=20))
 
             try:
-                answer = ask_ai(user_message)
+                answer = await run_in_threadpool(ask_ai, user_message)
             except Exception as e:
                 logger.error(f"Error processing user query in ask_ai: {e}")
                 answer = (
@@ -57,10 +62,13 @@ async def webhook(
                     "กรุณาลองใหม่อีกครั้งในภายหลังครับ"
                 )
 
-            reply_text(
-                reply_token,
-                answer,
-            )
+            sent = await run_in_threadpool(reply_text, reply_token, answer)
+            if not sent:
+                # Reply token may have expired on a slow answer: fall back to push
+                # so the user still gets a reply instead of silence.
+                await run_in_threadpool(push_text, user_id, answer)
+            if not loading.done():
+                loading.cancel()
 
     return {
         "status": "OK"

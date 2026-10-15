@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 
 import chromadb
 
 from app.rag.chunking import Chunk
 from app.rag.embedding import embed_text
+from app.rag.source_policy import is_excluded_document
 
 
 # --------------------------------------------------
 # Chroma configuration
 # --------------------------------------------------
 
-CHROMA_PATH = Path("chroma_db")
+CHROMA_PATH = Path(os.getenv("CHROMA_PATH", str(Path(__file__).resolve().parents[2] / "chroma_db")))
 COLLECTION_NAME = "drone_knowledge"
 
 
@@ -43,6 +45,9 @@ def add_chunks(
 
     if not chunks:
         return
+
+    if any(is_excluded_document(chunk.source_file) for chunk in chunks):
+        raise ValueError("UAV01/UA03 must use CAAT rather than PDF ingestion")
 
     ids: list[str] = []
     documents: list[str] = []
@@ -103,7 +108,7 @@ def search(
         )
 
     query_embedding = embed_text(
-        query
+        query, max_retries=1, timeout_seconds=3.0,
     )
 
     return collection.query(

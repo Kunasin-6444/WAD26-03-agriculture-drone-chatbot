@@ -3,6 +3,7 @@ import sys
 import time
 
 from scripts.ingest_pdf import ingest_pdf
+from app.rag.source_policy import is_excluded_document
 
 
 def ingest_all():
@@ -11,7 +12,7 @@ def ingest_all():
         print("Data directory 'data/' not found.")
         return
 
-    pdf_files = list(data_dir.glob("*.pdf"))
+    pdf_files = [pdf for pdf in data_dir.glob("*.pdf") if not is_excluded_document(pdf.name)]
     print(f"Found {len(pdf_files)} PDF files in data/ directory.")
     print("=" * 60)
 

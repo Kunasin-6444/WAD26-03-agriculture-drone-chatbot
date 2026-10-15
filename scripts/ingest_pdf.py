@@ -14,6 +14,7 @@ from app.rag.chunking import (
 from app.rag.vector_store import (
     add_chunks,
 )
+from app.rag.source_policy import is_excluded_document
 
 
 def ingest_pdf(
@@ -37,6 +38,9 @@ def ingest_pdf(
     """
 
     pdf = Path(pdf_path)
+
+    if is_excluded_document(pdf.name):
+        raise ValueError("UAV01/UA03 are excluded; use CAAT UAS Portal")
 
     if not pdf.exists():
         raise FileNotFoundError(pdf)
