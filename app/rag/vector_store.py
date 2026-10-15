@@ -38,6 +38,8 @@ collection = client.get_or_create_collection(
 
 def add_chunks(
     chunks: list[Chunk],
+    replace_source_file: str | None = None,
+    replace_pages: range | None = None,
 ) -> None:
     """
     Add text chunks and their embeddings to Chroma.
@@ -82,12 +84,34 @@ def add_chunks(
             chunk.metadata
         )
 
+    if replace_source_file:
+        removed = delete_document_pages(replace_source_file, replace_pages)
+        if removed:
+            print(f"    Replaced {removed} existing chunks for {replace_source_file}", flush=True)
+
     collection.upsert(
         ids=ids,
         documents=documents,
         embeddings=embeddings,
         metadatas=metadatas,
     )
+
+
+def delete_document_pages(source_file: str, pages: range | None = None) -> int:
+    """
+    Remove existing chunks for a source file (optionally only some pages) so a
+    re-ingest replaces them instead of leaving stale/duplicate chunks behind.
+    """
+
+    found = collection.get(where={"source_file": source_file}, include=["metadatas"])
+    ids = [
+        chunk_id
+        for chunk_id, meta in zip(found["ids"], found["metadatas"])
+        if pages is None or int(meta.get("page_number", 0)) in pages
+    ]
+    if ids:
+        collection.delete(ids=ids)
+    return len(ids)
 
 
 # --------------------------------------------------

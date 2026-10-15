@@ -3,7 +3,7 @@ import sys
 import time
 
 from scripts.ingest_pdf import ingest_pdf
-from app.rag.source_policy import is_excluded_document
+from app.rag.source_policy import canonical_document_id, is_excluded_document
 
 
 def ingest_all():
@@ -17,7 +17,7 @@ def ingest_all():
     print("=" * 60)
 
     for idx, pdf_path in enumerate(pdf_files, start=1):
-        doc_id = pdf_path.stem.replace(" ", "_")
+        doc_id = canonical_document_id(pdf_path.name)
         print(f"\n[{idx}/{len(pdf_files)}] Ingesting: {pdf_path.name} (Doc ID: {doc_id})")
         try:
             ingest_pdf(str(pdf_path), doc_id)

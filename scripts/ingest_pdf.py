@@ -153,8 +153,12 @@ def ingest_pdf(
     print()
     print("Embedding + Chroma...")
 
+    # Existing chunks for these pages are replaced only after every embedding
+    # succeeded, so a mid-run quota failure cannot leave the KB with holes.
     add_chunks(
-        chunks=chunks
+        chunks=chunks,
+        replace_source_file=pdf.name,
+        replace_pages=range(actual_start, actual_end + 1),
     )
 
     print()
