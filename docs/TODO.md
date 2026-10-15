@@ -1,5 +1,16 @@
 # TODO
 
+## Next session (after daily API quota resets)
+
+See [PRE_LAUNCH_CHECKLIST.md](PRE_LAUNCH_CHECKLIST.md) for the full pre-launch list — this
+is just the immediate next step:
+
+- [ ] Re-run `python -m scripts.evaluate_acceptance` (all 28 cases, no `--limit`) with a
+      healthy backend for one clean, complete confirmation run including the CAAT
+      prompt-scoping fix. The last full run with that fix got contaminated by the quota
+      outage partway through (13/28, not representative) — see entry below dated
+      2026-10-15 for why.
+
 ## Current Priority
 
 ### Review follow-up — 2026-10-14 (resolved by pipeline rewrite + 2026-10-15 fixes)
@@ -59,6 +70,8 @@ Current status: see [CURRENT_STATE.md](CURRENT_STATE.md). 74 contract tests pass
 - [x] LINE integration tests
 
 ### P3 — Deployment
+
+See [PRE_LAUNCH_CHECKLIST.md](PRE_LAUNCH_CHECKLIST.md) for the full breakdown.
 
 - [ ] Deployment configuration
 - [ ] Environment variables
