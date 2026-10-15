@@ -20,6 +20,7 @@ from pathlib import Path
 import chromadb
 import pymupdf
 
+from app.ingestion.dedupe import benign_numbers
 from app.rag.source_policy import canonical_document_id, is_excluded_document
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -74,7 +75,9 @@ def main() -> int:
                 if not chunks:
                     no_chunk.append(number)
                     continue
-                native = set(NUMBER.findall(page.get_text()))
+                text = page.get_text()
+                # Slide/page numbers printed on the page are not knowledge content.
+                native = set(NUMBER.findall(text)) - benign_numbers(text, number)
                 numbers += len(native)
                 missing_numbers += len(native - set(NUMBER.findall("\n".join(chunks))))
         ratio = missing_numbers / numbers if numbers else 0.0

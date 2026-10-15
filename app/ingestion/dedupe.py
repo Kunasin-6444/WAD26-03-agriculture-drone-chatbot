@@ -40,7 +40,7 @@ def numbers(text: str) -> set[str]:
     return set(re.findall(r"\d+(?:\.\d+)?", text.replace(",", "")))
 
 
-def _benign_numbers(text: str, page: int) -> set[str]:
+def benign_numbers(text: str, page: int) -> set[str]:
     """Slide/page numbers printed in the native layer are not content."""
     tokens = text.split()
     edge = {t for t in (tokens[:1] + tokens[-1:]) if t.isdigit()}
@@ -54,7 +54,7 @@ def assess_native(native_text: str, page: int, vision_text: str) -> NativeAssess
     grams = _grams(sk)
     vision_grams = _grams(skeleton(vision_text))
     coverage = len(grams & vision_grams) / len(grams) if grams else 0.0
-    missing = tuple(sorted(numbers(native_text) - numbers(vision_text) - _benign_numbers(native_text, page)))
+    missing = tuple(sorted(numbers(native_text) - numbers(vision_text) - benign_numbers(native_text, page)))
     drop = bool(vision_grams) and coverage >= COVERAGE_THRESHOLD and not missing
     return NativeAssessment(drop, f"covered {coverage:.2f}" if drop else "unique", round(coverage, 2), missing)
 
