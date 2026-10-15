@@ -44,6 +44,7 @@ class GroundedResult:
     missing_aspects: list[str] = field(default_factory=list)
     reason: str = ""
     is_caat_topic: bool = False
+    llm_unavailable: bool = False
 
 
 def document_evidence(context: str) -> list[Evidence]:

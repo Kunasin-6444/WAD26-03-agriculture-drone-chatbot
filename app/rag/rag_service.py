@@ -16,8 +16,17 @@ from app.rag.evidence import Evidence, GroundedResult, parse_grounded_result
 logger = logging.getLogger(__name__)
 _llm_client: OpenAI | None = None
 _client_lock = Lock()
-FALLBACK_MODELS = ["gemini-3.5-flash-lite", "gpt-5.6-luna", "nova-2-lite-v1", "llama-4-scout"]
+FALLBACK_MODELS = ["gemini-3.5-flash-lite", "gpt-5.6-luna", "nova-2-lite-v1"]
 _EXHAUSTED_MODELS: dict[str, float] = {}
+# A "daily limit" 401 won't clear until the quota resets; a transient 401/429 usually will.
+DAILY_LIMIT_COOLDOWN_SECONDS = 30 * 60
+TRANSIENT_COOLDOWN_SECONDS = 60
+
+
+class LLMUnavailableError(RuntimeError):
+    """Every LLM attempt failed outright (errors/quota), as opposed to a merely unusable response."""
+
+
 SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "grounded_answer.txt").read_text(encoding="utf-8")
 
 
@@ -36,16 +45,21 @@ def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model
     preferred = preferred_model or os.getenv("RAG_MODEL", "gemini-3.5-flash-lite")
     candidates = list(dict.fromkeys([preferred] + FALLBACK_MODELS))
     candidates = [m for m in candidates if _EXHAUSTED_MODELS.get(m, 0) <= time.monotonic()]
+    if not candidates:
+        raise LLMUnavailableError("All LLM models are in quota/rate-limit cooldown")
+    attempted = failed = 0
     for model in candidates[:max_attempts]:
         remaining = (deadline - time.monotonic()) if deadline is not None else 8.0
         if remaining <= 0.2:
             break
+        attempted += 1
         try:
             # Generous headroom for the structured JSON (claims + citation quotes): a
             # real production chat log showed truncated answers at a lower limit. Output
             # that still hits this limit is discarded below rather than used truncated.
             response = ai_client.chat.completions.create(model=model, messages=messages, temperature=temperature,
                 max_tokens=max_tokens or 2200, stream=False, timeout=min(8.0, remaining))
+            _log_model_quota(model, response)
             if not response or not response.choices:
                 continue
             choice = response.choices[0]
@@ -56,10 +70,31 @@ def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model
             if isinstance(content, str) and content.strip():
                 return content
         except Exception as exc:
+            failed += 1
             if getattr(exc, "status_code", None) in {401, 429}:
-                _EXHAUSTED_MODELS[model] = time.monotonic() + 60
+                cooldown = DAILY_LIMIT_COOLDOWN_SECONDS if _is_daily_limit(exc) else TRANSIENT_COOLDOWN_SECONDS
+                _EXHAUSTED_MODELS[model] = time.monotonic() + cooldown
             logger.warning("LLM request failed for %s (%s)", model, type(exc).__name__)
+    if attempted and failed == attempted:
+        raise LLMUnavailableError("Every LLM attempt failed outright")
     raise RuntimeError("No complete LLM response within request budget")
+
+
+def _is_daily_limit(exc: Exception) -> bool:
+    body = getattr(exc, "body", None) or getattr(exc, "message", "") or str(exc)
+    return "daily limit" in str(body).lower()
+
+
+def _log_model_quota(model: str, response) -> None:
+    """Surface the gateway's quota info (e.g. daily_remaining_tokens) so exhaustion is visible early."""
+    try:
+        quota = getattr(response, "model_quota", None)
+        if quota is None:
+            quota = (getattr(response, "model_extra", None) or {}).get("model_quota")
+        if quota:
+            logger.info("LLM quota for %s: %s", model, quota)
+    except Exception:
+        pass
 
 
 def retrieve_context(query: str, n_results: int = 8) -> str:
@@ -84,7 +119,7 @@ def evaluate_evidence(query: str, evidence: list[Evidence], client: OpenAI | Non
         try:
             raw = call_llm(messages, client=client, deadline=deadline, max_attempts=max_attempts)
         except RuntimeError as exc:
-            return GroundedResult(reason=str(exc))
+            return GroundedResult(reason=str(exc), llm_unavailable=isinstance(exc, LLMUnavailableError))
         result = parse_grounded_result(raw, evidence)
         if not result.reason.startswith("Evidence validation failed"):
             return result

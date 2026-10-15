@@ -20,11 +20,11 @@ real customer's usage does the same thing mid-day, the bot abstains on
       estimate expected customer query volume against it. If quota is too
       low for expected traffic, request a higher tier/quota from KKU, or
       plan around it explicitly.
-- [ ] Add quota-usage visibility (log `response.model_quota` — already
+- [x] Add quota-usage visibility (log `response.model_quota` — already
       present in the API's raw response, e.g. `daily_remaining_tokens` —
       instead of discarding it) so you can see this coming instead of
       discovering it via a wave of abstains.
-- [ ] Decide what the customer sees when the whole model pool is
+- [x] Decide what the customer sees when the whole model pool is
       exhausted/degraded. Right now it's the same honest "evidence
       insufficient" abstain message as a real no-answer case — that's safe
       (never hallucinates) but looks identical to "the bot doesn't know
@@ -32,17 +32,29 @@ real customer's usage does the same thing mid-day, the bot abstains on
       a distinct, honest "เรากำลังปรับปรุงระบบชั่วคราว" (temporarily degraded)
       message when every model attempt fails outright (not just when
       evidence is genuinely insufficient).
-- [ ] Verify `qwen3.6-flash`/`qwen3.7-plus`/`qwen3.7-max` are **not** a
+- [x] Verify `qwen3.6-flash`/`qwen3.7-plus`/`qwen3.7-max` are **not** a
       viable fallback as currently architected — tested 2026-10-15: they're
       reasoning models that burn 1500+ tokens and 15s+ on internal
       chain-of-thought before producing any answer content, incompatible
       with the current 8s-per-attempt / 22s-total budget. Don't add them to
       `FALLBACK_MODELS` without redesigning the timeout budget around them.
-- [ ] Decide on a longer cooldown in `_EXHAUSTED_MODELS`
+- [x] Decide on a longer cooldown in `_EXHAUSTED_MODELS`
       (`app/rag/rag_service.py`) specifically for a "daily limit" 401 vs. a
       transient rate-limit 401/429 — currently both get the same 60s
       cooldown, which wastes a full attempt every 60s for the rest of the
       day once a model's daily quota is hit.
+
+> Done 2026-10-15 (code): `model_quota` logged at INFO in `call_llm`; distinct degraded
+> message (`crag_service.DEGRADED_MESSAGE`) when every LLM attempt fails; "daily limit"
+> errors cool down 30 min vs 60s transient. Tests: `tests/test_llm_degraded_contract.py`.
+> Still open in this section: find the real per-model quota with KKU.
+
+> Also 2026-10-15 (after a real chat-log review): the LLM and web search now receive the
+> normalized query (typos/wrong-keyboard repaired); non-CAAT web search is `restrict`ed to
+> `WEB_ALLOWED_DOMAINS` (was `prefer`, which let it24hrs.com/depa.or.th be cited);
+> `llama-4-scout` removed from `FALLBACK_MODELS` (timed out, burned 8s per attempt).
+> Known gaps left open: no multi-turn memory; summary text can still mislabel a table
+> row's meaning even when the quote is verbatim (verifier checks quotes/numbers, not semantics).
 
 ## 2. Deployment & infrastructure
 
@@ -55,7 +67,7 @@ real customer's usage does the same thing mid-day, the bot abstains on
 - [ ] Set production environment variables on the host (not just local
       `.env`): `RAG_MODEL`, `RAG_REQUEST_TIMEOUT_SECONDS`, `API_KEY`,
       `GOOGLE_API_KEY`, `TAVILY_API_KEY`.
-- [ ] Confirm `data/chroma/` (or wherever `CHROMA_PATH` points in
+- [ ] Confirm `chroma_db/` (the default; `data/chroma/` is a stale empty leftover, or wherever `CHROMA_PATH` points in
       production) is on persistent storage, not ephemeral — losing it means
       re-ingesting all PDFs.
 - [ ] End-to-end test against the real LINE app (not just the webhook

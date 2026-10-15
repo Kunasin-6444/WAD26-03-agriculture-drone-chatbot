@@ -22,6 +22,7 @@ SourceType = Literal["knowledge_base", "web_fallback", "caat_portal", "bot_usage
 # sub-deadline so a slow/overloaded model can't starve web search + final generation
 # of the shared request budget (observed: two 8s attempts consumed 12s+ of a 22s budget).
 KB_GENERATION_BUDGET_SECONDS = 8.0
+DEGRADED_MESSAGE = "ขณะนี้ระบบกำลังปรับปรุงชั่วคราว ไม่สามารถตอบคำถามได้ในขณะนี้ กรุณาลองใหม่อีกครั้งในภายหลังครับ"
 
 
 @dataclass
@@ -38,6 +39,7 @@ def run_crag_pipeline(query: str, n_results: int = 8, client: OpenAI | None = No
     started = time.monotonic()
     deadline = started + float(os.getenv("RAG_REQUEST_TIMEOUT_SECONDS", "22"))
     timings: dict[str, float] = {}
+    llm_down = False
 
     def respond(result: GroundedResult, evidence: list[Evidence], caat: bool = False) -> CragResponse:
         used = {s for claim in result.claims for s in claim.source_ids}
@@ -47,7 +49,10 @@ def run_crag_pipeline(query: str, n_results: int = 8, client: OpenAI | None = No
             kinds = {bool(e.url) for e in actual}
             source = "caat_portal" if caat else "hybrid" if len(kinds) > 1 else "web_fallback" if True in kinds else "knowledge_base"
         answer = render_grounded_answer(result, evidence)
-        if caat and not actual:
+        if not actual and (result.llm_unavailable or llm_down):
+            # Distinct from a genuine "no evidence" abstain: the model pool itself failed.
+            answer = DEGRADED_MESSAGE
+        elif caat and not actual:
             answer = f"ยังไม่พบหลักฐานเพียงพอที่จะยืนยันข้อกำหนดนี้ครับ ตรวจสอบข้อมูลทางการได้ที่ {CAAT_PORTAL_INFOGRAPHIC_URL}"
         timings["total_ms"] = round((time.monotonic() - started) * 1000, 2)
         grade = {"sufficient": "CORRECT", "partial": "AMBIGUOUS", "insufficient": "INCORRECT"}[result.status]
@@ -57,6 +62,9 @@ def run_crag_pipeline(query: str, n_results: int = 8, client: OpenAI | None = No
         return CragResponse(answer, source, grade, result.reason, dict(timings), trace)
 
     clean_query = query.strip()
+    # Typos / wrong-layout text are repaired once and used for retrieval, the LLM and web search,
+    # so the model never sees "2 gfnvo" while retrieval saw "2 เดือน".
+    search_query = normalize_query(clean_query)
     if not clean_query:
         return CragResponse("กรุณาระบุคำถามเกี่ยวกับโดรนการเกษตรครับ", "abstain", "INCORRECT", "Empty query")
     intent = route_intent(clean_query)
@@ -69,7 +77,7 @@ def run_crag_pipeline(query: str, n_results: int = 8, client: OpenAI | None = No
     if not caat:
         before = time.monotonic()
         try:
-            kb = pack_evidence(document_evidence(retrieve_context(normalize_query(clean_query), n_results=n_results)))
+            kb = pack_evidence(document_evidence(retrieve_context(search_query, n_results=n_results)))
         except Exception as exc:
             logger.warning("Document retrieval unavailable (%s)", type(exc).__name__)
             initial.reason = "Document retrieval unavailable"
@@ -77,12 +85,13 @@ def run_crag_pipeline(query: str, n_results: int = 8, client: OpenAI | None = No
         if kb:
             before = time.monotonic()
             kb_deadline = min(deadline, before + KB_GENERATION_BUDGET_SECONDS)
-            initial = evaluate_evidence(clean_query, kb, client, kb_deadline, max_attempts=1)
+            initial = evaluate_evidence(search_query, kb, client, kb_deadline, max_attempts=1)
             timings["kb_generation_ms"] = round((time.monotonic() - before) * 1000, 2)
+            llm_down = llm_down or initial.llm_unavailable
             caat = initial.is_caat_topic
             # A PDF cannot establish current prices/news, even if the model says sufficient.
-            if initial.status == "sufficient" and any(term in clean_query for term in ["วันนี้", "ล่าสุด", "ปัจจุบัน"]):
-                initial = GroundedResult(missing_aspects=[clean_query], reason="Current information requires web evidence", is_caat_topic=caat)
+            if initial.status == "sufficient" and any(term in search_query for term in ["วันนี้", "ล่าสุด", "ปัจจุบัน"]):
+                initial = GroundedResult(missing_aspects=[search_query], reason="Current information requires web evidence", is_caat_topic=caat)
             if not caat and initial.status == "sufficient":
                 return respond(initial, kb)
     if caat:
@@ -90,7 +99,7 @@ def run_crag_pipeline(query: str, n_results: int = 8, client: OpenAI | None = No
         initial = GroundedResult(reason="CAAT designated source required")
 
     before = time.monotonic()
-    web_query = clean_query
+    web_query = search_query
     if initial.missing_aspects:
         web_query += " " + " ".join(initial.missing_aspects)
     try:
@@ -111,8 +120,9 @@ def run_crag_pipeline(query: str, n_results: int = 8, client: OpenAI | None = No
         kb = []
     combined = pack_evidence(kb + web)
     before = time.monotonic()
-    final = evaluate_evidence(clean_query, combined, client, deadline)
+    final = evaluate_evidence(search_query, combined, client, deadline)
     timings["final_generation_ms"] = round((time.monotonic() - before) * 1000, 2)
+    llm_down = llm_down or final.llm_unavailable
     # Failed final generation must not erase validated partial document information.
     if not final.claims and initial.status == "partial":
         return respond(initial, kb, caat)

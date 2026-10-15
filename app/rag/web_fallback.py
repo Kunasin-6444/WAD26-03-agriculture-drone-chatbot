@@ -13,7 +13,10 @@ from app.rag.source_policy import CAAT_PORTAL_INFOGRAPHIC_URL, valid_web_url
 
 logger = logging.getLogger(__name__)
 TRUSTED_DOMAINS = ["caat.or.th", "nstda.or.th", "thaipbs.or.th", "pttor.com", "bangchak.co.th"]
+# Non-CAAT web answers are restricted to official/known sources; generic blogs and news
+# sites (seen in a real chat log) must not become citations for agronomy or price claims.
 PREFERRED_DOMAINS = ["doa.go.th", "doae.go.th", "moac.go.th", "eppo.go.th", "caat.or.th", "pttor.com", "bangchak.co.th"]
+WEB_ALLOWED_DOMAINS = list(dict.fromkeys(TRUSTED_DOMAINS + PREFERRED_DOMAINS))
 
 
 def get_domain(url: str) -> str:
@@ -86,8 +89,8 @@ def search_web_fallback(query: str, is_caat_topic: bool = False, max_results: in
             logger.warning("CAAT extraction unavailable (%s)", type(exc).__name__)
     try:
         kwargs = dict(query=query, search_depth="basic", max_results=max_results, timeout=_timeout(deadline),
-                      include_domains=["uasportal.caat.or.th", "caat.or.th"] if is_caat_topic else PREFERRED_DOMAINS,
-                      include_domains_mode="restrict" if is_caat_topic else "prefer")
+                      include_domains=["uasportal.caat.or.th", "caat.or.th"] if is_caat_topic else WEB_ALLOWED_DOMAINS,
+                      include_domains_mode="restrict")
         response = client.search(**kwargs)
         found = _results(response.get("results", []), is_caat_topic)
     except Exception as exc:
