@@ -47,6 +47,9 @@ _GROUNDED_RESPONSE_FORMAT = {"type": "json_schema", "json_schema": {"name": "gro
             "required": ["text", "evidence"]}},
     },
     "required": ["status", "reason", "is_caat_topic", "missing_aspects", "claims"]}}}
+# Per-attempt LLM timeout. Raise it (e.g. 11) for providers with spiky latency; the request
+# deadline in crag_service still bounds the total.
+ATTEMPT_TIMEOUT_SECONDS = float(os.getenv("LLM_ATTEMPT_TIMEOUT_SECONDS", "8"))
 # A "daily limit" 401 won't clear until the quota resets; a transient 401/429 usually will.
 DAILY_LIMIT_COOLDOWN_SECONDS = 30 * 60
 TRANSIENT_COOLDOWN_SECONDS = 60
@@ -63,7 +66,7 @@ def get_llm_client() -> OpenAI:
     global _llm_client
     with _client_lock:
         if _llm_client is None:
-            _llm_client = OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL, timeout=8.0, max_retries=0)
+            _llm_client = OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL, timeout=ATTEMPT_TIMEOUT_SECONDS, max_retries=0)
     return _llm_client
 
 
@@ -85,7 +88,7 @@ def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model
         raise LLMUnavailableError("All LLM models are in quota/rate-limit cooldown")
     attempted = failed = 0
     for model in candidates[:max_attempts]:
-        remaining = (deadline - time.monotonic()) if deadline is not None else 8.0
+        remaining = (deadline - time.monotonic()) if deadline is not None else ATTEMPT_TIMEOUT_SECONDS
         if remaining <= 0.2:
             break
         attempted += 1
@@ -97,7 +100,7 @@ def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model
             if STRUCTURED_OUTPUT:
                 extra["response_format"] = _GROUNDED_RESPONSE_FORMAT
             response = ai_client.chat.completions.create(model=model, messages=messages, temperature=temperature,
-                max_tokens=max_tokens or 2200, stream=False, timeout=min(8.0, remaining), **extra)
+                max_tokens=max_tokens or 2200, stream=False, timeout=min(ATTEMPT_TIMEOUT_SECONDS, remaining), **extra)
             _log_model_quota(model, response)
             if not response or not response.choices:
                 continue

@@ -21,7 +21,7 @@ SourceType = Literal["knowledge_base", "web_fallback", "caat_portal", "bot_usage
 # KB generation has a fallback (web search); cap it to one attempt within a short
 # sub-deadline so a slow/overloaded model can't starve web search + final generation
 # of the shared request budget (observed: two 8s attempts consumed 12s+ of a 22s budget).
-KB_GENERATION_BUDGET_SECONDS = 8.0
+KB_GENERATION_BUDGET_SECONDS = float(os.getenv("KB_GENERATION_BUDGET_SECONDS", "8"))
 DEGRADED_MESSAGE = "ขณะนี้ระบบกำลังปรับปรุงชั่วคราว ไม่สามารถตอบคำถามได้ในขณะนี้ กรุณาลองใหม่อีกครั้งในภายหลังครับ"
 
 
