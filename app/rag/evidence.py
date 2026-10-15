@@ -116,6 +116,11 @@ def parse_grounded_result(raw: str, evidence: list[Evidence]) -> GroundedResult:
             ids, quotes = [], []
             for citation in citations:
                 source_id, quote = citation.get("source_id"), citation.get("quote")
+                if not isinstance(quote, str):
+                    # The model sometimes names the quote field "text"/"content". The value still
+                    # has to be a literal substring of the cited evidence (checked below), so
+                    # accepting the alias relaxes the key name only, never the grounding gate.
+                    quote = next((citation[k] for k in ("text", "content") if isinstance(citation.get(k), str)), None)
                 if source_id not in by_id or not isinstance(quote, str) or len(quote.strip()) < 3 or len(quote) > 800:
                     raise ValueError("Invalid citation")
                 if _normalized(quote) not in _normalized(by_id[source_id].content):
