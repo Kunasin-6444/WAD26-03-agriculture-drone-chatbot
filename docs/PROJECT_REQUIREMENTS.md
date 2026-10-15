@@ -96,10 +96,19 @@ When answering a question:
 
 The system must:
 
-1. embed the user question
-2. search Chroma
-3. retrieve relevant chunks
-4. provide those chunks to the LLM
+1. normalize the user question (repair Thai typos / wrong-keyboard text)
+2. embed the question and search Chroma (dense retrieval)
+3. also score candidates by exact-term matching (BM25 over Thai n-grams) and
+   fuse both rankings (hybrid retrieval)
+4. rerank the fused results by domain / crop / topic relevance and select a
+   topic-diverse top-k (reranking)
+5. keep the text and image chunks on the same page as a retrieved table or
+   diagram, so units and caveats are not lost
+6. provide those chunks to the LLM
+
+Hybrid retrieval and reranking are part of the project scope. Dense search alone
+misses exact terms such as nozzle names, numbers and units, which are central to
+this knowledge base.
 
 ---
 
@@ -175,8 +184,6 @@ Do not implement unless explicitly requested:
 - conversation memory
 - PostgreSQL
 - Redis
-- reranker
-- hybrid retrieval
 - LangChain
 - LangGraph
 - LlamaIndex
