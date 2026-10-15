@@ -1,4 +1,35 @@
+import os
+import re
+import threading
+import time
+
 from app.rag.crag_service import run_crag_pipeline
+
+# Verified answers are cached in memory so a repeated question (a demo, a popular FAQ) is
+# answered instantly and does not depend on the LLM provider being fast at that moment.
+# Only fully grounded answers are cached; abstains, degraded replies and web answers
+# (which may be stale) never are.
+_CACHEABLE_SOURCES = {"knowledge_base", "caat_portal"}
+_FRESHNESS_TERMS = ("วันนี้", "ล่าสุด", "ปัจจุบัน", "ตอนนี้", "ราคา")
+_MAX_ENTRIES = 256
+_cache: dict[str, tuple[float, str]] = {}
+_lock = threading.Lock()
+
+
+def _ttl_seconds() -> float:
+    try:
+        return float(os.getenv("ANSWER_CACHE_TTL_SECONDS", "3600"))
+    except ValueError:
+        return 0.0
+
+
+def _key(message: str) -> str:
+    return re.sub(r"\s+", " ", message).strip().casefold()
+
+
+def clear_answer_cache() -> None:
+    with _lock:
+        _cache.clear()
 
 
 def ask_ai(user_message: str) -> str:
@@ -9,5 +40,21 @@ def ask_ai(user_message: str) -> str:
     3. Designated CAAT UAS portal routing for Air Law/Air Space
     4. Abstain path if unverified (zero hallucination)
     """
+    ttl = _ttl_seconds()
+    key = _key(user_message)
+    now = time.monotonic()
+    if ttl > 0 and key:
+        with _lock:
+            hit = _cache.get(key)
+            if hit and hit[0] > now:
+                return hit[1]
+
     response = run_crag_pipeline(user_message)
+
+    if (ttl > 0 and key and response.source_type in _CACHEABLE_SOURCES and response.grade == "CORRECT"
+            and not any(term in key for term in _FRESHNESS_TERMS)):
+        with _lock:
+            if len(_cache) >= _MAX_ENTRIES:
+                _cache.pop(next(iter(_cache)))
+            _cache[key] = (now + ttl, response.answer)
     return response.answer
