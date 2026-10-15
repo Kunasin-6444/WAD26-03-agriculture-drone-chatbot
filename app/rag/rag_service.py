@@ -16,7 +16,7 @@ from app.rag.evidence import Evidence, GroundedResult, parse_grounded_result
 logger = logging.getLogger(__name__)
 _llm_client: OpenAI | None = None
 _client_lock = Lock()
-FALLBACK_MODELS = ["gpt-5.6-luna", "nova-2-lite-v1", "llama-4-scout"]
+FALLBACK_MODELS = ["gemini-3.5-flash-lite", "gpt-5.6-luna", "nova-2-lite-v1", "llama-4-scout"]
 _EXHAUSTED_MODELS: dict[str, float] = {}
 SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "grounded_answer.txt").read_text(encoding="utf-8")
 
@@ -33,7 +33,7 @@ def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model
              temperature: float = 0.0, max_tokens: int | None = None, deadline: float | None = None,
              max_attempts: int = 2) -> str:
     ai_client = client or get_llm_client()
-    preferred = preferred_model or os.getenv("RAG_MODEL", "gpt-5.6-luna")
+    preferred = preferred_model or os.getenv("RAG_MODEL", "gemini-3.5-flash-lite")
     candidates = list(dict.fromkeys([preferred] + FALLBACK_MODELS))
     candidates = [m for m in candidates if _EXHAUSTED_MODELS.get(m, 0) <= time.monotonic()]
     for model in candidates[:max_attempts]:

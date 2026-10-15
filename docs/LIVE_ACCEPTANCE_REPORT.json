@@ -1,0 +1,1104 @@
+{
+  "generated_at": "2026-10-15T08:10:42.767258+07:00",
+  "mode": "live",
+  "note": "Automatic evidence/routing/aspect checks; full semantic support requires manual source review. Provider timeouts are request budgets, not latency guarantees.",
+  "total": 28,
+  "contract_passed": 13,
+  "latency_passed": 12,
+  "mean_seconds": 12.124,
+  "p95_seconds": 20.531,
+  "results": [
+    {
+      "id": 1,
+      "query": "หัวฉีดพัดส้มมีอัตราการไหลเท่าไรต่อหัวฉีด",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "500",
+        "1600"
+      ],
+      "citations": [],
+      "citation_groups": [
+        [
+          "UAV07",
+          "หน้า 12"
+        ],
+        [
+          "UAV06",
+          "หน้า 5"
+        ]
+      ],
+      "target_seconds": 8,
+      "answer": "• หัวฉีดพัดส้มมีปริมาณ 500 ml ต่อหัวฉีด ที่รอบการทำงาน 1600 rpm [1]\n\nแหล่งอ้างอิง:\n[1] UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "มีหลักฐานระบุปริมาณของหัวฉีดพัดส้มต่อหัว พร้อมเงื่อนไขรอบการทำงาน",
+      "timings": {
+        "retrieval_ms": 2828.0,
+        "kb_generation_ms": 5578.0,
+        "total_ms": 8406.0
+      },
+      "evidence_trace": [
+        {
+          "text": "หัวฉีดพัดส้มมีปริมาณ 500 ml ต่อหัวฉีด ที่รอบการทำงาน 1600 rpm",
+          "evidence": [
+            {
+              "source_id": "D4",
+              "quote": "1 | พัดส้ม | 1600 | 500 | 1500",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5"
+            }
+          ]
+        }
+      ],
+      "seconds": 8.406,
+      "contract_pass": true,
+      "latency_pass": false,
+      "reasons": []
+    },
+    {
+      "id": 2,
+      "query": "ที่ความสูง 1 เมตร หน้ากว้างการฉีดพ่นต่อหัวเท่าไร",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "2.8"
+      ],
+      "citations": [],
+      "citation_groups": [
+        [
+          "UAV07",
+          "หน้า 12"
+        ],
+        [
+          "UAV06",
+          "หน้า 5"
+        ]
+      ],
+      "target_seconds": 8,
+      "answer": "• ที่ความสูง 1.0 เมตร หน้ากว้างการฉีดพ่นต่อหัวระบุไว้ที่ 2.856 เมตร [1]\n• เอกสารอีกฉบับระบุที่ความสูง 1.0 เมตร หน้ากว้างต่อหัว 2.8 เมตร [2]\n\nยังยืนยันไม่ได้: ยืนยันค่าหน้ากว้างต่อหัวที่ถูกต้องระหว่าง 2.856 และ 2.8 เมตร\n\nแหล่งอ้างอิง:\n[1] UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5\n[2] UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12",
+      "source_type": "knowledge_base",
+      "grade": "AMBIGUOUS",
+      "grade_reason": "มีข้อมูลตรงกันว่าเป็นหน้ากว้างต่อหัวที่ความสูง 1.0 เมตร แต่ตัวเลขในเอกสารสองแหล่งไม่ตรงกัน (2.856 กับ 2.8 เมตร)",
+      "timings": {
+        "retrieval_ms": 687.0,
+        "kb_generation_ms": 4953.0,
+        "web_search_ms": 4610.0,
+        "final_generation_ms": 4219.0,
+        "total_ms": 14469.0
+      },
+      "evidence_trace": [
+        {
+          "text": "ที่ความสูง 1.0 เมตร หน้ากว้างการฉีดพ่นต่อหัวระบุไว้ที่ 2.856 เมตร",
+          "evidence": [
+            {
+              "source_id": "D3",
+              "quote": "1.0 | 2.856 | 4.556",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5"
+            }
+          ]
+        },
+        {
+          "text": "เอกสารอีกฉบับระบุที่ความสูง 1.0 เมตร หน้ากว้างต่อหัว 2.8 เมตร",
+          "evidence": [
+            {
+              "source_id": "D2",
+              "quote": "1.0 | 2.8 | 4.5",
+              "citation": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12"
+            }
+          ]
+        }
+      ],
+      "seconds": 14.469,
+      "contract_pass": true,
+      "latency_pass": false,
+      "reasons": []
+    },
+    {
+      "id": 3,
+      "query": "พัดส้มมีอัตราการไหลและหน้ากว้างพ่นที่ความสูง 1 เมตรเท่าไร",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "500",
+        "2.8"
+      ],
+      "citations": [],
+      "citation_groups": [
+        [
+          "UAV07"
+        ],
+        [
+          "UAV06"
+        ]
+      ],
+      "target_seconds": 8,
+      "answer": "• พัดส้มมีอัตราการไหล 500 ml ต่อหัวฉีด หรือ 1500 ml สำหรับ 3 หัวฉีด ที่รอบ 1600 rpm [1]\n• ที่ความสูง 1 เมตร หน้ากว้างพ่นคือ 2.856 เมตรต่อหัวฉีด หรือ 4.556 เมตรสำหรับ 3 หัวฉีด [1]\n\nแหล่งอ้างอิง:\n[1] UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "มีข้อมูลอัตราการไหลของพัดส้มและหน้ากว้างการพ่นที่ความสูง 1 เมตรครบถ้วน",
+      "timings": {
+        "retrieval_ms": 625.0,
+        "kb_generation_ms": 3110.0,
+        "total_ms": 3735.0
+      },
+      "evidence_trace": [
+        {
+          "text": "พัดส้มมีอัตราการไหล 500 ml ต่อหัวฉีด หรือ 1500 ml สำหรับ 3 หัวฉีด ที่รอบ 1600 rpm",
+          "evidence": [
+            {
+              "source_id": "D3",
+              "quote": "พัดส้ม | 1600 | 500 | 1500",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5"
+            }
+          ]
+        },
+        {
+          "text": "ที่ความสูง 1 เมตร หน้ากว้างพ่นคือ 2.856 เมตรต่อหัวฉีด หรือ 4.556 เมตรสำหรับ 3 หัวฉีด",
+          "evidence": [
+            {
+              "source_id": "D3",
+              "quote": "1.0 | 2.856 | 4.556",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5"
+            }
+          ]
+        }
+      ],
+      "seconds": 3.735,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 4,
+      "query": "หัวฉีดพัดส้มกับพัดน้ำเงินต่างกันอย่างไร",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "ส้ม",
+        "น้ำเงิน"
+      ],
+      "citations": [
+        "UAV07"
+      ],
+      "target_seconds": 8,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "หลักฐานมีเพียงหัวข้อเกี่ยวกับหัวฉีด แต่ไม่มีข้อมูลเปรียบเทียบหัวฉีดพัดสีส้มกับสีฟ้า เช่น ขนาดหยด อัตราการไหล แรงดัน หรือการใช้งาน",
+      "timings": {
+        "retrieval_ms": 578.0,
+        "kb_generation_ms": 8015.0,
+        "web_search_ms": 4875.0,
+        "final_generation_ms": 3125.0,
+        "total_ms": 16593.0
+      },
+      "evidence_trace": [],
+      "seconds": 16.593,
+      "contract_pass": false,
+      "latency_pass": false,
+      "reasons": [
+        "unexpected_source_type",
+        "missing_expected_answer_aspect",
+        "missing_expected_source"
+      ]
+    },
+    {
+      "id": 5,
+      "query": "พัดฟ้ากับพัดส้มต่างกันอย่างไร",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "ส้ม"
+      ],
+      "citations": [
+        "UAV07"
+      ],
+      "target_seconds": 8,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "ไม่มีข้อมูลที่ให้ความแตกต่างระหว่างพัดฟ้ากับพัดส้มในแหล่งข้อมูลใดๆ",
+      "timings": {
+        "retrieval_ms": 672.0,
+        "kb_generation_ms": 94.0,
+        "web_search_ms": 4156.0,
+        "final_generation_ms": 2469.0,
+        "total_ms": 7391.0
+      },
+      "evidence_trace": [],
+      "seconds": 7.391,
+      "contract_pass": false,
+      "latency_pass": true,
+      "reasons": [
+        "unexpected_source_type",
+        "missing_expected_answer_aspect",
+        "missing_expected_source"
+      ]
+    },
+    {
+      "id": 6,
+      "query": "แนะนำการเลือกใช้หัวฉีดโดรนเกษตรและอัตราการไหล",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "หัวฉีด",
+        "500"
+      ],
+      "citations": [
+        "UAV07"
+      ],
+      "target_seconds": 8,
+      "answer": "• อัตราการไหลของหัวฉีดแต่ละชนิดมีดังนี้ พัดส้ม 500 ml/หัวฉีด พัดแดง 1150 ml/หัวฉีด พัดเหลือง 775 ml/หัวฉีด พัดน้ำเงิน 950 ml/หัวฉีด พัดอัดน้ำเงิน 980 ml/หัวฉีด พัดอัดน้ำตาล 1230 ml/หัวฉีด หัวแบบเหวี่ยง 2300 ml/หัวฉีด หัวแบบเหวี่ยง 2100 ml/หัวฉีด [1]\n\nแหล่งอ้างอิง:\n[1] UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "ข้อมูลในแหล่งข้อมูลมีข้อมูลเกี่ยวกับหัวฉีดและอัตราการไหลที่เหมาะสมสำหรับการใช้โดรนเกษตร ได้แก่ ตารางอัตราการไหลของหัวฉีดแต่ละชนิดและข้อมูลขนาดละอองที่เหมาะสม",
+      "timings": {
+        "retrieval_ms": 609.0,
+        "kb_generation_ms": 4141.0,
+        "total_ms": 4750.0
+      },
+      "evidence_trace": [
+        {
+          "text": "อัตราการไหลของหัวฉีดแต่ละชนิดมีดังนี้ พัดส้ม 500 ml/หัวฉีด พัดแดง 1150 ml/หัวฉีด พัดเหลือง 775 ml/หัวฉีด พัดน้ำเงิน 950 ml/หัวฉีด พัดอัดน้ำเงิน 980 ml/หัวฉีด พัดอัดน้ำตาล 1230 ml/หัวฉีด หัวแบบเหวี่ยง 2300 ml/หัวฉีด หัวแบบเหวี่ยง 2100 ml/หัวฉีด",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "ลำดับ | หัวฉีด | รอบ (rpm) | ปริมาณ (ml/หัวฉีด) | ปริมาณ 3 หัวฉีด (ml)\n1 | พัดส้ม | 1600 | 500 | 1500\n2 | พัดแดง | 1600 | 1150 | 3450\n3 | พัดเหลือง | 1600 | 775 | 2325\n4 | พัดน้ำเงิน | 1600 | 950 | 2850\n5 | พัดอัดน้ำเงิน | 1600 | 980 | 2940\n6 | พัดอัดน้ำตาล | 1600 | 1230 | 3690\n7 | หัวแบบเหวี่ยง | 1600 | 2,300 | 4,600\n8 | หัวแบบเหวี่ยง 2 | 1600 | 2,100 | 4,200",
+              "citation": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12"
+            }
+          ]
+        }
+      ],
+      "seconds": 4.75,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 7,
+      "query": "ฉีดพ่นคุมดินควรใช้หัวฉีดอะไร",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "หัวฉีด"
+      ],
+      "citations": [
+        "UAV07"
+      ],
+      "target_seconds": 8,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "Evidence validation failed: Quote not in supplied evidence",
+      "timings": {
+        "retrieval_ms": 562.0,
+        "kb_generation_ms": 6047.0,
+        "web_search_ms": 3766.0,
+        "final_generation_ms": 6922.0,
+        "total_ms": 17297.0
+      },
+      "evidence_trace": [],
+      "seconds": 17.297,
+      "contract_pass": false,
+      "latency_pass": false,
+      "reasons": [
+        "unexpected_source_type",
+        "missing_expected_answer_aspect",
+        "missing_expected_source"
+      ]
+    },
+    {
+      "id": 8,
+      "query": "ฉีดดพ่นควรเลือกหัวฉีดแบบไหน",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "หัวฉีด"
+      ],
+      "citations": [
+        "UAV"
+      ],
+      "target_seconds": 8,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "Evidence validation failed: Quote not in supplied evidence",
+      "timings": {
+        "retrieval_ms": 656.0,
+        "kb_generation_ms": 8000.0,
+        "web_search_ms": 2969.0,
+        "final_generation_ms": 8906.0,
+        "total_ms": 20531.0
+      },
+      "evidence_trace": [],
+      "seconds": 20.531,
+      "contract_pass": false,
+      "latency_pass": false,
+      "reasons": [
+        "unexpected_source_type",
+        "missing_expected_answer_aspect",
+        "missing_expected_source"
+      ]
+    },
+    {
+      "id": 9,
+      "query": "โดรนฉีดพ่นควรบินสูงเท่าไร",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "ความสูง"
+      ],
+      "citations": [
+        "UAV"
+      ],
+      "target_seconds": 8,
+      "answer": "• ความสูงที่ควรบินของโดรนฉีดพ่นขึ้นอยู่กับชนิดของพืชและระยะการเจริญเติบโต โดยทั่วไปควรบินสูงประมาณ 1-3 เมตรเหนือยอดพืช [1]\n• สำหรับข้าว ควรบินสูง 1.5-2.5 เมตรในช่วงกำลังเจริญเติบโต และ 2.0-3.0 เมตรในช่วงระยะเก็บเกี่ยว [1]\n\nแหล่งอ้างอิง:\n[1] http://hort.ezathai.org?p=6482",
+      "source_type": "web_fallback",
+      "grade": "CORRECT",
+      "grade_reason": "มีข้อมูลเกี่ยวกับความสูงที่ควรบินของโดรนฉีดพ่นจากแหล่งข้อมูลที่เชื่อถือได้ทั้งสองแหล่ง",
+      "timings": {
+        "retrieval_ms": 641.0,
+        "kb_generation_ms": 8031.0,
+        "web_search_ms": 2406.0,
+        "final_generation_ms": 8031.0,
+        "total_ms": 19109.0
+      },
+      "evidence_trace": [
+        {
+          "text": "ความสูงที่ควรบินของโดรนฉีดพ่นขึ้นอยู่กับชนิดของพืชและระยะการเจริญเติบโต โดยทั่วไปควรบินสูงประมาณ 1-3 เมตรเหนือยอดพืช",
+          "evidence": [
+            {
+              "source_id": "W2",
+              "quote": "ความสูงที่ใช้ในการบินเหนือยอดควรจะประมาณ 1-3 เมตร(คะน้า ตะกูลกะหล่ำปลี) และความกว้างของการพ่นสารประมาณ  1.5-3.0 เมตรหรือขึ้นกับประสิทธิภาพของหัวฉีดและแรงดัน จำนวนหัวฉีด การวางหัวฉีดใต้ใบพัด หรือแบบสเปรย์บูม (ระดับความสูงการพ่นสาร ข้าว ข้าวโพด มันสำปะหลัง  4-6 เมตร อ้อย 2-6 เมตร)",
+              "citation": "http://hort.ezathai.org?p=6482"
+            }
+          ]
+        },
+        {
+          "text": "สำหรับข้าว ควรบินสูง 1.5-2.5 เมตรในช่วงกำลังเจริญเติบโต และ 2.0-3.0 เมตรในช่วงระยะเก็บเกี่ยว",
+          "evidence": [
+            {
+              "source_id": "W2",
+              "quote": "ข้าวช่วงกำลังเจริญเติบโตบินสูง 1.5-2.5 เมตร ช่วงระยะเก็บเกี่ยวบินสูง 2.0-3.0 เมตร หากบินต่ำทำให้ข้าวล้มได้",
+              "citation": "http://hort.ezathai.org?p=6482"
+            }
+          ]
+        }
+      ],
+      "seconds": 19.109,
+      "contract_pass": false,
+      "latency_pass": false,
+      "reasons": [
+        "unexpected_source_type",
+        "missing_expected_source"
+      ]
+    },
+    {
+      "id": 10,
+      "query": "ก่อนอ้อยงอกควรใช้สารอะไรควบคุมวัชพืชใบแคบ",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "สาร"
+      ],
+      "citations": [
+        "UAV"
+      ],
+      "target_seconds": 8,
+      "answer": "• ก่อนอ้อยงอกควรใช้สารไกลโฟเซตเพื่อควบคุมวัชพืชใบแคบ [1]\n• ควรพ่นสารไกลโฟเซตเมื่อวัชพืชยังไม่ออกดอกและความสูงไม่เกิน 30 เซนติเมตร [1]\n\nแหล่งอ้างอิง:\n[1] https://agritech.doae.go.th/wp-content/uploads/2022/08/%E0%B9%81%E0%B8%9C%E0%B9%88%E0%B8%99%E0%B8%9E%E0%B8%B1%E0%B8%9A%E0%B8%81%E0%B8%B2%E0%B8%A3%E0%B9%83%E0%B8%8A%E0%B9%89%E0%B8%AA%E0%B8%B2%E0%B8%A3%E0%B9%84%E0%B8%81%E0%B8%A5%E0%B9%82%E0%B8%9F%E0%B9%80%E0%B8%8B%E0%B8%95.pdf",
+      "source_type": "web_fallback",
+      "grade": "CORRECT",
+      "grade_reason": "ข้อมูลจากแหล่งที่ให้มาพบสารที่ใช้ควบคุมวัชพืชใบแคบได้ชัดเจน",
+      "timings": {
+        "retrieval_ms": 672.0,
+        "kb_generation_ms": 7063.0,
+        "web_search_ms": 3375.0,
+        "final_generation_ms": 2890.0,
+        "total_ms": 14000.0
+      },
+      "evidence_trace": [
+        {
+          "text": "ก่อนอ้อยงอกควรใช้สารไกลโฟเซตเพื่อควบคุมวัชพืชใบแคบ",
+          "evidence": [
+            {
+              "source_id": "W1",
+              "quote": "อัตราการใช้ ต่อไร่ ชนิดวัชพืช ที่ควบคุมได้ ระยะที่ควรพ่นสาร ไกลโฟเซต 0.5 ลิตร วัชพืชฤดูเดียว ประเภทใบแคบ ใบกว้าง กก วัชพืชยังไม่ออกดอก และมีความสูงไม่เกิน 30 เซนติเมตร 1 ไร่",
+              "citation": "https://agritech.doae.go.th/wp-content/uploads/2022/08/%E0%B9%81%E0%B8%9C%E0%B9%88%E0%B8%99%E0%B8%9E%E0%B8%B1%E0%B8%9A%E0%B8%81%E0%B8%B2%E0%B8%A3%E0%B9%83%E0%B8%8A%E0%B9%89%E0%B8%AA%E0%B8%B2%E0%B8%A3%E0%B9%84%E0%B8%81%E0%B8%A5%E0%B9%82%E0%B8%9F%E0%B9%80%E0%B8%8B%E0%B8%95.pdf"
+            }
+          ]
+        },
+        {
+          "text": "ควรพ่นสารไกลโฟเซตเมื่อวัชพืชยังไม่ออกดอกและความสูงไม่เกิน 30 เซนติเมตร",
+          "evidence": [
+            {
+              "source_id": "W1",
+              "quote": "ควรพ่นไกลโฟเซต ในระยะวัชพืชยังไม่ออกดอก และ มีความสูงไม่เกิน 30 เซนติเมตร",
+              "citation": "https://agritech.doae.go.th/wp-content/uploads/2022/08/%E0%B9%81%E0%B8%9C%E0%B9%88%E0%B8%99%E0%B8%9E%E0%B8%B1%E0%B8%9A%E0%B8%81%E0%B8%B2%E0%B8%A3%E0%B9%83%E0%B8%8A%E0%B9%89%E0%B8%AA%E0%B8%B2%E0%B8%A3%E0%B9%84%E0%B8%81%E0%B8%A5%E0%B9%82%E0%B8%9F%E0%B9%80%E0%B8%8B%E0%B8%95.pdf"
+            }
+          ]
+        }
+      ],
+      "seconds": 14.0,
+      "contract_pass": false,
+      "latency_pass": false,
+      "reasons": [
+        "unexpected_source_type",
+        "missing_expected_source"
+      ]
+    },
+    {
+      "id": 11,
+      "query": "ข้อควรระวังในการผสมสารกำจัดวัชพืชมากกว่า 1 ชนิด",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "สาร"
+      ],
+      "citations": [
+        "UAV"
+      ],
+      "target_seconds": 8,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "No complete LLM response within request budget",
+      "timings": {
+        "retrieval_ms": 672.0,
+        "kb_generation_ms": 6875.0,
+        "web_search_ms": 4141.0,
+        "final_generation_ms": 10328.0,
+        "total_ms": 22016.0
+      },
+      "evidence_trace": [],
+      "seconds": 22.016,
+      "contract_pass": false,
+      "latency_pass": false,
+      "reasons": [
+        "unexpected_source_type",
+        "missing_expected_source"
+      ]
+    },
+    {
+      "id": 12,
+      "query": "วัชพืชในข้าวโพดควรควบคุมอย่างไร",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "ข้าวโพด"
+      ],
+      "citations": [
+        "UAV"
+      ],
+      "target_seconds": 8,
+      "answer": "• สามารถใช้สารกำจัดวัชพืชเช่น เพนดิเมทาลิน อะลาคลอร์ พาราควอต และไอโซซาฟลูโทล เพื่อควบคุมวัชพืชในข้าวโพด [1]\n• ควรพ่นสารกำจัดวัชพืชก่อนปลูกข้าวโพด 10-20 วัน หรือเมื่อวัชพืชงอกแล้วมีใบ 2-3 ใบ [1]\n• ควรควบคุมวัชพืชให้ไม่ให้ขึ้นแข่งขันกับข้าวโพด โดยเฉพาะในช่วงอายุข้าวโพด 2-6 สัปดาห์ [2]\n\nแหล่งอ้างอิง:\n[1] https://www.doa.go.th/hort/wp-content/uploads/2020/01/%E0%B8%81%E0%B8%B2%E0%B8%A3%E0%B8%9C%E0%B8%A5%E0%B8%B4%E0%B8%95%E0%B8%82%E0%B9%89%E0%B8%B2%E0%B8%A7%E0%B9%82%E0%B8%9E%E0%B8%94%E0%B8%AB%E0%B8%A7%E0%B8%B2%E0%B8%99.pdf\n[2] https://www.doa.go.th/plprotect/wp-content/uploads/2022/10/2565-%E0%B9%81%E0%B8%AB%E0%B9%89%E0%B8%A7%E0%B8%AB%E0%B8%A1%E0%B8%B9-watermark_compressed.pdf",
+      "source_type": "web_fallback",
+      "grade": "CORRECT",
+      "grade_reason": "เอกสารให้ข้อมูลการควบคุมวัชพืชในข้าวโพดด้วยสารกำจัดวัชพืชและวิธีการต่างๆ ได้อย่างเพียงพอ",
+      "timings": {
+        "retrieval_ms": 625.0,
+        "kb_generation_ms": 8125.0,
+        "web_search_ms": 3281.0,
+        "final_generation_ms": 7313.0,
+        "total_ms": 19344.0
+      },
+      "evidence_trace": [
+        {
+          "text": "สามารถใช้สารกำจัดวัชพืชเช่น เพนดิเมทาลิน อะลาคลอร์ พาราควอต และไอโซซาฟลูโทล เพื่อควบคุมวัชพืชในข้าวโพด",
+          "evidence": [
+            {
+              "source_id": "W1",
+              "quote": "สารก้าจัดวัชพืชในข้าวโพด (2) สารก้าจัดวัชพืช ชื่อสามัญ อัตราการใช้ มิลลิลิตร,กรัม/ไร่ (ต่อน้า 60-80 ลิตร) ระยะเวลา/วิธีการใช้ วัชพืชที่ควบคุม ข้อแนะน้าเพิ่มเติม เพนดิเมทาลิน (pendimethalin) 600-700 พ่นคลุมดินก่อน ข้าวโพดและวัชพืชงอก",
+              "citation": "https://www.doa.go.th/hort/wp-content/uploads/2020/01/%E0%B8%81%E0%B8%B2%E0%B8%A3%E0%B8%9C%E0%B8%A5%E0%B8%B4%E0%B8%95%E0%B8%82%E0%B9%89%E0%B8%B2%E0%B8%A7%E0%B9%82%E0%B8%9E%E0%B8%94%E0%B8%AB%E0%B8%A7%E0%B8%B2%E0%B8%99.pdf"
+            }
+          ]
+        },
+        {
+          "text": "ควรพ่นสารกำจัดวัชพืชก่อนปลูกข้าวโพด 10-20 วัน หรือเมื่อวัชพืชงอกแล้วมีใบ 2-3 ใบ",
+          "evidence": [
+            {
+              "source_id": "W1",
+              "quote": "พาราควอต (paraquat) 400-500 พ่นก้าจัดวัชพืชก่อนปลูก ข้าวโพด 10-20 วัน วัชพืชที่งอกจากเมล็ดอายุไม่เกิน 2-4",
+              "citation": "https://www.doa.go.th/hort/wp-content/uploads/2020/01/%E0%B8%81%E0%B8%B2%E0%B8%A3%E0%B8%9C%E0%B8%A5%E0%B8%B4%E0%B8%95%E0%B8%82%E0%B9%89%E0%B8%B2%E0%B8%A7%E0%B9%82%E0%B8%9E%E0%B8%94%E0%B8%AB%E0%B8%A7%E0%B8%B2%E0%B8%99.pdf"
+            }
+          ]
+        },
+        {
+          "text": "ควรควบคุมวัชพืชให้ไม่ให้ขึ้นแข่งขันกับข้าวโพด โดยเฉพาะในช่วงอายุข้าวโพด 2-6 สัปดาห์",
+          "evidence": [
+            {
+              "source_id": "W2",
+              "quote": "วัชพืชที่ขึ้นรบกวนช่วง ข้าวโพดมีอายุ 2-6 สัปดาห์ สามารถลดปริมาณ ผลผลิตของข้าวโพดเลี้ยงสัตว์ได้สูงสุด",
+              "citation": "https://www.doa.go.th/plprotect/wp-content/uploads/2022/10/2565-%E0%B9%81%E0%B8%AB%E0%B9%89%E0%B8%A7%E0%B8%AB%E0%B8%A1%E0%B8%B9-watermark_compressed.pdf"
+            }
+          ]
+        }
+      ],
+      "seconds": 19.344,
+      "contract_pass": false,
+      "latency_pass": false,
+      "reasons": [
+        "unexpected_source_type",
+        "missing_expected_source"
+      ]
+    },
+    {
+      "id": 13,
+      "query": "การควบคุมวัชพืชในอ้อยช่วงแตกกอ",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "อ้อย"
+      ],
+      "citations": [
+        "UAV"
+      ],
+      "target_seconds": 8,
+      "answer": "• ช่วงเวลาที่เหมาะสมในการควบคุมวัชพืชในอ้อยช่วงแตกกอคือช่วง 1-4 เดือนหลังปลูก [1]\n\nแหล่งอ้างอิง:\n[1] UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 14",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "ข้อมูลมีข้อมูลเชิงลึกเกี่ยวกับการควบคุมวัชพืชในอ้อยช่วงแตกกอ พร้อมข้อมูลเชิงลึกและวิธีการ",
+      "timings": {
+        "retrieval_ms": 765.0,
+        "kb_generation_ms": 2485.0,
+        "total_ms": 3250.0
+      },
+      "evidence_trace": [
+        {
+          "text": "ช่วงเวลาที่เหมาะสมในการควบคุมวัชพืชในอ้อยช่วงแตกกอคือช่วง 1-4 เดือนหลังปลูก",
+          "evidence": [
+            {
+              "source_id": "D3",
+              "quote": "ระยะเวลาการเจริญเติบโต: งอก 0.5 เดือน, อ้อยงอก 1 เดือน, ระยะแตกกอ 1-4 เดือน, ระยะย่างปล้อง 4-6 เดือน, ระยะสร้างน้ำตาล 6-8 เดือน และ 8-12 เดือน, เก็บเกี่ยว 12 เดือนขึ้นไป",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 14"
+            }
+          ]
+        }
+      ],
+      "seconds": 3.25,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 14,
+      "query": "GSD คืออะไรเกี่ยวข้องกับความละเอียดภาพอย่างไร",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "GSD"
+      ],
+      "citations": [
+        "UAV1"
+      ],
+      "target_seconds": 8,
+      "answer": "• GSD คือระยะห่างการเก็บตัวอย่างพื้นดิน (Ground Sample Distance) ซึ่งเป็นค่าความละเอียดของภาพถ่ายทางอากาศ [1]\n• ความละเอียดภาพสูงขึ้นเมื่อค่า GSD ต่ำลง เช่น GSD 1.2 มม. มีความละเอียดมากกว่า GSD 20 มม. [1]\n• ตัวอย่างค่าความละเอียด GSD ที่ใช้ในภาพถ่ายแปลงเกษตร ได้แก่ 3 ซม., 5 ซม., 8 ซม. และ 10 ซม. [2]\n• ภาพจากดาวเทียมมีค่า GSD 10 เมตร/พิกเซล ในขณะที่ภาพจากโดรนมีค่า GSD 8 ซม./พิกเซล [3]\n• การใช้ FMM พร้อม GSD 10 ซม./พิกเซลช่วยให้ความแม่นยำในการวัดความสูงของพืชเพิ่มขึ้นประมาณ 10 เท่า [4]\n\nแหล่งอ้างอิง:\n[1] UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 3\n[2] UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 5\n[3] UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 4\n[4] UAV10 พื้นฐานการใช้ภาพถ่ายทางอากาศเพื่อการสำรวจแปลง.pdf, หน้า 21",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "เอกสารมีข้อมูลอธิบาย GSD และความสัมพันธ์กับความละเอียดภาพอย่างชัดเจน",
+      "timings": {
+        "retrieval_ms": 578.0,
+        "kb_generation_ms": 5422.0,
+        "total_ms": 6000.0
+      },
+      "evidence_trace": [
+        {
+          "text": "GSD คือระยะห่างการเก็บตัวอย่างพื้นดิน (Ground Sample Distance) ซึ่งเป็นค่าความละเอียดของภาพถ่ายทางอากาศ",
+          "evidence": [
+            {
+              "source_id": "D3",
+              "quote": "Ground Sampling distance (GSD)",
+              "citation": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 3"
+            }
+          ]
+        },
+        {
+          "text": "ความละเอียดภาพสูงขึ้นเมื่อค่า GSD ต่ำลง เช่น GSD 1.2 มม. มีความละเอียดมากกว่า GSD 20 มม.",
+          "evidence": [
+            {
+              "source_id": "D3",
+              "quote": "A leaf 46 x 73 px About 55.2 x 87.6 mm 1.2 mm GSD 10 mm GSD 20 mm GSD",
+              "citation": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 3"
+            }
+          ]
+        },
+        {
+          "text": "ตัวอย่างค่าความละเอียด GSD ที่ใช้ในภาพถ่ายแปลงเกษตร ได้แก่ 3 ซม., 5 ซม., 8 ซม. และ 10 ซม.",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "GSD 3 cm\nGSD 5 cm\nGSD 8 cm\nGSD 10 cm",
+              "citation": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 5"
+            }
+          ]
+        },
+        {
+          "text": "ภาพจากดาวเทียมมีค่า GSD 10 เมตร/พิกเซล ในขณะที่ภาพจากโดรนมีค่า GSD 8 ซม./พิกเซล",
+          "evidence": [
+            {
+              "source_id": "D2",
+              "quote": "GSD 8 cm/pixel\nGSD 10 m/pixel",
+              "citation": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 4"
+            }
+          ]
+        },
+        {
+          "text": "การใช้ FMM พร้อม GSD 10 ซม./พิกเซลช่วยให้ความแม่นยำในการวัดความสูงของพืชเพิ่มขึ้นประมาณ 10 เท่า",
+          "evidence": [
+            {
+              "source_id": "D7",
+              "quote": "Precise cane height FMM [GSD 10 cm/pixel] ~10 times higher accuracy",
+              "citation": "UAV10 พื้นฐานการใช้ภาพถ่ายทางอากาศเพื่อการสำรวจแปลง.pdf, หน้า 21"
+            }
+          ]
+        }
+      ],
+      "seconds": 6.0,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 15,
+      "query": "ควรตั้ง overlap สำหรับสำรวจแปลงอย่างไร",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "overlap"
+      ],
+      "citations": [
+        "UAV1"
+      ],
+      "target_seconds": 8,
+      "answer": "• ควรตั้งค่า overlap ประมาณ 80-90% เพื่อให้ภาพต่อได้ดีโดยไม่เกิดรอยแหว่ง [1]\n• ควรปรับความเร็วการบินตามค่า overlap ที่ตั้งค่า [1]\n• ควรใช้ภาพสเกล 1/2 หรือ 1/4 สำหรับการต่อภาพด้วยกล้อง RGB [2]\n\nแหล่งอ้างอิง:\n[1] UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 13\n[2] UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 12",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "เอกสารมีข้อมูลเกี่ยวกับการตั้งค่า overlap สำหรับการสำรวจแปลงเกษตรกรรมด้วยโดรน พร้อมตัวอย่างภาพผลลัพธ์ที่แสดงความสัมพันธ์ระหว่าง overlap และความเร็วในการบิน",
+      "timings": {
+        "retrieval_ms": 656.0,
+        "kb_generation_ms": 2906.0,
+        "total_ms": 3562.0
+      },
+      "evidence_trace": [
+        {
+          "text": "ควรตั้งค่า overlap ประมาณ 80-90% เพื่อให้ภาพต่อได้ดีโดยไม่เกิดรอยแหว่ง",
+          "evidence": [
+            {
+              "source_id": "D2",
+              "quote": "RGB camera, overlap 80%, speed 5ms RGB camera, overlap 80%, speed 4ms RGB camera, overlap 85%, speed 4ms RGB camera, overlap 80%, speed 3ms RGB camera, overlap 85%, speed 3ms RGB camera, overlap 90%, speed 3ms",
+              "citation": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 13"
+            }
+          ]
+        },
+        {
+          "text": "ควรปรับความเร็วการบินตามค่า overlap ที่ตั้งค่า",
+          "evidence": [
+            {
+              "source_id": "D2",
+              "quote": "RGB camera, overlap 80%, speed 5ms RGB camera, overlap 80%, speed 4ms RGB camera, overlap 85%, speed 4ms RGB camera, overlap 80%, speed 3ms RGB camera, overlap 85%, speed 3ms RGB camera, overlap 90%, speed 3ms",
+              "citation": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 13"
+            }
+          ]
+        },
+        {
+          "text": "ควรใช้ภาพสเกล 1/2 หรือ 1/4 สำหรับการต่อภาพด้วยกล้อง RGB",
+          "evidence": [
+            {
+              "source_id": "D5",
+              "quote": "The best process setting for 1 GSD flight mission is ½ and ¼ image scales",
+              "citation": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 12"
+            }
+          ]
+        }
+      ],
+      "seconds": 3.562,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 16,
+      "query": "หลักการตั้งค่าโดรนสำรวจแปลงและถ่ายภาพทางอากาศ",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "ภาพ"
+      ],
+      "citations": [
+        "UAV1"
+      ],
+      "target_seconds": 8,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "Evidence validation failed: Quote not in supplied evidence",
+      "timings": {
+        "retrieval_ms": 656.0,
+        "kb_generation_ms": 8016.0,
+        "web_search_ms": 3500.0,
+        "final_generation_ms": 7937.0,
+        "total_ms": 20109.0
+      },
+      "evidence_trace": [],
+      "seconds": 20.109,
+      "contract_pass": false,
+      "latency_pass": false,
+      "reasons": [
+        "unexpected_source_type",
+        "missing_expected_answer_aspect",
+        "missing_expected_source"
+      ]
+    },
+    {
+      "id": 17,
+      "query": "ข้อจำกัดสภาพอากาศในการถ่ายภาพสำรวจแปลง",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "ภาพ"
+      ],
+      "citations": [
+        "UAV1"
+      ],
+      "target_seconds": 8,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "ไม่มีข้อมูลเกี่ยวกับข้อจำกัดสภาพอากาศในการถ่ายภาพสำรวจแปลงในแหล่งข้อมูลที่ให้ไว้ เอกสารกล่าวถึงการบันทึกภาพพร้อมพิกัด GPS และการประยุกต์ใช้เครื่องบินสำรวจระยะไกล แต่ไม่มีข้อมูลเกี่ยวกับเงื่อนไขสภาพอากาศที่อาจส่งผลต่อการถ่ายภาพ",
+      "timings": {
+        "retrieval_ms": 672.0,
+        "kb_generation_ms": 8015.0,
+        "web_search_ms": 3110.0,
+        "final_generation_ms": 1703.0,
+        "total_ms": 13500.0
+      },
+      "evidence_trace": [],
+      "seconds": 13.5,
+      "contract_pass": false,
+      "latency_pass": false,
+      "reasons": [
+        "unexpected_source_type",
+        "missing_expected_answer_aspect",
+        "missing_expected_source"
+      ]
+    },
+    {
+      "id": 18,
+      "query": "การขึ้นทะเบียนโดรนต้องทำอย่างไร",
+      "sources": [
+        "caat_portal"
+      ],
+      "terms": [],
+      "citations": [
+        "caat.or.th"
+      ],
+      "target_seconds": 15,
+      "answer": "ยังไม่พบหลักฐานเพียงพอที่จะยืนยันข้อกำหนดนี้ครับ ตรวจสอบข้อมูลทางการได้ที่ https://uasportal.caat.or.th/infographic",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "No verified web evidence",
+      "timings": {
+        "web_search_ms": 6203.0,
+        "total_ms": 6203.0
+      },
+      "evidence_trace": [],
+      "seconds": 6.203,
+      "contract_pass": false,
+      "latency_pass": true,
+      "reasons": [
+        "unexpected_source_type"
+      ]
+    },
+    {
+      "id": 19,
+      "query": "บินโดรนใกล้สนามบินต้องขออนุญาตอย่างไร",
+      "sources": [
+        "caat_portal"
+      ],
+      "terms": [],
+      "citations": [
+        "caat.or.th"
+      ],
+      "target_seconds": 15,
+      "answer": "ยังไม่พบหลักฐานเพียงพอที่จะยืนยันข้อกำหนดนี้ครับ ตรวจสอบข้อมูลทางการได้ที่ https://uasportal.caat.or.th/infographic",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "Evidence validation failed: Quote not in supplied evidence",
+      "timings": {
+        "web_search_ms": 5156.0,
+        "final_generation_ms": 6313.0,
+        "total_ms": 11469.0
+      },
+      "evidence_trace": [],
+      "seconds": 11.469,
+      "contract_pass": false,
+      "latency_pass": true,
+      "reasons": [
+        "unexpected_source_type"
+      ]
+    },
+    {
+      "id": 20,
+      "query": "กฎหมายโดรนบินสูงได้ไม่เกินกี่เมตร",
+      "sources": [
+        "caat_portal"
+      ],
+      "terms": [],
+      "citations": [
+        "caat.or.th"
+      ],
+      "target_seconds": 15,
+      "answer": "ยังไม่พบหลักฐานเพียงพอที่จะยืนยันข้อกำหนดนี้ครับ ตรวจสอบข้อมูลทางการได้ที่ https://uasportal.caat.or.th/infographic",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "No verified web evidence",
+      "timings": {
+        "web_search_ms": 6703.0,
+        "total_ms": 6703.0
+      },
+      "evidence_trace": [],
+      "seconds": 6.703,
+      "contract_pass": false,
+      "latency_pass": true,
+      "reasons": [
+        "unexpected_source_type"
+      ]
+    },
+    {
+      "id": 21,
+      "query": "ราคาน้ำมันดีเซลวันนี้เท่าไร",
+      "sources": [
+        "web_fallback",
+        "abstain"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 15,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "No complete LLM response within request budget",
+      "timings": {
+        "retrieval_ms": 687.0,
+        "kb_generation_ms": 1907.0,
+        "web_search_ms": 3109.0,
+        "final_generation_ms": 9609.0,
+        "total_ms": 15312.0
+      },
+      "evidence_trace": [],
+      "seconds": 15.312,
+      "contract_pass": true,
+      "latency_pass": false,
+      "reasons": []
+    },
+    {
+      "id": 22,
+      "query": "หัวฉีดพัดส้มอัตราการไหลเท่าไรและราคาน้ำมันดีเซลวันนี้เท่าไร",
+      "sources": [
+        "hybrid",
+        "knowledge_base"
+      ],
+      "terms": [
+        "500"
+      ],
+      "citations": [
+        "UAV07"
+      ],
+      "target_seconds": 15,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "No complete LLM response within request budget",
+      "timings": {
+        "retrieval_ms": 719.0,
+        "kb_generation_ms": 8063.0,
+        "web_search_ms": 3265.0,
+        "final_generation_ms": 8078.0,
+        "total_ms": 20125.0
+      },
+      "evidence_trace": [],
+      "seconds": 20.125,
+      "contract_pass": false,
+      "latency_pass": false,
+      "reasons": [
+        "unexpected_source_type",
+        "missing_expected_answer_aspect",
+        "missing_expected_source"
+      ]
+    },
+    {
+      "id": 23,
+      "query": "GSD คืออะไร และโดรนสำรวจรุ่นใหม่ล่าสุดราคาเท่าไร",
+      "sources": [
+        "hybrid",
+        "knowledge_base"
+      ],
+      "terms": [
+        "GSD"
+      ],
+      "citations": [
+        "UAV1"
+      ],
+      "target_seconds": 15,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "No complete LLM response within request budget",
+      "timings": {
+        "retrieval_ms": 672.0,
+        "kb_generation_ms": 8078.0,
+        "web_search_ms": 2313.0,
+        "final_generation_ms": 8078.0,
+        "total_ms": 19141.0
+      },
+      "evidence_trace": [],
+      "seconds": 19.141,
+      "contract_pass": false,
+      "latency_pass": false,
+      "reasons": [
+        "unexpected_source_type",
+        "missing_expected_answer_aspect",
+        "missing_expected_source"
+      ]
+    },
+    {
+      "id": 24,
+      "query": "โดรนเกษตรบินไปฉีดปุ๋ยบนดาวอังคารได้ไหม",
+      "sources": [
+        "abstain"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 15,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "หลักฐานไม่รองรับการบินโดรนเกษตรบนดาวอังคาร",
+      "timings": {
+        "retrieval_ms": 641.0,
+        "kb_generation_ms": 172.0,
+        "web_search_ms": 3109.0,
+        "final_generation_ms": 11406.0,
+        "total_ms": 15328.0
+      },
+      "evidence_trace": [],
+      "seconds": 15.328,
+      "contract_pass": true,
+      "latency_pass": false,
+      "reasons": []
+    },
+    {
+      "id": 25,
+      "query": "โดรนเกษตรดำน้ำฉีดปุ๋ยใต้ทะเลได้ไหม",
+      "sources": [
+        "abstain"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 15,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "No complete LLM response within request budget",
+      "timings": {
+        "retrieval_ms": 719.0,
+        "kb_generation_ms": 125.0,
+        "web_search_ms": 3312.0,
+        "final_generation_ms": 8016.0,
+        "total_ms": 12172.0
+      },
+      "evidence_trace": [],
+      "seconds": 12.172,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 26,
+      "query": "อัตราการไหลของหัวฉีดที่ไม่มีชื่อรุ่นเท่าไร",
+      "sources": [
+        "knowledge_base",
+        "abstain"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 15,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "ไม่พบข้อมูลอัตราการไหลของหัวฉีดที่ไม่มีชื่อรุ่น",
+      "timings": {
+        "retrieval_ms": 625.0,
+        "kb_generation_ms": 8078.0,
+        "web_search_ms": 3890.0,
+        "final_generation_ms": 6375.0,
+        "total_ms": 18968.0
+      },
+      "evidence_trace": [],
+      "seconds": 18.968,
+      "contract_pass": true,
+      "latency_pass": false,
+      "reasons": []
+    },
+    {
+      "id": 27,
+      "query": "แนะนำวิธีพิมพ์คำถามเพื่อขอข้อมูลโดรนเกษตร",
+      "sources": [
+        "bot_usage"
+      ],
+      "terms": [
+        "คำถาม"
+      ],
+      "citations": [],
+      "target_seconds": 1,
+      "answer": "ยินดีต้อนรับสู่ผู้ช่วย AI โดรนการเกษตรครับ! 🌾🚁\n\nท่านสามารถพิมพ์สอบถามข้อมูลเกี่ยวกับโดรนเกษตรได้หลากหลายหัวข้อ โดยพิมพ์ระบุประเด็นที่ต้องการให้ชัดเจน เช่น:\n\n1. การเลือกใช้หัวฉีดและการพ่นละออง:\n- หัวฉีดพัดส้มกับพัดฟ้าต่างกันอย่างไร\n- ฉีดพ่นคลุมดินควรใช้หัวฉีดแบบไหน\n- แนะนำการเลือกใช้หัวฉีดโดรนเกษตรและอัตราการไหล\n\n2. การใช้สารเคมีและกำจัดวัชพืช:\n- ฉีดพ่นยาคุมก่อนอ้อยงอกต้องใช้สารอะไร สำหรับวัชพืชใบแคบ\n- ข้อควรระวังในการผสมสารกำจัดวัชพืชมากกว่า 1 ชนิด\n- ช่วงอายุอ้อยต่างๆ ควรพ่นสารอะไร\n\n3. กฎหมายและการขออนุญาตบิน (CAAT):\n- ขั้นตอนการยื่นขออนุญาตปฏิบัติการบินโดรนเกษตรเพื่อตนเอง\n- บินโดรนในสนามบินต้องทำอย่างไร\n\n4. การตั้งค่าโดรนสำรวจแปลง:\n- หลักการตั้งค่าโดรนสำรวจแปลงและถ่ายภาพทางอากาศ\n- การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพและค่า GSD ที่ดี\n\nพิมพ์คำถามที่ท่านต้องการทราบเข้ามาได้เลยครับ!",
+      "source_type": "bot_usage",
+      "grade": "CORRECT",
+      "grade_reason": "Bot usage",
+      "timings": {},
+      "evidence_trace": [],
+      "seconds": 0.0,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 28,
+      "query": "   ",
+      "sources": [
+        "abstain"
+      ],
+      "terms": [
+        "กรุณาระบุคำถาม"
+      ],
+      "citations": [],
+      "target_seconds": 1,
+      "answer": "กรุณาระบุคำถามเกี่ยวกับโดรนการเกษตรครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "Empty query",
+      "timings": {},
+      "evidence_trace": [],
+      "seconds": 0.0,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    }
+  ]
+}

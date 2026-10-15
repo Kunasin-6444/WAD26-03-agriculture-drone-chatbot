@@ -57,14 +57,16 @@ class LlmBudgetContractTests(unittest.TestCase):
         self.assertEqual(client.chat.completions.create.call_args.kwargs["timeout"], 1.5)
 
     def test_quota_model_cooldown_expires(self):
+        # Explicit preferred_model so this test is independent of the configured
+        # RAG_MODEL default (which models are "best" shifts with provider quotas).
         client = llm_client("answer")
         _EXHAUSTED_MODELS["gpt-5.6-luna"] = 101
         with patch("app.rag.rag_service.time.monotonic", return_value=100):
-            call_llm([], client)
-        self.assertEqual(client.chat.completions.create.call_args.kwargs["model"], "nova-2-lite-v1")
+            call_llm([], client, preferred_model="gpt-5.6-luna")
+        self.assertEqual(client.chat.completions.create.call_args.kwargs["model"], "gemini-3.5-flash-lite")
         client = llm_client("answer")
         with patch("app.rag.rag_service.time.monotonic", return_value=102):
-            call_llm([], client)
+            call_llm([], client, preferred_model="gpt-5.6-luna")
         self.assertEqual(client.chat.completions.create.call_args.kwargs["model"], "gpt-5.6-luna")
 
     def test_prompt_injection_remains_untrusted_data(self):
