@@ -4,6 +4,9 @@ from urllib.parse import urlparse
 
 CAAT_PORTAL_INFOGRAPHIC_URL = "https://uasportal.caat.or.th/infographic"
 
+# Crops known in the knowledge base (shared by retrieval and claim/evidence consistency checks).
+SUPPORTED_CROPS = ["อ้อย", "ข้าว", "ข้าวโพด", "ถั่วเหลือง", "ถั่วลิสง", "มันสำปะหลัง"]
+
 
 # Air-law / permit-procedure material is answered from the designated CAAT portal, not the PDF KB.
 _EXCLUDED_NAME_MARKERS = ("ขั้นตอนการยื่นขออนุญาต",)

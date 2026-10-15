@@ -11,6 +11,10 @@ class LlmBudgetContractTests(unittest.TestCase):
     def setUp(self):
         _EXHAUSTED_MODELS.clear()
         self.addCleanup(_EXHAUSTED_MODELS.clear)
+        # A developer's .env (LLM_FALLBACK_MODELS) must not change what these contracts assert.
+        patcher = patch("app.rag.rag_service.FALLBACK_MODELS", ["gemini-3.5-flash-lite", "gpt-5.6-luna", "nova-2-lite-v1"])
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_shared_evidence_once_and_concise_instructions(self):
         client = llm_client(result_json())

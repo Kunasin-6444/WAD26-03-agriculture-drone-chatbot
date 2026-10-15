@@ -22,12 +22,9 @@ from typing import Any
 from app.rag.embedding import embed_text
 from app.rag.query_normalizer import normalize_query
 from app.rag.vector_store import collection
-from app.rag.source_policy import is_excluded_document
+from app.rag.source_policy import SUPPORTED_CROPS, is_excluded_document
 
 logger = logging.getLogger(__name__)
-
-# Crops known in the knowledge base
-SUPPORTED_CROPS = ["อ้อย", "ข้าว", "ข้าวโพด", "ถั่วเหลือง", "ถั่วลิสง", "มันสำปะหลัง"]
 
 # Retrieval switches. Defaults are the best configuration measured with scripts/eval_retrieval.py
 # (global/none: dev hit@8 17/17 MRR .87, holdout hit@8 8/8 MRR .82; the hand-tuned `legacy`

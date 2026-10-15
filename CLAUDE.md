@@ -62,6 +62,22 @@ fix. The quote-is-a-literal-substring check (the actual anti-fabrication guarant
 unchanged — this only widened where *numbers* are allowed to come from, still scoped to
 evidence the model actually cited.
 
+### Claim ↔ evidence consistency (`app/rag/claim_consistency.py`, added 2026-10-16)
+The quote and number checks prove a quote is real, not that the claim *means* it: the model
+can quote a real table row and attach another row's nozzle colour, crop, weed class or unit.
+`parse_grounded_result` therefore also runs `claim_inconsistency()` per claim (deterministic,
+no extra LLM call; a failure is an `"Evidence validation failed"` so it gets the same single
+retry). It only compares labels the claim itself states: nozzle colour (Thai or English
+colour word), crop, `ใบแคบ`/`ใบกว้าง`/`ใบแคบและกว้าง` as one class, units, and Latin terms.
+Deliberately lenient where evidence is silent — tables often print no unit and slide titles
+carry the crop — so it only rejects on *contradiction*. Measured on 97 real accepted claims:
+0 false rejections; on label-swap mutations of those claims it caught 100% weed-class,
+87% crop, 77% nozzle-colour swaps, and unit swaps only when the evidence prints a unit of
+that dimension. **Known gap:** a quote that spans several table rows still lets the claim
+pick the wrong row's label — closing it needs row-level table parsing. Don't loosen a rule
+without re-running that mutation check; don't add corpus-specific words beyond the
+standard label families (ISO nozzle colours, `SUPPORTED_CROPS`).
+
 ### Validation-failure retry (`rag_service.evaluate_evidence`)
 The live model is not perfectly deterministic even at `temperature=0`: it occasionally
 paraphrases/rounds a quote instead of copying it verbatim, which `parse_grounded_result`
@@ -96,7 +112,7 @@ uses `urlparse().hostname` matching — never go back to substring matching on t
 ```
 python -m pytest tests/            # or: python -m unittest discover -s tests
 ```
-74 tests, all pass. These are **contract tests**, not output-matching tests — they assert
+127 tests, all pass (run with `.venv/Scripts/python.exe -m unittest discover -s tests`; pytest is optional). These are **contract tests**, not output-matching tests — they assert
 behavioral guarantees (citations map to real evidence, quotes are verbatim, fabricated
 references get stripped, web fallback triggers exactly when it should, failures degrade
 without inventing facts) rather than exact strings. Most mock the LLM/Tavily clients; a

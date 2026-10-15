@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Literal
 
+from app.rag.claim_consistency import claim_inconsistency
 from app.rag.source_policy import is_excluded_document
 
 ABSTAIN_MESSAGE = "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ"
@@ -169,6 +170,12 @@ def parse_grounded_result(raw: str, evidence: list[Evidence]) -> GroundedResult:
             quoted_numbers = _numbers(" ".join(quotes) + " " + cited_content)
             if not numbers.issubset(quoted_numbers):
                 raise ValueError("Unsupported numeric claim")
+            # A real quote can still be attached to the wrong label (nozzle colour, crop,
+            # weed class, unit); see claim_consistency for exactly what is compared.
+            cited_text = " ".join(f"{by_id[i].content} {by_id[i].title} {by_id[i].url}" for i in dict.fromkeys(ids))
+            problem = claim_inconsistency(text, quotes, cited_text)
+            if problem:
+                raise ValueError(f"Claim inconsistent with cited evidence ({problem})")
             claims.append(Claim(text.strip(), tuple(dict.fromkeys(ids)), tuple(zip(ids, quotes))))
         if sum(len(c.text) + 4 for c in claims) > MAX_BODY_CHARS:
             raise ValueError("Answer exceeds concise body limit")
