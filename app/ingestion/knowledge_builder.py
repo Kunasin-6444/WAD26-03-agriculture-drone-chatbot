@@ -7,6 +7,7 @@ import hashlib
 import pymupdf
 
 from app.ingestion.models import KnowledgeUnit
+from app.ingestion.thai_text import repair_sara_am
 from app.ingestion.vision_extractor import VisionPageResult
 
 
@@ -148,9 +149,9 @@ def extract_native_tables(
                 rows
             )
 
-            text = clean_text(
+            text = repair_sara_am(clean_text(
                 text
-            )
+            ))
 
             if text:
                 results.append(text)
@@ -246,6 +247,8 @@ def build_page_knowledge_units(
             page_text = clean_text(
                 page.get_text()
             )
+        # The PDFs' own text layer has broken SARA AM; repair it before chunking/embedding.
+        page_text = repair_sara_am(page_text)
 
         if page_text:
 

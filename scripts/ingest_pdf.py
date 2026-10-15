@@ -2,6 +2,7 @@ from pathlib import Path
 import sys
 import time
 
+from app.ingestion.dedupe import drop_covered_native_units
 from app.ingestion.knowledge_builder import (
     build_page_knowledge_units,
 )
@@ -115,11 +116,16 @@ def ingest_pdf(
             vision_result=vision_result,
         )
 
+        # Native text-layer units that vision already covers only add noisy duplicates.
+        before_dedupe = len(page_units)
+        page_units = drop_covered_native_units(page_units, page_number)
+
         all_units.extend(page_units)
 
         print(
             f"    Knowledge Units: "
             f"{len(page_units)}"
+            + (f" (dropped {before_dedupe - len(page_units)} native duplicates)" if before_dedupe != len(page_units) else "")
         )
 
     # --------------------------------------------------
