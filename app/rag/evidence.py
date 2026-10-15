@@ -85,6 +85,39 @@ def _normalized(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+_ELLIPSIS = re.compile(r"\.{3,}|…")
+# SARA I..PHINTHU and MAI TAI KHU..YAMAKKAN: a doubled one is an OCR/extraction glitch.
+_DOUBLED_MARK = re.compile("([ัิ-ฺ็-๎])\\1+")
+
+
+def _canonical(text: str) -> str:
+    """Whitespace/table-separator/OCR-glitch tolerant form used only to compare a quote."""
+    text = text.replace("ํา", "ำ")
+    text = re.sub(r"[\s|​‌‍﻿]+", "", text)
+    return _DOUBLED_MARK.sub(r"\1", text)
+
+
+def _quote_supported(quote: str, content: str) -> bool:
+    """True when every fragment of the quote appears, in order, in the evidence text.
+
+    Still a literal-substring test; it ignores only layout (spaces, ``|`` between table
+    cells), doubled vowel marks and the model eliding text with ``...``. Any different word
+    or number still fails.
+    """
+    haystack = _canonical(content)
+    fragments = [_canonical(part) for part in _ELLIPSIS.split(quote)]
+    fragments = [part for part in fragments if len(part) >= 3]
+    if not fragments:
+        return False
+    position = 0
+    for part in fragments:
+        found = haystack.find(part, position)
+        if found < 0:
+            return False
+        position = found + len(part)
+    return True
+
+
 def _numbers(text: str) -> set[Decimal]:
     return {Decimal(value.replace(",", "")) for value in re.findall(r"\d+(?:,\d{3})*(?:\.\d+)?", text)}
 
@@ -123,7 +156,7 @@ def parse_grounded_result(raw: str, evidence: list[Evidence]) -> GroundedResult:
                     quote = next((citation[k] for k in ("text", "content") if isinstance(citation.get(k), str)), None)
                 if source_id not in by_id or not isinstance(quote, str) or len(quote.strip()) < 3 or len(quote) > 800:
                     raise ValueError("Invalid citation")
-                if _normalized(quote) not in _normalized(by_id[source_id].content):
+                if not _quote_supported(quote, by_id[source_id].content):
                     raise ValueError("Quote not in supplied evidence")
                 ids.append(source_id)
                 quotes.append(quote)
