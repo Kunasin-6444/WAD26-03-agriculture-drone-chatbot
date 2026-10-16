@@ -25,6 +25,15 @@ FALLBACK_MODELS = (
     else [m.strip() for m in _fallback_env.split(",") if m.strip()]
 )
 _EXHAUSTED_MODELS: dict[str, float] = {}
+# Optional second provider, used only when the primary provider's models are out of quota
+# (401/429 answer instantly, so failing over costs no request budget). Disabled unless both
+# base URL and key are set. Models default to the preferred model name; reasoning effort is
+# its own knob because the primary's value may not be valid on another provider.
+SECONDARY_BASE_URL = (os.getenv("LLM_SECONDARY_BASE_URL") or "").strip()
+SECONDARY_API_KEY = (os.getenv("LLM_SECONDARY_API_KEY") or "").strip()
+SECONDARY_MODELS = [m.strip() for m in (os.getenv("LLM_SECONDARY_MODELS") or "").split(",") if m.strip()]
+SECONDARY_REASONING_EFFORT = (os.getenv("LLM_SECONDARY_REASONING_EFFORT") or "").strip().lower()
+_SECONDARY_PREFIX = "secondary:"
 # Optional thinking-budget hint (e.g. none/minimal/low/medium/high) for reasoning-capable models
 # such as Gemini 3.x; unset sends nothing so providers that reject the field are unaffected.
 REASONING_EFFORT = (os.getenv("LLM_REASONING_EFFORT") or "").strip().lower()
@@ -70,36 +79,64 @@ def get_llm_client() -> OpenAI:
     return _llm_client
 
 
+_secondary_client: OpenAI | None = None
+
+
+def secondary_enabled() -> bool:
+    return bool(SECONDARY_BASE_URL and SECONDARY_API_KEY)
+
+
+def get_secondary_client() -> OpenAI:
+    global _secondary_client
+    with _client_lock:
+        if _secondary_client is None:
+            _secondary_client = OpenAI(api_key=SECONDARY_API_KEY, base_url=SECONDARY_BASE_URL,
+                                       timeout=ATTEMPT_TIMEOUT_SECONDS, max_retries=0)
+    return _secondary_client
+
+
 def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model: str | None = None,
              temperature: float = 0.0, max_tokens: int | None = None, deadline: float | None = None,
              max_attempts: int = 2) -> str:
     ai_client = client or get_llm_client()
     preferred = preferred_model or os.getenv("RAG_MODEL", "gemini-3.5-flash-lite")
-    candidates = list(dict.fromkeys([preferred] + FALLBACK_MODELS))
+    # (cooldown key, model name, uses secondary provider). Primary keys stay the bare model
+    # name; the secondary gets a prefix so the same model name on two providers can't collide.
+    candidates = [(m, m, False) for m in dict.fromkeys([preferred] + FALLBACK_MODELS)]
+    if secondary_enabled():
+        candidates += [(_SECONDARY_PREFIX + m, m, True) for m in dict.fromkeys(SECONDARY_MODELS or [preferred])]
     now = time.monotonic()
-    available = [m for m in candidates if _EXHAUSTED_MODELS.get(m, 0) <= now]
+    available = [c for c in candidates if _EXHAUSTED_MODELS.get(c[0], 0) <= now]
     if not available:
         # Everything is cooling down. A short (transient) cooldown means the provider throttled a
         # burst, not that quota is gone: keep trying instead of failing every request for a
         # minute. Long (daily-limit) cooldowns still fail fast so they don't burn the budget.
-        available = [m for m in candidates if _EXHAUSTED_MODELS.get(m, 0) - now <= TRANSIENT_COOLDOWN_SECONDS]
+        available = [c for c in candidates if _EXHAUSTED_MODELS.get(c[0], 0) - now <= TRANSIENT_COOLDOWN_SECONDS]
     candidates = available
     if not candidates:
         raise LLMUnavailableError("All LLM models are in quota/rate-limit cooldown")
-    attempted = failed = 0
-    for model in candidates[:max_attempts]:
+    attempted = failed = slow = 0
+    for key, model, on_secondary in candidates:
+        # max_attempts bounds attempts that can spend time. Quota/auth errors (401/429) come
+        # back immediately, so they are refunded below and can walk on to the next model or
+        # provider without eating the request budget (the deadline check still applies).
+        if slow >= max_attempts:
+            break
         remaining = (deadline - time.monotonic()) if deadline is not None else ATTEMPT_TIMEOUT_SECONDS
         if remaining <= 0.2:
             break
         attempted += 1
+        slow += 1
         try:
             # Generous headroom for the structured JSON (claims + citation quotes): a
             # real production chat log showed truncated answers at a lower limit. Output
             # that still hits this limit is discarded below rather than used truncated.
-            extra = {"extra_body": {"reasoning_effort": REASONING_EFFORT}} if REASONING_EFFORT else {}
+            effort = SECONDARY_REASONING_EFFORT if on_secondary else REASONING_EFFORT
+            extra = {"extra_body": {"reasoning_effort": effort}} if effort else {}
             if STRUCTURED_OUTPUT:
                 extra["response_format"] = _GROUNDED_RESPONSE_FORMAT
-            response = ai_client.chat.completions.create(model=model, messages=messages, temperature=temperature,
+            response = (get_secondary_client() if on_secondary else ai_client).chat.completions.create(
+                model=model, messages=messages, temperature=temperature,
                 max_tokens=max_tokens or 2200, stream=False, timeout=min(ATTEMPT_TIMEOUT_SECONDS, remaining), **extra)
             _log_model_quota(model, response)
             if not response or not response.choices:
@@ -110,14 +147,18 @@ def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model
                 continue
             content = choice.message.content
             if isinstance(content, str) and content.strip():
-                _EXHAUSTED_MODELS.pop(model, None)
+                _EXHAUSTED_MODELS.pop(key, None)
+                if on_secondary:
+                    logger.warning("LLM failover: answered by secondary provider model %s", model)
                 return content
         except Exception as exc:
             failed += 1
             if getattr(exc, "status_code", None) in {401, 429}:
                 cooldown = DAILY_LIMIT_COOLDOWN_SECONDS if _is_daily_limit(exc) else TRANSIENT_COOLDOWN_SECONDS
-                _EXHAUSTED_MODELS[model] = time.monotonic() + cooldown
-            logger.warning("LLM request failed for %s (%s)", model, type(exc).__name__)
+                _EXHAUSTED_MODELS[key] = time.monotonic() + cooldown
+                slow -= 1
+            logger.warning("LLM request failed for %s%s (%s)", model, " [secondary]" if on_secondary else "",
+                           type(exc).__name__)
     if attempted and failed == attempted:
         raise LLMUnavailableError("Every LLM attempt failed outright")
     raise RuntimeError("No complete LLM response within request budget")

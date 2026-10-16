@@ -50,6 +50,16 @@ whatever budget remains. If you touch timeout/retry logic here, re-run
 `scripts/evaluate_acceptance.py` against the live LLM — mocked unit tests won't catch
 budget-starvation bugs like this.
 
+### Cross-provider LLM failover (`rag_service.call_llm`, added 2026-10-16)
+Optional second provider via `LLM_SECONDARY_BASE_URL` / `LLM_SECONDARY_API_KEY` /
+`LLM_SECONDARY_MODELS` (disabled unless URL and key are both set). It is tried after the
+primary provider's models, and **only quota/auth errors (401/429) walk on to it**: those
+return instantly, so they are refunded from `max_attempts` and cost no request budget.
+Timeouts and unusable responses still count against `max_attempts` and never fail over —
+that is what keeps the 8s KB-generation cap intact. Secondary cooldown keys are prefixed
+`secondary:` so the same model name on two providers cools down independently. Tested live
+2026-10-16: Google primary (free tier exhausted, 429) -> KKU secondary answered in ~3s.
+
 ### Numeric-claim check scope (`evidence.parse_grounded_result`)
 A claim's numbers must appear somewhere in the **full content of its cited evidence
 record(s)**, not just inside the model's trimmed quote span. This was tightened
@@ -112,7 +122,7 @@ uses `urlparse().hostname` matching — never go back to substring matching on t
 ```
 python -m pytest tests/            # or: python -m unittest discover -s tests
 ```
-127 tests, all pass (run with `.venv/Scripts/python.exe -m unittest discover -s tests`; pytest is optional). These are **contract tests**, not output-matching tests — they assert
+136 tests, all pass (run with `.venv/Scripts/python.exe -m unittest discover -s tests`; pytest is optional). These are **contract tests**, not output-matching tests — they assert
 behavioral guarantees (citations map to real evidence, quotes are verbatim, fabricated
 references get stripped, web fallback triggers exactly when it should, failures degrade
 without inventing facts) rather than exact strings. Most mock the LLM/Tavily clients; a
