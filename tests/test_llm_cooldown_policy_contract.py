@@ -12,9 +12,11 @@ class CooldownPolicyContract(unittest.TestCase):
     def setUp(self):
         rag_service._EXHAUSTED_MODELS.clear()
         self.addCleanup(rag_service._EXHAUSTED_MODELS.clear)
-        patcher = patch.object(rag_service, "FALLBACK_MODELS", [])
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        # Neither a developer's .env fallback list nor secondary provider may leak into these.
+        for name, value in (("FALLBACK_MODELS", []), ("SECONDARY_BASE_URL", ""), ("SECONDARY_API_KEY", "")):
+            patcher = patch.object(rag_service, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def test_single_model_in_transient_cooldown_is_still_tried(self):
         rag_service._EXHAUSTED_MODELS[MODEL] = time.monotonic() + rag_service.TRANSIENT_COOLDOWN_SECONDS - 5

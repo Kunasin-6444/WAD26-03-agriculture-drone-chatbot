@@ -120,6 +120,15 @@ def _bm25_index() -> dict[str, Any]:
     return index
 
 
+def warm_up() -> None:
+    """Build the BM25 index ahead of the first request. Never raises: a failed warm-up only
+    means the first request pays for it (and degrades to top-50 BM25 if it still fails)."""
+    try:
+        _bm25_index()
+    except Exception as exc:
+        logger.warning("Retrieval warm-up skipped (%s)", type(exc).__name__)
+
+
 def _apply_global_bm25(candidates: list[dict[str, Any]], q_tokens: list[str], dense_count: int) -> None:
     """Replace top-50-only BM25 by corpus-wide BM25 and add lexical hits dense search missed."""
     index = _bm25_index()

@@ -50,6 +50,15 @@ whatever budget remains. If you touch timeout/retry logic here, re-run
 `scripts/evaluate_acceptance.py` against the live LLM — mocked unit tests won't catch
 budget-starvation bugs like this.
 
+### Startup warm-up (`app/main.py` lifespan -> `rag_service.warm_up_retrieval`)
+`retrieve_context` imports `slide_retriever` lazily, and that import (opens Chroma) costs
+~4.5s; the BM25 index build is only ~0.3s. Without warm-up the first LINE message after a
+deploy paid ~4.2s of retrieval; measured with it: 0.9s, at +3.6s startup. `WARMUP_ON_STARTUP=false`
+disables it; a failing warm-up is logged and never blocks startup. The LLM payload omits empty
+fields (`url`/`title` on documents, `source_file`/`page_number` on web) — a lossless ~1.3%.
+Do not trim *content* to save tokens: on 16 real KB answers a 10k-char budget lost a page the
+model had cited in 13% of queries, 8k in 25% (see git history of this note).
+
 ### Cross-provider LLM failover (`rag_service.call_llm`, added 2026-10-16)
 Optional second provider via `LLM_SECONDARY_BASE_URL` / `LLM_SECONDARY_API_KEY` /
 `LLM_SECONDARY_MODELS` (disabled unless URL and key are both set). It is tried after the
@@ -122,7 +131,7 @@ uses `urlparse().hostname` matching — never go back to substring matching on t
 ```
 python -m pytest tests/            # or: python -m unittest discover -s tests
 ```
-136 tests, all pass (run with `.venv/Scripts/python.exe -m unittest discover -s tests`; pytest is optional). These are **contract tests**, not output-matching tests — they assert
+142 tests, all pass (run with `.venv/Scripts/python.exe -m unittest discover -s tests`; pytest is optional). These are **contract tests**, not output-matching tests — they assert
 behavioral guarantees (citations map to real evidence, quotes are verbatim, fabricated
 references get stripped, web fallback triggers exactly when it should, failures degrade
 without inventing facts) rather than exact strings. Most mock the LLM/Tavily clients; a

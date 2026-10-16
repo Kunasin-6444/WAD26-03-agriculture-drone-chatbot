@@ -181,6 +181,13 @@ def _log_model_quota(model: str, response) -> None:
         pass
 
 
+def warm_up_retrieval() -> None:
+    """Pay the first-request cost at startup: importing slide_retriever opens Chroma (~4.5s,
+    measured) and the BM25 index is built (~0.3s). retrieve_context imports it lazily."""
+    from app.rag import slide_retriever
+    slide_retriever.warm_up()
+
+
 def retrieve_context(query: str, n_results: int = 8) -> str:
     from app.rag.slide_retriever import search_slides_pipeline
     return search_slides_pipeline(query, top_k=max(1, n_results))["context"]
@@ -191,7 +198,8 @@ def evaluate_evidence(query: str, evidence: list[Evidence], client: OpenAI | Non
     if not evidence:
         return GroundedResult(reason="No evidence")
     payload = {"question": query, "today": datetime.now(timezone(timedelta(hours=7))).date().isoformat(),
-               "sources": [e.__dict__ for e in evidence]}
+               # Empty fields (a document has no url/title, web has no file/page) carry nothing.
+               "sources": [{k: v for k, v in e.__dict__.items() if v} for e in evidence]}
     messages = [{"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
     result = GroundedResult(reason="No LLM response")

@@ -29,6 +29,11 @@ class DegradedModeContract(unittest.TestCase):
     def setUp(self):
         rag_service._EXHAUSTED_MODELS.clear()
         self.addCleanup(rag_service._EXHAUSTED_MODELS.clear)
+        # A developer's .env secondary provider must never be reached from a unit test.
+        for name, value in (("SECONDARY_BASE_URL", ""), ("SECONDARY_API_KEY", "")):
+            patcher = patch.object(rag_service, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def test_daily_limit_gets_long_cooldown_and_unavailable_error(self):
         with self.assertRaises(rag_service.LLMUnavailableError):
