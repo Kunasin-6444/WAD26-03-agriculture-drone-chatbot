@@ -1,7 +1,10 @@
 from pathlib import Path
 import json
+import hashlib
 import os
+import re
 import time
+import zlib
 from typing import Literal
 
 import pymupdf
@@ -14,10 +17,16 @@ from pydantic import BaseModel, Field, ValidationError
 
 load_dotenv()
 
+VISION_CACHE_VERSION = "v2"  # Bump when the extraction prompt/schema changes.
+
 
 # --------------------------------------------------
 # Output schema
 # --------------------------------------------------
+
+class TableRow(BaseModel):
+    cells: list[str] = Field(default_factory=list)
+
 
 class VisualElement(BaseModel):
     """
@@ -32,9 +41,17 @@ class VisualElement(BaseModel):
     visual_description:
         More detailed interpretation of the visual content,
         grounded in the provided page.
+
+    columns / rows:
+        Only for ``type == "table"`` and only when the structured-table prompt is used:
+        the printed column headings and every data row, cell by cell.
     """
 
     type: str | None = None
+
+    columns: list[str] | None = None
+
+    rows: list[TableRow] | None = None
 
     status: Literal[
         "clear",
@@ -61,6 +78,38 @@ class VisionPageResult(BaseModel):
     elements: list[VisualElement] = Field(
         default_factory=list
     )
+
+
+def validate_vision_result(result: VisionPageResult) -> VisionPageResult:
+    """Reject generation loops before they can become cached or published evidence.
+
+    Check individual prose/cell fields rather than all cells together: repeated
+    values in a genuine table are allowed. This catches degeneration, not factual
+    correctness; visual source review is still required.
+    """
+    fields = [result.summary or ""]
+    for element in result.elements:
+        fields.extend([element.description or "", element.extracted_text or "",
+                       element.visual_description or "", *(element.columns or [])])
+        fields.extend(cell for row in element.rows or [] for cell in row.cells)
+    if any(re.search(r"\b(\w{2,})(?:\s+\1){23,}\b", value, re.IGNORECASE) for value in fields):
+        raise ValueError("Vision response contains a repeated-token generation loop")
+    # A model can also loop over a whole phrase, or over Thai text that has no spaces to split on:
+    # all of one table's cells together, and every prose field, must not be almost pure repetition.
+    tables = [" ".join(cell for row in element.rows or [] for cell in row.cells) for element in result.elements]
+    if any(is_generation_loop(value) for value in [*fields, *tables]):
+        raise ValueError("Vision response contains a repeated-phrase generation loop")
+    return result
+
+
+def is_generation_loop(text: str) -> bool:
+    words = text.lower().split()
+    if len(words) >= 24:
+        shingles = [tuple(words[i:i + 4]) for i in range(len(words) - 3)]
+        if len(set(shingles)) / len(shingles) < 0.3:
+            return True
+    raw = text.encode("utf-8")
+    return len(raw) >= 400 and len(zlib.compress(raw)) / len(raw) < 0.08
 
 
 # --------------------------------------------------
@@ -91,6 +140,17 @@ def parse_vision_response(
         response.text containing JSON
     """
 
+    for candidate in getattr(response, "candidates", None) or []:
+        reason = getattr(candidate, "finish_reason", None)
+        name = getattr(reason, "name", reason)
+        if isinstance(name, str) and name.upper() not in {"STOP", "FINISH_REASON_UNSPECIFIED"}:
+            usage = getattr(response, "usage_metadata", None)
+            raise RuntimeError(
+                f"Vision response did not finish normally ({name}; "
+                f"output={getattr(usage, 'candidates_token_count', None)}, "
+                f"thinking={getattr(usage, 'thoughts_token_count', None)} tokens)"
+            )
+
     parsed = getattr(
         response,
         "parsed",
@@ -103,11 +163,9 @@ def parse_vision_response(
             parsed,
             VisionPageResult,
         ):
-            return parsed
+            return validate_vision_result(parsed)
 
-        return VisionPageResult.model_validate(
-            parsed
-        )
+        return validate_vision_result(VisionPageResult.model_validate(parsed))
 
     text = getattr(
         response,
@@ -148,9 +206,7 @@ def parse_vision_response(
 
     try:
 
-        return VisionPageResult.model_validate(
-            raw_data
-        )
+        return validate_vision_result(VisionPageResult.model_validate(raw_data))
 
     except ValidationError as exc:
 
@@ -180,6 +236,12 @@ def generate_with_retry(
 
     if client is None:
         raise RuntimeError("GOOGLE_API_KEY is not set")
+    timeout = float(os.getenv("VISION_TIMEOUT_SECONDS", "30"))
+    if max_retries < 1 or timeout < 10:
+        raise ValueError("Vision retries must be positive and timeout at least 10 seconds")
+    # A clean page answer is a few thousand tokens; a generation loop runs until this cap, so a
+    # low cap fails a looping page fast (finish_reason MAX_TOKENS) instead of waiting for the timeout.
+    max_output_tokens = int(os.getenv("VISION_MAX_OUTPUT_TOKENS", "16384"))
 
     last_exc: Exception | None = None
 
@@ -199,6 +261,9 @@ def generate_with_retry(
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     response_schema=VisionPageResult,
+                    max_output_tokens=max_output_tokens,
+                    http_options=types.HttpOptions(timeout=int(timeout * 1000),
+                        retry_options=types.HttpRetryOptions(attempts=1)),
                 ),
             )
 
@@ -211,6 +276,8 @@ def generate_with_retry(
             last_exc = exc
 
             if error_code == 429 or "RESOURCE_EXHAUSTED" in error_str or "429" in error_str:
+                if attempt == max_retries - 1:
+                    break
                 delay = 10 * (2 ** attempt)
                 print(
                     f"Gemini Rate Limit (429 / RESOURCE_EXHAUSTED). "
@@ -343,9 +410,15 @@ def get_cache_path(
     pdf_path: str | Path,
     page_number: int,
     cache_dir: str | Path = "cache/vision",
+    document_sha256: str | None = None,
+    structured_tables: bool = False,
 ) -> Path:
-    pdf_stem = Path(pdf_path).stem
-    return Path(cache_dir) / pdf_stem / f"page_{page_number}.json"
+    digest = document_sha256 or hashlib.sha256(Path(pdf_path).read_bytes()).hexdigest()
+    identity = f"{VISION_CACHE_VERSION}:{digest}:{os.getenv('VISION_MODEL', 'gemini-3.5-flash-lite')}"
+    if structured_tables:
+        identity += ":tables"  # a different prompt/result shape must never reuse older cache entries
+    key = hashlib.sha256(identity.encode()).hexdigest()
+    return Path(cache_dir) / VISION_CACHE_VERSION / key / f"page_{page_number}.json"
 
 
 def load_vision_cache(
@@ -355,7 +428,7 @@ def load_vision_cache(
         return None
     try:
         data = json.loads(cache_path.read_text(encoding="utf-8"))
-        return VisionPageResult.model_validate(data)
+        return validate_vision_result(VisionPageResult.model_validate(data))
     except Exception as exc:
         print(f"[load_vision_cache] Failed to read {cache_path}: {exc}")
         return None
@@ -365,6 +438,7 @@ def save_vision_cache(
     cache_path: Path,
     result: VisionPageResult,
 ) -> None:
+    validate_vision_result(result)
     try:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(
@@ -379,12 +453,53 @@ def save_vision_cache(
 # Analyze one PDF page
 # --------------------------------------------------
 
+STRUCTURED_TABLE_TAIL = """Return ONLY valid JSON.
+
+สำหรับ element ที่ type เป็น "table" ให้ส่งตารางเป็นโครงสร้างเพิ่มเติม:
+
+- columns: หัวคอลัมน์ตามที่พิมพ์ในตาราง เรียงจากซ้ายไปขวา
+  ถ้าหน้านี้ไม่มีแถวหัวตาราง (เป็นตารางที่ต่อจากหน้าก่อนหน้า) ให้ columns เป็น []
+  ห้ามสร้างหัวคอลัมน์เองหรือคัดลอกหัวตารางจากหน้าอื่น
+- rows: ทุกแถวข้อมูลเรียงจากบนลงล่าง แต่ละแถวคือ cells ที่มีจำนวนเท่ากับจำนวนคอลัมน์
+  แต่ละ cell เป็นข้อความตามต้นฉบับ รักษาตัวเลขและหน่วยตามที่พิมพ์ ห้ามคำนวณหรือแก้ค่า
+  cell ว่างให้ใส่ "" แถวหัวข้อกลุ่มที่รวมเซลล์ข้ามคอลัมน์ให้ใส่ข้อความใน cell แรก
+  และปล่อย cell ที่เหลือเป็น ""
+- extracted_text ของตารางให้คงไว้ตามเดิมได้ แต่ข้อมูลหลักต้องอยู่ใน columns และ rows
+
+ใช้โครงสร้าง:
+
+{
+  "has_meaningful_visual_content": true,
+  "summary": "...",
+  "elements": [
+    {
+      "type": "...",
+      "status": "clear",
+      "description": "...",
+      "extracted_text": "...",
+      "visual_description": "...",
+      "columns": ["..."],
+      "rows": [{"cells": ["..."]}]
+    }
+  ]
+}
+
+columns และ rows ใช้เฉพาะ element ประเภท table ส่วน element อื่นไม่ต้องมี
+ต้องไม่มี field อื่นนอกเหนือจาก schema นี้
+"""
+
+
 def analyze_pdf_page(
     pdf_path: str | Path,
     page_number: int,
     force_vision: bool = False,
     cache_dir: str | Path = "cache/vision",
+    document_sha256: str | None = None,
+    structured_tables: bool = False,
+    use_heuristic: bool = True,
 ) -> VisionPageResult:
+    """``use_heuristic=False``: the caller already decided this page needs vision; the
+    disk cache is still read, unlike ``force_vision`` which always calls the API."""
 
     pdf = Path(pdf_path)
 
@@ -395,6 +510,8 @@ def analyze_pdf_page(
         pdf_path=pdf,
         page_number=page_number,
         cache_dir=cache_dir,
+        document_sha256=document_sha256,
+        structured_tables=structured_tables,
     )
 
     # 1. Check disk cache first
@@ -404,7 +521,7 @@ def analyze_pdf_page(
             return cached
 
     # 2. Check if Vision is actually needed
-    if not force_vision:
+    if not force_vision and use_heuristic:
         use_vision, reason = should_use_vision(
             doc_or_path=pdf,
             page_number=page_number,
@@ -722,6 +839,9 @@ Return ONLY valid JSON.
 
 ต้องไม่มี field อื่นนอกเหนือจาก schema นี้
 """
+
+    if structured_tables:
+        prompt = prompt.rsplit("Return ONLY valid JSON.", 1)[0] + STRUCTURED_TABLE_TAIL
 
     # ------------------------------------------------
     # Call Gemini

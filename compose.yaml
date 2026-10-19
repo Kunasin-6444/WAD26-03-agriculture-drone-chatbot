@@ -1,0 +1,32 @@
+services:
+  chatbot:
+    build:
+      context: .
+      target: runtime
+    env_file:
+      - .env
+    environment:
+      CHROMA_PATH: /app/chroma_db
+      LINE_INBOX_DB_PATH: /app/cache/line_inbox.sqlite3
+      PDF_RETRIEVAL_MODE: ${PDF_RETRIEVAL_MODE:-text}
+      RETRIEVER_RERANK: ${RETRIEVER_RERANK:-diverse}
+      WARMUP_ON_STARTUP: "true"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - knowledge:/app/chroma_db
+      - state:/app/cache
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 45s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  knowledge:
+  state:

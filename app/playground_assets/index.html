@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Drone Chatbot · ทดลองถามตอบ</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Drone Chatbot หน้าหลัก"><span class="brand-icon" aria-hidden="true">✳</span> Drone Chatbot</a>
+    <span class="local-badge"><span aria-hidden="true">●</span> ทดลองในเครื่อง</span>
+  </header>
+  <main>
+    <section class="intro">
+      <p class="eyebrow">AGRICULTURE KNOWLEDGE</p>
+      <h1>ถามเรื่องโดรนเกษตร<br><span>พร้อมที่มาของคำตอบ</span></h1>
+      <p>ความรู้จากเอกสาร ค้นเว็บเติมส่วนที่ขาด<br class="mobile-break"> และอ้างอิงให้ย้อนตรวจได้</p>
+    </section>
+
+    <div class="workspace">
+      <section class="question-panel" aria-labelledby="question-heading">
+        <div class="section-heading"><span class="step">01</span><h2 id="question-heading">ลองถามคำถาม</h2></div>
+        <form id="question-form">
+          <fieldset id="mode-fieldset" class="mode-fieldset">
+            <legend>เลือกโหมด</legend>
+            <div class="mode-options">
+              <label class="mode-card"><input type="radio" name="mode" value="demo" checked><span><strong>ข้อมูลจำลอง</strong><small>ลองหน้าจอ ไม่ใช้ API</small></span></label>
+              <label class="mode-card"><input type="radio" name="mode" value="live"><span><strong>ถามระบบจริง</strong><small>ใช้ quota ตามปกติ</small></span></label>
+            </div>
+          </fieldset>
+          <p id="mode-note" class="mode-note">คำตอบและแหล่งอ้างอิงเป็นตัวอย่าง ยังไม่ได้ค้นเอกสารหรือเว็บจริง</p>
+          <div id="demo-options">
+            <label for="scenario">สถานการณ์จำลอง</label>
+            <select id="scenario" name="scenario">
+              <option value="mixed">รวมคำตอบจาก KB + web</option>
+              <option value="kb">ตอบจากเอกสาร KB</option>
+              <option value="unverified">หลักฐานไม่เพียงพอ</option>
+              <option value="quota">quota หมด / บริการไม่พร้อม</option>
+            </select>
+          </div>
+          <div class="question-label"><label for="question">คำถามของคุณ</label><span id="character-count">0 / 2,000</span></div>
+          <textarea id="question" name="question" rows="5" maxlength="2000" required placeholder="เช่น ก่อนใช้โดรนพ่นสาร ต้องเตรียมอะไรบ้าง?" aria-describedby="question-hint"></textarea>
+          <p id="question-hint" class="hint">ถามทีละเรื่อง หรือระบุรุ่น พืช และเงื่อนไขที่ต้องการ</p>
+          <button id="submit-button" class="primary-button" type="submit"><span id="submit-label">ดูคำตอบจำลอง</span><span aria-hidden="true">↗</span></button>
+          <p class="privacy-note">ไม่ส่งข้อความ LINE · ไม่ส่งคำถามซ้ำอัตโนมัติ</p>
+        </form>
+      </section>
+
+      <section class="answer-panel" aria-labelledby="answer-heading" aria-busy="false">
+        <div class="section-heading"><span class="step">02</span><h2 id="answer-heading">คำตอบและแหล่งที่มา</h2><button id="copy-button" class="text-button" type="button" hidden>คัดลอก</button></div>
+        <div id="empty-state" class="empty-state"><span class="empty-symbol" aria-hidden="true">✳</span><h3>เริ่มจากคำถามของคุณ</h3><p>ลองหน้าจอได้แม้ quota หมด<br>เมื่อพร้อม ค่อยเปลี่ยนเป็นถามระบบจริง</p><span class="empty-tag">KB + WEB · พร้อมอ้างอิง</span></div>
+        <div id="loading-state" class="loading-state" hidden><span class="spinner" aria-hidden="true"></span><p>กำลังตอบคำถาม…</p><small>กำลังใช้ระบบจริง ครั้งแรกอาจใช้เวลาโหลดเพิ่มเติม</small><p id="waiting-time">0 วินาที</p></div>
+        <article id="result" hidden>
+          <div class="result-meta"><span id="result-mode" class="result-badge"></span><span id="elapsed-time"></span></div>
+          <p id="answered-question" class="answered-question"></p>
+          <p id="demo-notice" class="notice" hidden></p>
+          <p id="answer-body" class="answer-body"></p>
+          <section id="sources-section" class="sources" hidden><h3>แหล่งอ้างอิง</h3><div id="sources-list"></div></section>
+        </article>
+        <p id="screen-status" class="sr-only" role="status" aria-live="polite"></p>
+      </section>
+    </div>
+    <footer>หน้าทดลองนี้ช่วยให้คุณตรวจคำตอบและอ้างอิงเองได้ <span>โหมดจำลองไม่ใช้วัดคุณภาพหรือความเร็วของ AI</span></footer>
+    <noscript><p class="notice">กรุณาเปิด JavaScript เพื่อใช้หน้าทดลองถามตอบ</p></noscript>
+  </main>
+</body>
+</html>

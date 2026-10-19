@@ -6,7 +6,8 @@ import os
 import chromadb
 
 from app.rag.chunking import Chunk
-from app.rag.embedding import embed_text
+from app.rag.embedding import EMBEDDING_MODEL, embed_text
+from app.rag.embedding_cache import cached_document_embedding
 from app.rag.source_policy import is_excluded_document
 
 
@@ -50,6 +51,8 @@ def add_chunks(
 
     if any(is_excluded_document(chunk.source_file) for chunk in chunks):
         raise ValueError("UAV01/UA03 must use CAAT rather than PDF ingestion")
+    if replace_source_file and any(chunk.source_file != replace_source_file for chunk in chunks):
+        raise ValueError("Replacement chunks must belong to the requested source file")
 
     ids: list[str] = []
     documents: list[str] = []
@@ -77,17 +80,14 @@ def add_chunks(
         )
 
         embeddings.append(
-            embed_text(chunk.content)
+            cached_document_embedding(chunk.content, EMBEDDING_MODEL, CHROMA_PATH / "embedding_cache", embed_text)
         )
 
         metadatas.append(
-            chunk.metadata
+            {**chunk.metadata, "embedding_model": EMBEDDING_MODEL, "embedding_dimensions": "3072"}
         )
 
-    if replace_source_file:
-        removed = delete_document_pages(replace_source_file, replace_pages)
-        if removed:
-            print(f"    Replaced {removed} existing chunks for {replace_source_file}", flush=True)
+    old_ids = _document_page_ids(replace_source_file, replace_pages) if replace_source_file else []
 
     collection.upsert(
         ids=ids,
@@ -95,6 +95,10 @@ def add_chunks(
         embeddings=embeddings,
         metadatas=metadatas,
     )
+    # Publish first. A rejected upsert must not remove the last usable document.
+    stale_ids = sorted(set(old_ids) - set(ids))
+    if stale_ids:
+        collection.delete(ids=stale_ids)
 
 
 def delete_document_pages(source_file: str, pages: range | None = None) -> int:
@@ -103,15 +107,19 @@ def delete_document_pages(source_file: str, pages: range | None = None) -> int:
     re-ingest replaces them instead of leaving stale/duplicate chunks behind.
     """
 
+    ids = _document_page_ids(source_file, pages)
+    if ids:
+        collection.delete(ids=ids)
+    return len(ids)
+
+
+def _document_page_ids(source_file: str, pages=None) -> list[str]:
     found = collection.get(where={"source_file": source_file}, include=["metadatas"])
-    ids = [
+    return [
         chunk_id
         for chunk_id, meta in zip(found["ids"], found["metadatas"])
         if pages is None or int(meta.get("page_number", 0)) in pages
     ]
-    if ids:
-        collection.delete(ids=ids)
-    return len(ids)
 
 
 # --------------------------------------------------

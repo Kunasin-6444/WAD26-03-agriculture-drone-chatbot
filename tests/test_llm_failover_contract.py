@@ -38,15 +38,22 @@ class CrossProviderFailoverContract(unittest.TestCase):
         primary = _failing_client(_HttpError(401))
         self.assertEqual(rag_service.call_llm([], primary, preferred_model="primary-a"), "from-secondary")
         self.assertEqual(self.secondary.chat.completions.create.call_args.kwargs["model"], "second-a")
-        # Both primary models were tried and cooled for a long time; the secondary was not.
+        # Fail over before spending budget on other models on the same gateway.
         self.assertGreater(rag_service._EXHAUSTED_MODELS["primary-a"] - time.monotonic(), 600)
-        self.assertGreater(rag_service._EXHAUSTED_MODELS["primary-b"] - time.monotonic(), 600)
+        self.assertNotIn("primary-b", rag_service._EXHAUSTED_MODELS)
+        self.assertEqual(primary.chat.completions.create.call_count, 1)
         self.assertNotIn("secondary:second-a", rag_service._EXHAUSTED_MODELS)
 
     def test_failover_works_even_when_the_caller_allows_one_attempt(self):
         # KB generation uses max_attempts=1; instant quota errors must not block failover.
         primary = _failing_client(_HttpError(429, {"error": "quota"}))
         self.assertEqual(rag_service.call_llm([], primary, preferred_model="primary-a", max_attempts=1), "from-secondary")
+
+    def test_slow_primary_fallback_cannot_starve_configured_secondary(self):
+        primary = MagicMock()
+        primary.chat.completions.create.side_effect = [_HttpError(401), TimeoutError("fallback slow")]
+        self.assertEqual(rag_service.call_llm([], primary, preferred_model="primary-a", max_attempts=1), "from-secondary")
+        self.assertEqual(primary.chat.completions.create.call_count, 1)
 
     def test_cooled_primary_is_skipped_without_calling_it(self):
         rag_service._EXHAUSTED_MODELS["primary-a"] = time.monotonic() + rag_service.DAILY_LIMIT_COOLDOWN_SECONDS
@@ -55,12 +62,24 @@ class CrossProviderFailoverContract(unittest.TestCase):
         self.assertEqual(rag_service.call_llm([], primary, preferred_model="primary-a"), "from-secondary")
         primary.chat.completions.create.assert_not_called()
 
-    def test_timeouts_do_not_fail_over_or_exceed_the_attempt_cap(self):
+    def test_timeout_respects_attempt_cap_then_the_next_stage_skips_the_stalled_model(self):
         primary = _failing_client(TimeoutError("slow"))
         with self.assertRaises(RuntimeError):
             rag_service.call_llm([], primary, preferred_model="primary-a", max_attempts=1)
         self.assertEqual(primary.chat.completions.create.call_count, 1)
         self.secondary.chat.completions.create.assert_not_called()
+        self.assertEqual(rag_service.call_llm([], primary, preferred_model="primary-a", max_attempts=1), "from-secondary")
+        self.assertEqual(primary.chat.completions.create.call_count, 1)
+
+    def test_timeout_uses_configured_secondary_when_another_attempt_is_available(self):
+        primary = _failing_client(TimeoutError("slow"))
+        self.assertEqual(rag_service.call_llm([], primary, preferred_model="primary-a", max_attempts=2), "from-secondary")
+        self.assertEqual(primary.chat.completions.create.call_count, 1)
+
+    def test_server_outage_uses_secondary_without_retrying_the_same_gateway(self):
+        primary = _failing_client(_HttpError(503, {"error": "unavailable"}))
+        self.assertEqual(rag_service.call_llm([], primary, preferred_model="primary-a"), "from-secondary")
+        self.assertEqual(primary.chat.completions.create.call_count, 1)
 
     def test_same_model_name_on_both_providers_has_independent_cooldowns(self):
         with patch.object(rag_service, "SECONDARY_MODELS", ["primary-a"]):
@@ -79,6 +98,13 @@ class CrossProviderFailoverContract(unittest.TestCase):
              patch.object(rag_service, "SECONDARY_REASONING_EFFORT", ""):
             rag_service.call_llm([], _failing_client(_HttpError(401)), preferred_model="primary-a")
         self.assertNotIn("extra_body", self.secondary.chat.completions.create.call_args.kwargs)
+
+    def test_secondary_schema_support_does_not_force_it_on_primary_gateway(self):
+        primary = _failing_client(_HttpError(401))
+        with patch.object(rag_service, "STRUCTURED_OUTPUT", False), patch.object(rag_service, "SECONDARY_STRUCTURED_OUTPUT", True):
+            rag_service.call_llm([], primary, preferred_model="primary-a")
+        self.assertNotIn("response_format", primary.chat.completions.create.call_args.kwargs)
+        self.assertEqual(self.secondary.chat.completions.create.call_args.kwargs["response_format"]["type"], "json_schema")
 
 
 class FailoverDisabledContract(unittest.TestCase):

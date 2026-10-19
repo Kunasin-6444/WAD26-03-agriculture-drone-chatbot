@@ -1,5 +1,7 @@
 import json
 import os
+import shutil
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -7,11 +9,27 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.rag import rag_service, slide_retriever
-from app.rag.evidence import Evidence
+from app.rag.evidence import Claim, Evidence
 from tests.helpers import llm_client, result_json
 
 
 class PayloadContract(unittest.TestCase):
+    def test_verified_claim_text_and_normalizer_alias_are_explicit_in_payload(self):
+        text = "พัดส้มมีปริมาณ 500 ml"
+        client = llm_client(result_json(claims=[(text, "D1", text)]))
+        rag_service.evaluate_evidence("พัดฟ้า (พัดน้ำเงิน) และพัดส้ม", [Evidence("D1", text, "a.pdf", "1")],
+            client, verified_claims=[Claim(text, ("D1",), (("D1", text),))])
+        payload = json.loads(client.chat.completions.create.call_args.kwargs["messages"][1]["content"])
+        self.assertEqual(payload["verified_claims"], [{"text": text, "source_ids": ["D1"]}])
+        self.assertEqual(payload["query_aliases"], {"พัดฟ้า": "พัดน้ำเงิน"})
+    def test_independent_question_parts_are_explicit_in_the_model_payload(self):
+        client = llm_client(result_json())
+        rag_service.evaluate_evidence("พัดส้มมีปริมาณต่อหัวเท่าไร และขึ้นทะเบียนโดรนอย่างไร",
+                                      [Evidence("D1", "หัวฉีดพัดส้ม 500 ml", "UAV06.pdf", "5")], client)
+        payload = json.loads(client.chat.completions.create.call_args.kwargs["messages"][1]["content"])
+        self.assertEqual(len(payload["question_parts"]), 2)
+        self.assertNotIn("ขึ้นทะเบียน", payload["question_parts"][0])
+
     def test_empty_fields_are_omitted_but_all_evidence_content_is_kept(self):
         evidence = [Evidence("D1", "หัวฉีดพัดส้ม 500 ml", "UAV06.pdf", "5"),
                     Evidence("W1", "ราคาน้ำมัน", url="https://www.eppo.go.th/p", title="ราคา")]
@@ -23,6 +41,14 @@ class PayloadContract(unittest.TestCase):
 
 
 class WarmupContract(unittest.TestCase):
+    def setUp(self):
+        # Entering the lifespan opens the LINE inbox; keep it out of the production cache/ dir.
+        folder = tempfile.mkdtemp(prefix="warmup-inbox-")
+        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
+        env = patch.dict(os.environ, {"LINE_INBOX_DB_PATH": os.path.join(folder, "inbox.sqlite3")})
+        env.start()
+        self.addCleanup(env.stop)
+
     def test_startup_runs_warmup_once_before_serving(self):
         with patch("app.main.warm_up_retrieval") as warm:
             with TestClient(app) as client:

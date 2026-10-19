@@ -34,3 +34,14 @@ def repair_sara_am(text: str) -> str:
         fixed = fixed.replace("ำ", "า").replace(_MARK, "ำ")
     fixed = _SPACE_AA.sub(lambda m: m.group(1) + m.group(2) + "ำ", fixed)
     return fixed
+
+
+# A space before SARA AA ("น้ า", "ท า") or before SARA AM: the text layer lost a SARA AM.
+_DAMAGE = re.compile(rf"[{_CONSONANT}][{_TONE}]?[ \t]+[{_TONE}]?[าำ]")
+
+
+def thai_layer_damaged(text: str) -> bool:
+    """True when the text layer shows the lost-SARA-AM damage ``repair_sara_am`` describes.
+
+    Table cells are kept verbatim, so such a table must not replace what vision read."""
+    return bool(_DAMAGE.search(text or ""))

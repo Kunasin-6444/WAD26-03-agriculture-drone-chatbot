@@ -1,233 +1,74 @@
-# Current State
-
-> Updated 2026-10-15: the RAG/CRAG pipeline described below was rewritten after the
-> 2026-10-14 audit ([RAG_SYSTEM_REVIEW.md](RAG_SYSTEM_REVIEW.md), now historical — see its
-> banner for which findings are fixed). This revision reflects the current code, not the
-> audited version. 74 contract-style tests pass (`python -m pytest tests/`), and a live
-> acceptance smoke test (3 real queries, `docs/LIVE_ACCEPTANCE_SMOKE.json`) surfaced a real
-> latency/timeout bug that has since been fixed (see "CRAG (Corrective RAG) & Fallback"
-> below). **The smoke test has not yet been re-run against the fix** — until it is, treat
-> live quality/latency as unverified rather than "production-ready."
-
-## Completed
-
-### PDF Vision & Selective Ingestion
-
-Working and Production-Ready.
-
-File:
-
-`app/ingestion/vision_extractor.py`
-
-Features:
-- Selective vision heuristic: detects content images (>150x150), complex vector drawings (>10), sparse text with graphics, and corrupted fonts.
-- Pure text pages bypass Gemini Vision and use native PyMuPDF extraction (0 quota, 100x faster).
-- Local disk caching at `cache/vision/<doc_name>/page_<n>.json` prevents redundant API calls.
-- HTTP 429 (`RESOURCE_EXHAUSTED`) backoff retry handling.
-- Structured output uses Pydantic (`VisionPageResult`, `VisualElement`).
-- CLI support for `--force-vision` in `scripts/ingest_pdf.py`.
-
----
-
-## Knowledge Unit
-
-Working.
-
-File:
-
-`app/ingestion/models.py`
-
-`KnowledgeUnit` contains:
-
-- id
-- document_id
-- source_file
-- page_number
-- source_type
-- content
-- extracted_text
-- visual_description
-- title
-- metadata
-
----
-
-## Knowledge Builder
-
-Working.
-
-File:
-
-`app/ingestion/knowledge_builder.py`
-
-Currently combines:
-
-- PDF text
-- native PDF tables
-- Vision output
-
----
-
-## Chunking
-
-Working.
-
-File:
-
-`app/rag/chunking.py`
-
-Current baseline:
-
-- chunk size: 800 characters
-- overlap: 120 characters
-
-This is an MVP baseline and has not yet been optimized.
-
----
-
-## Embedding
-
-Working.
-
-File:
-
-`app/rag/embedding.py`
-
-Model:
-
-`gemini-embedding-2`
-
-Dimension:
-
-3072
-
-Retry behavior exists for temporary server errors.
-
----
-
-## Chroma
-
-Working.
-
-File:
-
-`app/rag/vector_store.py`
-
-Persistent collection:
-
-`drone_knowledge`
-
----
-
-## Vector Store & Ingestion Status
-
-Working and Multi-document.
-
-File:
-
-`app/rag/vector_store.py`
-
-Persistent collection:
-
-`drone_knowledge`
-
-Current Knowledge Base Ingestion:
-- `UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf` (23 pages): 118 KUs, 126 Chunks
-- `UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf` (27 pages): 106 KUs, 107 Chunks
-- `UAV08 วัชพืชและการควบคุม application.pdf` (48 pages): 161 KUs, 172 Chunks
-- `UAV09 การใช้สารกำจัดวัชพืช.pdf` (26 pages): 82 KUs, 103 Chunks
-- `UAV10 พื้นฐานการใช้ภาพถ่ายทางอากาศเพื่อการสำรวจแปลง.pdf` (48 pages): 204 KUs, 215 Chunks
-- `UAV11 การสาธิตการใช้โดรนสำรวจ.pdf` (18 pages): 72 KUs, 77 Chunks
-- `UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf` (29 pages): 108 KUs, 112 Chunks
-- **Total active chunks in ChromaDB: 912 chunks** (7 documents fully ingested, cleaned up 3 stray mock test chunks)
-- Law documents (`UAV01`, `UA03`, and `ขั้นตอนการยื่นขออนุญาตปฏิบัติการบินโดรนเกษตรเพื่อตนเอง.pdf`) are excluded from vector ingestion and routed directly to CAAT UAS Portal per policy/Rule R1.
-- ID deduplication safeguard in `add_chunks()` and `make_unit_id(..., source_origin=...)` prevents `DuplicateIDError`.
-- Disk cache: `cache/vision/` stores all analyzed pages for instant re-runs without API quota.
-
----
-
-## Retrieval & Grounding
-
-Working across multiple documents.
-
-Files:
-
-`app/rag/slide_retriever.py`, `app/rag/evidence.py`, `app/rag/rag_service.py`
-
-Features:
-- `search_slides_pipeline()`: 6-step hybrid retrieval (query normalization, dense Gemini-embedding search + custom BM25 over Thai n-grams, page-level RRF merge that keeps table *and* sibling text/image chunks on the same page, domain/crop/topic reranking, topic-diverse top-k selection, context assembly).
-- `evidence.document_evidence()` parses the assembled context into typed `Evidence` records (per source file + page), then `evaluate_evidence()` makes one LLM call (`prompts/grounded_answer.txt`) that returns a structured `GroundedResult`: `status` (`sufficient`/`partial`/`insufficient`), per-claim `source_id` + verbatim `quote`.
-- `evidence.parse_grounded_result()` is the grounding gate: it rejects any claim whose quote is not a literal substring of the cited evidence, whose numbers aren't backed by the quoted text, or whose `source_id` doesn't exist — citations are server-verified, not just LLM-formatted text.
-- `evidence.render_grounded_answer()` builds the final bulleted answer with a numbered `แหล่งอ้างอิง:` reference list built only from evidence actually cited; falls back to a fixed abstain message if claims and evidence don't line up.
-- Connected end-to-end through `ask_ai` → `run_crag_pipeline` → LINE Webhook.
-
----
-
-## CRAG (Corrective RAG) & Fallback
-
-Working. Live acceptance quality/latency not yet re-verified after the 2026-10-15 timeout fix (see below).
-
-Files:
-- `app/rag/intent_router.py`: routes bot-usage questions to a canned response before any retrieval.
-- `app/rag/crag_grader.py`: keyword routing for Air Law / Air Space topics to the designated CAAT source (no longer a standalone grader — sufficiency grading now happens inside `evaluate_evidence`).
-- `app/rag/web_fallback.py`: Tavily web search; CAAT topics genuinely fetch the designated CAAT portal page via `client.extract(...)` (not injected static text). Trusted-domain check uses `urlparse().hostname` matching, not substring matching on the full URL.
-- `app/rag/crag_service.py`: orchestrates the full flow — KB retrieval → structured sufficiency evaluation → web fallback when not `sufficient` (or for "today/latest" freshness queries) → combined re-evaluation → clear abstain when evidence still doesn't support a claim.
-- `app/services/ai_service.py`: `ask_ai` is a thin wrapper over `run_crag_pipeline`.
-
-Features:
-- CAAT topics bypass the PDF KB entirely and must cite real fetched CAAT content or abstain with a link.
-- Partial KB evidence is preserved (not discarded) when web search is used to fill in missing aspects; KB evidence that wasn't actually used in the partial answer is dropped so it can't contaminate the web-combined answer.
-- Explicit abstain (fixed Thai message) when evidence from neither source supports a claim — no guessing.
-- **Request budget**: each query gets `RAG_REQUEST_TIMEOUT_SECONDS` (default 22s) total. Previously, KB-generation could spend up to 2 model attempts × 8s = 16s of that budget, starving web search and final generation — a live smoke test showed exactly this (`kb_generation_ms: 12250` of a 22015ms total, final answer forced to abstain). **Fixed 2026-10-15**: KB generation is now capped to 1 model attempt within an 8s sub-deadline (`crag_service.KB_GENERATION_BUDGET_SECONDS`), since it has a fallback path (web search); final generation — the last chance to answer — still gets up to 2 attempts within whatever budget remains.
-
----
-
-## LINE Webhook & Integration
-
-Working and Production-Ready.
-
-Files:
-- `app/api/webhook.py`: FastAPI endpoint `/webhook` handling incoming LINE events.
-- `app/services/line_service.py`: LINE Messaging API `reply_text` implementation.
-
-Features:
-- Webhook signature verification with `WebhookParser` (rejects invalid requests with HTTP 400).
-- Automatic handling of LINE Developer Console webhook verification (empty events returning 200 OK).
-- Dummy verification token filtering (`00000000000000000000000000000000` / `ffffffffffffffffffffffffffffffff`).
-- Message length guard (truncates to 4950 characters to prevent LINE API 400 errors).
-- Resilient error handling (returns friendly Thai message if internal processing fails without crashing the webhook).
-
----
-
-## Live Acceptance Evaluation
-
-Harness working. 3/3 smoke-test queries now contract-pass after three 2026-10-15 fixes
-(request-budget starvation, validation-failure retry, numeric-claim check scope). Full
-28-case run still pending.
-
-Files:
-- `scripts/evaluate_acceptance.py`: live harness (real LLM + real vector store + real Tavily) running Thai queries across all routing categories, checking expected source/citations/terms and an 8s per-query latency target via `assess()`.
-- `docs/LIVE_ACCEPTANCE_SMOKE.json`: a 3-query smoke run, now reflecting all three 2026-10-15 fixes. All 3 queries answer correctly from the KB (previously: 1/3 abstained on pure budget starvation, then 1/3 on a quote-paraphrase mismatch, then 1/3 on a compound question whose numeric check was over-strict — each traced to a specific cause and fixed; see `TODO.md`'s "Latency fix" section for the full history). Latency is 2/3 under the 8s target; the remaining slow run was the live model taking an unusually cautious interpretation path on one query (model variance, not a bug).
-
----
-
-## Automated Test Suite
-
-Working and verified — contract-based tests, not output-matching tests.
-
-**74 tests pass** (`python -m pytest tests/` or `python -m unittest discover -s tests`):
-- `tests/test_evidence_contract.py`: citation/quote/number verification, evidence packing budget.
-- `tests/test_ingestion_embedding_contract.py`: real PDF ingestion (table/text separation, vision fallback caching), embedding timeout/retry/empty-input handling.
-- `tests/test_retrieval_storage_contract.py`: chunking math, query-normalization idempotence, real isolated Chroma round-trip, excluded-document filtering at ingestion and retrieval.
-- `tests/test_web_source_contract.py`: domain-spoofing rejection, Tavily search/extract wrapping, CAAT-restricted search, dedup/timeout handling.
-- `tests/test_llm_budget_contract.py`: shared evidence sent once, strict timeouts/temperature=0, provider fallback capped, truncated/reasoning-only output rejected, prompt-injection text treated as untrusted data.
-- `tests/test_pipeline_contract.py`: end-to-end `run_crag_pipeline` with mocked retrieval/search/LLM — routing to knowledge_base/web_fallback/hybrid/caat_portal/abstain, exactly one extra web search on partial evidence, graceful degradation on failures.
-- `tests/test_line_integration_contract.py`: real FastAPI `TestClient` against the webhook — signature validation, async non-blocking behavior, message-length truncation.
-- `tests/test_acceptance_harness.py`: unit-tests the live-acceptance harness itself.
-
----
-
-# Current Next Priority
-
-1. Re-run `scripts/evaluate_acceptance.py` to confirm the 2026-10-15 timeout fix resolves the live latency/abstain failure.
-2. Phase 3 (P3) — deployment config, env vars, live webhook, end-to-end LINE test (see TODO.md).
+# สถานะปัจจุบัน
+
+อัปเดต 2026-10-17: มี local playground แล้ว โหมดจำลองไม่ใช้ quota ส่วนโหมดจริงรอเจ้าของกดถาม
+รอบ playground ตรวจ offline เฉพาะส่วนที่เพิ่ม 7 tests ผ่าน และตรวจ JavaScript syntax ไม่ได้เรียก LLM/API หรือ ingestion
+ผล RAG/ingestion ในหัวข้อหลักฐานรอบก่อนเป็นผลเก่า ไม่ใช่ผลตรวจสดของคำตอบจริง
+
+## สิ่งที่มีอยู่
+
+- FastAPI + LINE webhook มี signature verification, durable SQLite inbox, deduplication และ worker
+- RAG มี retrieval จากเอกสาร การตรวจหลักฐาน การเก็บ KB บางส่วนแล้วเติม web และการจัดรูปแบบอ้างอิงจาก metadata
+- Web citation รองรับ URL ของหน้าที่ใช้จริง และ CAAT ใช้แหล่งทางการตามนโยบาย
+- Text ingestion ปัจจุบันเป็น layout/native tables + selective Vision, structured chunks, cached/batched embeddings
+- ค่าเริ่มต้น retrieval ในโค้ดเป็น text + global/diverse; provider/model จริงขึ้นกับ environment
+- มี answer cache สำหรับคำตอบ KB ที่เข้าเกณฑ์ และการรับมือความผิดพลาดชั่วคราวของ provider
+- มี Docker/Compose, persistent volumes, health endpoints และเครื่องมือ backup/restore
+- มี local playground แยกแอปจาก LINE: โหมดจำลองเป็นค่าเริ่มต้น, โหมดจริงใช้ `ask_ai`, แสดงคำตอบ/อ้างอิง/เวลา และไม่เริ่ม worker/inbox
+
+## สิ่งที่ยังไม่เสร็จ
+
+1. **รอเจ้าของลองหน้าทดลอง** เปิดด้วย `.venv/Scripts/python.exe -m scripts.playground` แล้วไป `http://127.0.0.1:8080`; โหมดจำลองใช้ได้ทันที โหมดจริงยังไม่ได้ตรวจด้วย provider เพราะ quota หมด
+2. ความครบถ้วนและ latency ยังไม่นิ่งทุกกรณี โดยเฉพาะ quote ที่ตรวจไม่ผ่านทำให้ repair/web เพิ่ม และเงื่อนไขตารางตกหล่น
+3. **ช่องว่างที่ยอมรับแล้ว (2026-10-18):** ข้อความในภาพรายงาน AI ของ `ฟีเจอร์การลงทุน.pdf` หน้า 38 ไม่ได้อยู่ใน index
+   Vision ตอบ 504 DEADLINE_EXCEEDED ทุกครั้ง (3 รอบ ตั้งรอ 90 วินาทีแล้ว) ขณะที่หน้าอื่นผ่านหมด สาเหตุน่าจะเป็นภาพข้อความหนาแน่นทำให้โมเดลสร้างผลลัพธ์ไม่ทันเส้นตายเซิร์ฟเวอร์
+   ข้อความปกติของหน้า 38 อยู่ใน index แล้ว ส่วนค่าในภาพ (เช่น AR-10L/4, IRR 51%) บอตไม่มีหลักฐาน ต้องตอบว่ายืนยันไม่ได้
+   ไฟล์นี้จึงติดป้าย `missing:38` และ `scripts.ingest` ทั้งไฟล์จะพยายามอ่านหน้า 38 ซ้ำและล้มอีก อย่ารันซ้ำโดยไม่จำเป็น
+   ตัวเลือกถ้าต้องการปิดจริง: ตัดภาพหน้า 38 เป็นสองซีกแล้วส่ง Vision ทีละซีก (2 calls) หรือลองโมเดลอื่นด้วย `VISION_MODEL` กับหน้านี้หน้าเดียว
+   ตรวจ offline (อ่าน index อย่างเดียว) 2026-10-18: ข้อเท็จจริงจากร่างคำถาม 33 ข้อ พบบนหน้าที่ถูกต้อง 32 ข้อ ข้อที่ไม่พบคือค่าในภาพหน้า 38; เป็นการตรวจว่ามีข้อความใน index ไม่ใช่การตรวจคำตอบของบอต
+   ingest เอกสารใหม่ 4 ไฟล์: ผสมสาร 34/34, วินิจฉัยโรค 47/47, โดรนของฉัน 4/4 หน้าครบ; การลงทุน ครบทุกหน้าที่มีเนื้อหา ยกเว้นข้อความในภาพหน้า 38; `verify_ingestion` ผ่าน
+4. ยังไม่มี production host และยังไม่ได้ยืนยันการส่ง LINE จริงบน host
+5. **UAV06 ingest ใหม่ไม่สมบูรณ์ (2026-10-18)** เจ้าของอนุมัติให้ ingest UAV06 ด้วย pipeline ใหม่ ผลคือหน้า 1–5, 7–12, 14–15, 16, 19–23 เป็นแบบใหม่ ส่วนหน้า 6, 13, 18 ยังเป็นข้อมูลเก่า (Vision 504 สองรอบ) และ **หน้า 17 มี chunk ขยะ 74 ชิ้น** (โมเดลติดลูปซ้ำวลี "standard layout correctly structured properly")
+   - ตัวกัน vision loop ถูกขยายให้จับวลีซ้ำและข้อความไทยที่บีบอัดได้ผิดปกติ (เทสต์ 3 ข้อ) ผลที่ลูปใน cache ถูกปฏิเสธแล้ว
+   - ชุดคำถามฐาน 7 ข้อ (ยาคุมใบแคบ/ใบกว้าง, เพนดิเมทาลิน+อิมาซาปิก, พาราควอท, ไกลโฟเซต, 2,4-D, หัวฉีดพัดส้ม) ตรวจกับตารางต้นฉบับ UAV06 หน้า 18 ตอบถูกครบทั้งก่อนและหลัง ingest (รอบละ 7 คำถามสด) คำตอบเดิมที่สารผสมถูกระบุเป็น "ใบแคบ" ไม่เกิดอีก
+   - **ล้างขยะแล้ว 2026-10-19** (สำรองก่อนรันที่ `cache/backup_chroma_before_junk_cleanup_20261019`): `verify_ingestion` ผ่าน ไม่มี chunk ลูปเหลือ index = 974 chunks
+     - UAV06 หน้า 17: Vision รอบใหม่ผ่าน แทนขยะ 74 chunk ด้วย 4 chunk ปกติ
+     - UAV06 หน้า 5: Vision ลูปอีก 2 รอบ (ถูกตัวกันปฏิเสธ) หน้าจึงเหลือเฉพาะข้อความในไฟล์ 1 chunk (หัวข้อ/ชื่อหัวฉีด)
+       **ผลข้างเคียง:** ตารางจากภาพที่เคยอ่านถูก (อัตราการไหลหัวฉีด เช่น พัดส้ม 1600/500/1500 และระยะหน้ากว้างตามความสูง) หายไปพร้อมขยะ เพราะโค้ดตัดสินทั้งหน้า ยังอยู่ในฐานสำรองข้างบน
+     - UAV10 หน้า 40: Vision ลูป หน้าถูกสร้างใหม่จากข้อความในไฟล์ 5 chunk (ข้อมูลโดรน/กล้อง, ค่า R², RMSE; ข้อความแกนกราฟบางส่วนแตกเป็นตัวอักษร)
+   - ยังเป็นข้อมูลเก่า: UAV06 หน้า 6, 13 (ข้อมูล legacy ใช้ได้ ไม่ใช่ขยะ) หน้า 18 แก้แล้วด้านล่าง
+     Vision ลูปซ้ำที่หน้าเดิมทุกครั้ง (UAV06 หน้า 5, 18 / UAV10 หน้า 40) จึงหยุดลองซ้ำ ทางเลือกถ้าต้องการปิด: ลองโมเดลอื่นด้วย `VISION_MODEL` เฉพาะหน้านั้น หรือตัดภาพหน้าเป็นส่วน
+     หรือแก้ `existing_page_quality` ให้ทิ้งเฉพาะ chunk ที่เป็นลูปแทนทั้งหน้า แล้วคืนตารางหน้า 5 จากฐานสำรอง (ต้องได้อนุมัติก่อนเขียน index)
+   - **ลองโมเดลแรงกว่า 2026-10-19 (เจ้าของอนุมัติ, 3 calls):** `VISION_MODEL=gemini-3.5-flash` ไม่ช่วย — UAV06 หน้า 5 จบไม่ปกติ, หน้า 18 ได้ 503 (เซิร์ฟเวอร์แน่น), UAV10 หน้า 40 ลูปเหมือนเดิม ไม่ได้ลองการลงทุนหน้า 38 index ไม่เปลี่ยน (974)
+     จึงสรุปว่าไม่ใช่เรื่องขนาดโมเดล แต่หน้าพวกนี้ทำให้โมเดลลูป เพิ่ม `VISION_MAX_OUTPUT_TOKENS` (ค่าเริ่มต้น 16384) ให้หน้าที่ลูปล้มเร็วแทนรอ timeout และ error บอก finish_reason/จำนวน token แล้ว
+     สำรองก่อนลองที่ `cache/backup_chroma_before_vision_model_retry_20261019`
+   - **ข้อสังเกต:** หน้า 18 เคยอ่านผ่านกับ Vision รุ่นเก่าที่สั่งให้ตอบเป็นข้อความ ส่วนรุ่นใหม่สั่งให้แยกทีละช่องตาราง จึงเพิ่ม `vision_with_plain_fallback` (2026-10-19, ไม่ใช้ API, เทสต์ 2 ข้อ)
+     เมื่ออ่านแบบแยกช่องแล้วลูปหรือจบไม่ปกติ ระบบลองใหม่ 1 ครั้งแบบข้อความ (ตารางจะเป็นข้อความต่อกันแบบข้อมูลเก่า) ส่วน 503/429/timeout ไม่ลองซ้ำ
+   - **ทดลองสดแล้ว 2026-10-19 (เจ้าของอนุมัติ, 6 calls, สำรองก่อนที่ `cache/backup_chroma_before_plain_fallback_20261019`):** อ่านแบบแยกช่องล้มทั้ง 3 หน้า (หน้า 18 ชนเพดาน MAX_TOKENS เพราะลูป, หน้า 5 และ 40 ถูกตัวกรอง RECITATION ของ Gemini) แบบข้อความผ่านทั้ง 3 หน้า index = 982
+     - UAV06 หน้า 5: ตรวจกับภาพต้นฉบับแล้ว ตารางอัตราการไหล 8 แถวและระยะหน้ากว้าง 5 แถว ถูกทุกค่า ตารางที่หายกลับมาแล้ว
+     - UAV10 หน้า 40: ค่า R² 0.7805/0.7942, ตัวอย่าง 1621/696, RMSEC 1.87/RMSEP 1.76 ถูก (ยังมี chunk ข้อความแกนกราฟแตก 2 ชิ้นจากข้อความในไฟล์)
+     - UAV06 หน้า 18: ผลแบบข้อความของ Vision เขียน "ก่อนพืชงอก" แทน "ก่อนวัชพืชงอก" ทุกแถว จึงไม่ใช้ตาราง Vision (ดูข้อถัดไป)
+     - **แก้แล้ว (2026-10-19, ไม่ใช้ API): ตารางในไฟล์ชนะตาราง Vision** PDF หน้า 18 มีตารางข้อความในไฟล์ที่ถูกทุกคำ แต่โค้ดเดิมทิ้งเพราะ Vision ครอบคลุมเนื้อหาเดียวกัน
+       `drop_vision_tables_native_covers` ตัดตาราง Vision ที่ตารางในไฟล์ครอบคลุมแล้ว (Vision ยังอ่านภาพ/ตารางที่ไฟล์ไม่มี) ยกเว้นข้อความไทยในไฟล์เสีย (`thai_layer_damaged`, เช่น "น้ า" ของ UAV06 หน้า 15) เทสต์ใหม่ 3 ข้อ
+       ตรวจผลแบบ offline จาก cache: ถ้า ingest ใหม่ จะเปลี่ยนเฉพาะ UAV06 หน้า 18, UAV10 หน้า 40 (และ UAV08 หน้า 4, 6 ซึ่งยังเป็น legacy) หน้า 18 จะได้ตาราง 22 แถวแยกแถวพร้อมหัวตารางทุก chunk คำถูกทั้งหมด
+       **ingest หน้า 18 ใหม่แล้ว (เจ้าของอนุมัติ):** ตาราง 22 แถวจากไฟล์ คำถูกครบ (ก่อน/หลังวัชพืชงอก, อิมาซาปิก, เฮ็กซาซิโนน) + ข้อความภาพผลิตภัณฑ์จาก Vision; `verify_ingestion` ผ่าน index = 982
+       UAV06 หน้า 6, 13 ยังเป็นข้อมูล legacy ใช้ได้ ชุดคำถาม u01–u07 (หน้า 18) ควรให้เจ้าของลองถามใหม่
+
+## หลักฐานรอบก่อน
+
+มีรายงาน offline suite บน Windows/Linux และ live evaluation ใน `docs/*.json`
+KB รอบก่อนรายงาน 11 PDF / 343 หน้า / 997 chunks; ตัวเลขนี้ไม่ใช่การรับรองสาระในภาพครบทุกหน้า
+Live acceptance เคยได้ 26/28 answer contracts และ 24/28 latency targets; source evaluation 9/12 strict และ 11/12 latency
+การตรวจ failover แบบเจาะจงภายหลังผ่าน 3/3 แต่ไม่ได้รันทั้ง batch ใหม่ จึงไม่ถือว่าปิดข้อบกพร่องทั้งหมด
+
+ดู [verification record](archive/reports-2026-10-17/DELIVERY_VERIFICATION_2026-10-17.json),
+[semantic review เดิม](archive/md-overhaul-2026-10-17/docs/DELIVERY_SEMANTIC_REVIEW_2026-10-17.md)
+และ [release report เดิม](archive/md-overhaul-2026-10-17/docs/RELEASE_READINESS_2026-10-17.md)
+คะแนนอัตโนมัติและจำนวน tests ไม่ใช่คำรับรองความถูกต้องทุกคำตอบ
+
+รอบ playground: 7 focused offline tests ผ่าน ครอบคลุม demo/startup ไม่โหลด RAG/LINE, validation/origin,
+การส่งคำถามจริงด้วย stub, URL ครบ path/query/fragment, provider errors/degraded และกัน live requests ซ้อน
+มี warning จาก Starlette/AnyIO และสิทธิ์ pytest cache ซึ่งไม่ทำให้ tests fail
+เปิด HTTP ในเครื่องแล้ว แต่ตรวจผ่าน Browser อัตโนมัติไม่ได้เพราะเครื่องมือ Browser เชื่อมต่อไม่สำเร็จ
+จึงยังไม่อ้างว่ายืนยันการแสดงผลใน browser หรือคุณภาพ/latency ของคำตอบจริงแล้ว
+
+งานถัดไปอยู่ที่ [NEXT_STEPS_PLAN](NEXT_STEPS_PLAN.md) เท่านั้น

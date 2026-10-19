@@ -5,6 +5,7 @@ The online pipeline evaluates sufficiency and generates claims in one call
 query must be routed to the designated CAAT source instead of the PDF KB.
 """
 from __future__ import annotations
+from app.rag.source_policy import requested_document_ids
 
 CAAT_KEYWORDS = [
     "กฎหมาย",
@@ -35,4 +36,4 @@ CAAT_KEYWORDS = [
 
 
 def is_caat_air_law_or_airspace_topic(query: str) -> bool:
-    return any(keyword in query.lower() for keyword in CAAT_KEYWORDS)
+    return bool(requested_document_ids(query) & {"UAV01", "UA03"}) or any(keyword in query.lower() for keyword in CAAT_KEYWORDS)

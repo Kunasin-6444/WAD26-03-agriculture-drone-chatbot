@@ -14,6 +14,8 @@ Professional Multimodal RAG Retrieval Architecture for Agriculture Drone Slides:
 from __future__ import annotations
 
 import logging
+import hashlib
+import json
 import math
 import os
 import re
@@ -22,20 +24,23 @@ from typing import Any
 from app.rag.embedding import embed_text
 from app.rag.query_normalizer import normalize_query
 from app.rag.vector_store import collection
-from app.rag.source_policy import SUPPORTED_CROPS, is_excluded_document
+from app.rag.source_policy import SUPPORTED_CROPS, canonical_document_id, is_excluded_document, requested_document_ids
+from app.rag.page_reranker import select_diverse_pages, split_query_aspects
 
 logger = logging.getLogger(__name__)
 
-# Retrieval switches. Defaults are the best configuration measured with scripts/eval_retrieval.py
-# (global/none: dev hit@8 17/17 MRR .87, holdout hit@8 8/8 MRR .82; the hand-tuned `legacy`
-# multipliers scored 16/17 .80 and 7/8 .58). `legacy`/`top50` are kept only for comparison.
+# Retrieval switches. global/diverse preserves the legacy gold hit@8 (17/17 dev,
+# 8/8 holdout) and improves complete multi-aspect source gold retrieval (7/8 -> 8/8
+# dev; holdout hit@8 remains 4/4). See docs/*RETRIEVAL*2026-10-17.json.
+# `legacy`/`top50` remain available only to reproduce historical comparisons.
 #   RETRIEVER_BM25   top50  = BM25 only over the dense top-50 (legacy)
 #                    global = BM25 with IDF over the whole collection, fused with dense by RRF
 #   RETRIEVER_RERANK legacy = hand-tuned topic/keyword multipliers + topic quotas
 #                    crop   = only the crop metadata boost/penalty, plain top-k
 #                    none   = fused RRF order, plain top-k
+#                    diverse = bounded domain/crop alignment, aspect coverage and MMR
 RETRIEVER_BM25 = os.getenv("RETRIEVER_BM25", "global").strip().lower()
-RETRIEVER_RERANK = os.getenv("RETRIEVER_RERANK", "none").strip().lower()
+RETRIEVER_RERANK = os.getenv("RETRIEVER_RERANK", "diverse").strip().lower()
 
 
 def tokenize_thai_terms(text: str) -> list[str]:
@@ -102,10 +107,12 @@ _bm25_cache: dict[str, Any] = {}
 
 def _bm25_index() -> dict[str, Any]:
     """In-memory BM25 statistics over every chunk (the collection is small); rebuilt when it changes."""
-    count = collection.count()
-    if _bm25_cache.get("count") == count and _bm25_cache.get("index"):
-        return _bm25_cache["index"]
     data = collection.get(include=["documents", "metadatas"])
+    # Count alone misses an upsert that replaces content without adding rows.
+    # Reading this small corpus also observes updates from another ingestion process.
+    signature = hashlib.sha256(json.dumps(data, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+    if _bm25_cache.get("signature") == signature and _bm25_cache.get("index"):
+        return _bm25_cache["index"]
     docs, metas = data["documents"], data["metadatas"]
     tokens = [tokenize_thai_terms(d or "") for d in docs]
     df: dict[str, int] = {}
@@ -116,7 +123,7 @@ def _bm25_index() -> dict[str, Any]:
     idf = {term: math.log(1.0 + (n - c + 0.5) / (c + 0.5)) for term, c in df.items()}
     index = {"docs": docs, "metas": metas, "tokens": tokens, "idf": idf,
              "avgdl": sum(len(t) for t in tokens) / (n or 1)}
-    _bm25_cache.update(count=count, index=index)
+    _bm25_cache.update(signature=signature, index=index)
     return index
 
 
@@ -129,11 +136,13 @@ def warm_up() -> None:
         logger.warning("Retrieval warm-up skipped (%s)", type(exc).__name__)
 
 
-def _apply_global_bm25(candidates: list[dict[str, Any]], q_tokens: list[str], dense_count: int) -> None:
+def _apply_global_bm25(candidates: list[dict[str, Any]], q_tokens: list[str], dense_count: int,
+                       aspects: list[str] | None = None, source_files: set[str] | None = None) -> None:
     """Replace top-50-only BM25 by corpus-wide BM25 and add lexical hits dense search missed."""
     index = _bm25_index()
     scored = sorted(((compute_bm25_score(q_tokens, toks, index["avgdl"], idf=index["idf"]), i)
-                     for i, toks in enumerate(index["tokens"])), reverse=True)
+                     for i, toks in enumerate(index["tokens"])
+                     if source_files is None or (index["metas"][i] or {}).get("source_file") in source_files), reverse=True)
     position: dict[str, tuple[int, float]] = {}
     for pos, (score, i) in enumerate(scored, 1):
         position.setdefault(index["docs"][i], (pos, score))
@@ -152,6 +161,42 @@ def _apply_global_bm25(candidates: list[dict[str, Any]], q_tokens: list[str], de
                            "source_file": meta.get("source_file", "unknown"),
                            "page_number": str(meta.get("page_number", "unknown")),
                            "source_type": meta.get("source_type", "text")})
+    by_doc = {c["doc"]: c for c in candidates}
+    for aspect, text in enumerate(aspects or []):
+        query_tokens = tokenize_thai_terms(text)
+        ranks = sorted(((compute_bm25_score(query_tokens, toks, index["avgdl"], idf=index["idf"]), i)
+                        for i, toks in enumerate(index["tokens"])
+                        if source_files is None or (index["metas"][i] or {}).get("source_file") in source_files), reverse=True)[:10]
+        for rank, (score, i) in enumerate(ranks, 1):
+            doc, meta = index["docs"][i], index["metas"][i] or {}
+            if score <= 0 or not doc or is_excluded_document(meta.get("source_file", "")):
+                continue
+            if doc not in by_doc:
+                extra += 1
+                candidate = {"doc": doc, "meta": meta, "dense_rank": dense_count + extra, "dense_sim": 0.0,
+                             "bm25_rank": position[doc][0], "bm25_score": position[doc][1],
+                             "source_file": meta.get("source_file", "unknown"),
+                             "page_number": str(meta.get("page_number", "unknown")),
+                             "source_type": meta.get("source_type", "text")}
+                candidates.append(candidate)
+                by_doc[doc] = candidate
+            by_doc[doc].setdefault("aspect_ranks", {})[aspect] = rank
+
+
+def _order_by_seq(group: dict[str, list]) -> None:
+    """Chunks of one page in printed order (``seq`` is set by the v2 ingestion pipeline).
+
+    Chroma returns a page's chunks in no guaranteed order, and a table cut into row groups
+    must read top to bottom. Older chunks carry no ``seq``; the stable sort leaves them as is."""
+    def seq(metadata) -> int:
+        try:
+            return int((metadata or {}).get("seq", 0))
+        except (TypeError, ValueError):
+            return 0
+
+    order = sorted(range(len(group["documents"])), key=lambda i: seq(group["metadatas"][i]))
+    group["metadatas"] = [group["metadatas"][i] for i in order]
+    group["documents"] = [group["documents"][i] for i in order]
 
 
 def classify_slide_topic(content: str) -> str:
@@ -245,11 +290,20 @@ def search_slides_pipeline(
     # -----------------------------------------------------------------
     if not norm_query or top_k < 1:
         return {"context": "", "top_pages": [], "total_chars": 0}
+    scope = requested_document_ids(norm_query)
+    source_files = None
+    if scope:
+        index = _bm25_index()
+        source_files = {m["source_file"] for m in index["metas"] if m and m.get("source_file")
+                        and canonical_document_id(m["source_file"]) in scope and not is_excluded_document(m["source_file"])}
+        if not source_files:
+            return {"context": "", "top_pages": [], "total_chars": 0}
     q_emb = embed_text(norm_query, max_retries=1, timeout_seconds=3.0)
     chroma_res = collection.query(
         query_embeddings=[q_emb],
         n_results=50,
         include=["metadatas", "documents", "distances"],
+        **({"where": {"source_file": {"$in": sorted(source_files)}}} if source_files is not None else {}),
     )
 
     raw_docs = chroma_res.get("documents", [[]])[0]
@@ -265,6 +319,8 @@ def search_slides_pipeline(
     for idx, (doc, meta, dist) in enumerate(zip(raw_docs, raw_metas, raw_dists)):
         meta = meta or {}
         if not doc or is_excluded_document(meta.get("source_file", "")):
+            continue
+        if source_files is not None and meta.get("source_file") not in source_files:
             continue
         doc_tokens = tokenize_thai_terms(doc)
         bm25 = compute_bm25_score(q_tokens, doc_tokens, avg_dl)
@@ -290,7 +346,14 @@ def search_slides_pipeline(
 
     if RETRIEVER_BM25 == "global":
         try:
-            _apply_global_bm25(candidates, q_tokens, len(raw_docs))
+            aspects = split_query_aspects(norm_query) if RETRIEVER_RERANK == "diverse" else []
+            # Clause-local retrieval is useful across domains. Short attributes
+            # of one subject (e.g. soil preparation and moisture) stay together.
+            topics = {classify_slide_topic(part) for part in aspects} - {"general"}
+            if len(topics) < 2:
+                aspects = []
+            _apply_global_bm25(candidates, q_tokens, len(raw_docs),
+                               aspects, source_files)
         except Exception as exc:  # keep the dense + top-50 ranking rather than failing the request
             logger.warning("Global BM25 unavailable (%s); using top-50 BM25", type(exc).__name__)
 
@@ -314,11 +377,14 @@ def search_slides_pipeline(
                 group = expanded.setdefault(key, {"metadatas": [], "documents": []})
                 group["metadatas"].append(metadata)
                 group["documents"].append(document)
+            for group in expanded.values():
+                _order_by_seq(group)
         except Exception as exc:
             logger.warning("Page expansion unavailable (%s)", type(exc).__name__)
 
     for cand in candidates:
-        if cand["source_file"] == "unknown" or not cand["page_number"]:
+        if (cand["source_file"] == "unknown" or not str(cand["page_number"]).isdigit()
+                or int(cand["page_number"]) < 1):
             continue
         page_key = (cand["source_file"], cand["page_number"])
         # Reciprocal Rank Fusion (RRF)
@@ -355,17 +421,33 @@ def search_slides_pipeline(
 
             combined_content = "\n\n---\n\n".join(page_structured_docs)
 
+            # A stitched table row/header may really span PDF pages. Carry that
+            # server-owned provenance to the citation instead of labelling it as
+            # if every word were printed on the anchor page.
+            span = [int(cand["page_number"])]
+            for metadata in page_chunks.get("metadatas") or []:
+                for field in ("page_from", "page_end"):
+                    value = str((metadata or {}).get(field) or "")
+                    if value.isdigit() and int(value) > 0:
+                        span.append(int(value))
+
             pages_map[page_key] = {
                 "source_file": cand["source_file"],
                 "page_number": cand["page_number"],
+                "page_from": str(min(span)),
+                "page_end": str(max(span)),
                 "source_type": "table" if any((p or {}).get("source_type") == "table" for p in (page_chunks.get("metadatas") or [])) else cand["source_type"],
                 "content": combined_content,
                 "rrf_score": rrf_score,
                 "topic": classify_slide_topic(combined_content),
                 "best_meta": cand["meta"],
+                "aspect_ranks": dict(cand.get("aspect_ranks", {})),
             }
         else:
             pages_map[page_key]["rrf_score"] += rrf_score * 0.5
+            for aspect, rank in cand.get("aspect_ranks", {}).items():
+                current = pages_map[page_key]["aspect_ranks"]
+                current[aspect] = min(rank, current.get(aspect, rank))
 
     deduped_pages = list(pages_map.values())
 
@@ -377,7 +459,7 @@ def search_slides_pipeline(
         content = page["content"]
 
         # Crop alignment: boost matching crop, heavily penalize conflicting crops
-        if target_crop and RETRIEVER_RERANK != "none":
+        if target_crop and RETRIEVER_RERANK in {"crop", "legacy"}:
             if target_crop in content:
                 score *= 2.0
             other_crops = [
@@ -445,7 +527,10 @@ def search_slides_pipeline(
 
     reranked = sorted(deduped_pages, key=lambda x: x["rerank_score"], reverse=True)
 
-    if RETRIEVER_RERANK != "legacy":
+    if RETRIEVER_RERANK == "diverse":
+        selected = select_diverse_pages(norm_query, deduped_pages, top_k, tokenize_thai_terms,
+                                        classify_slide_topic(norm_query))
+    elif RETRIEVER_RERANK != "legacy":
         selected = reranked[:top_k]
     else:
         # Topic-diverse selection (MMR): preserve breadth while honoring query focus

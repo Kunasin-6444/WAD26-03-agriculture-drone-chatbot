@@ -1,43 +1,12 @@
-import asyncio
-import base64
-import hashlib
-import hmac
-import json
-import threading
 import unittest
 from unittest.mock import MagicMock, patch
 
-import httpx
-from fastapi.testclient import TestClient
-
-from app.config import LINE_CHANNEL_SECRET
-from app.main import app
 from app.services.line_service import reply_text
 from app.services.rich_menu_service import build_rich_menu_request
+from tests.line_helpers import InboxAppCase, event_payload
 
 
-def event_payload(token="mock-reply", message_type="text"):
-    return {"destination": "Ubot", "events": [{"type": "message", "message": {"type": message_type, "id": "1", "text": "หัวฉีดพัดส้ม", "quoteToken": "q"},
-        "timestamp": 1727150000000, "source": {"type": "user", "userId": "Utest"}, "replyToken": token,
-        "webhookEventId": "event-1", "deliveryContext": {"isRedelivery": False}, "mode": "active"}]}
-
-
-def signed_request(payload):
-    body = json.dumps(payload, ensure_ascii=False)
-    digest = hmac.new(LINE_CHANNEL_SECRET.encode(), body.encode(), hashlib.sha256).digest()
-    return body, {"x-line-signature": base64.b64encode(digest).decode(), "Content-Type": "application/json"}
-
-
-class LineIntegrationContractTests(unittest.TestCase):
-    def setUp(self):
-        self.client = TestClient(app)
-        patches = [patch("app.api.webhook.show_loading_animation", return_value=True),
-                   patch("app.api.webhook.ask_ai", return_value="หัวฉีด 500 ml\n\nแหล่งอ้างอิง:\n[1] UAV07.pdf, หน้า 12"),
-                   patch("app.api.webhook.reply_text", return_value=True)]
-        self.loading, self.ask, self.reply = [p.start() for p in patches]
-        for p in patches:
-            self.addCleanup(p.stop)
-
+class LineIntegrationContractTests(InboxAppCase):
     def test_health_check(self):
         self.assertEqual(self.client.get("/").status_code, 200)
 
@@ -47,27 +16,31 @@ class LineIntegrationContractTests(unittest.TestCase):
         self.ask.assert_not_called()
 
     def test_signed_empty_verification_has_no_side_effects(self):
-        body, headers = signed_request({"events": []})
-        self.assertEqual(self.client.post("/webhook", content=body, headers=headers).status_code, 200)
+        self.assertEqual(self.post({"events": []}).status_code, 200)
         self.ask.assert_not_called()
         self.reply.assert_not_called()
+        self.assertEqual(self.inbox.store.count(), 0)
 
     def test_signed_text_preserves_answer_and_citations(self):
-        body, headers = signed_request(event_payload())
-        self.assertEqual(self.client.post("/api/webhook", content=body, headers=headers).status_code, 200)
+        self.assertEqual(self.post(event_payload(), "/api/webhook").status_code, 200)
+        self.assertEqual(self.wait_terminal()["state"], "done")
         self.ask.assert_called_once_with("หัวฉีดพัดส้ม")
         self.reply.assert_called_once_with("mock-reply", self.ask.return_value)
 
     def test_dummy_token_skips_expensive_pipeline(self):
-        body, headers = signed_request(event_payload("0" * 32))
-        self.assertEqual(self.client.post("/webhook", content=body, headers=headers).status_code, 200)
+        self.assertEqual(self.post(event_payload("0" * 32)).status_code, 200)
+        self.assertEqual(self.inbox.store.count(), 0)
         self.ask.assert_not_called()
         self.reply.assert_not_called()
 
+    def test_non_text_event_is_not_stored(self):
+        self.assertEqual(self.post(event_payload(message_type="sticker")).status_code, 200)
+        self.assertEqual(self.inbox.store.count(), 0)
+
     def test_ai_failure_returns_friendly_message_without_invented_citations(self):
         self.ask.side_effect = RuntimeError("Unavailable")
-        body, headers = signed_request(event_payload())
-        self.assertEqual(self.client.post("/webhook", content=body, headers=headers).status_code, 200)
+        self.assertEqual(self.post(event_payload()).status_code, 200)
+        self.wait_terminal()
         answer = self.reply.call_args.args[1]
         self.assertIn("ปัญหาชั่วคราว", answer)
         self.assertNotIn("UAV", answer)
@@ -87,22 +60,6 @@ class LineIntegrationContractTests(unittest.TestCase):
         self.assertIn("หัวฉีด", menu.areas[2].action.text)
         self.assertIn("วิธีพิมพ์คำถาม", menu.areas[5].action.text)
 
-    def test_slow_ai_does_not_block_async_event_loop(self):
-        entered, release = threading.Event(), threading.Event()
-        def slow_answer(_):
-            entered.set()
-            release.wait(timeout=5)
-            return "mock answer"
-        self.ask.side_effect = slow_answer
-        async def verify():
-            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-                body, headers = signed_request(event_payload())
-                pending = asyncio.create_task(client.post("/webhook", content=body, headers=headers))
-                try:
-                    self.assertTrue(await asyncio.to_thread(entered.wait, 2))
-                    health = await asyncio.wait_for(client.get("/"), timeout=1)
-                    self.assertEqual(health.status_code, 200)
-                finally:
-                    release.set()
-                    await pending
-        asyncio.run(verify())
+
+if __name__ == "__main__":
+    unittest.main()

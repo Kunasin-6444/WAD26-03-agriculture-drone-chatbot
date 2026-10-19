@@ -1,0 +1,6 @@
+{
+  "_comment": "Topics of whole documents, keyed by canonical_document_id. chemical/diagnosis answers get the expert-consult note (evidence.CHEMICAL_NOTE). Tag a document only when the whole document is about that topic; mixed documents (e.g. UAV06, UAV08) rely on the rate check in the answer text instead.",
+  "UAV09": ["chemical"],
+  "ฟีเจอร์ผสมสาร": ["chemical"],
+  "ฟีเจอร์วินิจฉัยโรคและ_ปัจจัยเสี่ยง": ["diagnosis", "chemical"]
+}

@@ -25,6 +25,10 @@ class Chunk:
 
     metadata: dict[str, str]
 
+    # Text to embed when it should carry context (document title, section) that is
+    # deliberately not stored as evidence. ``None`` embeds ``content`` itself.
+    embed_text: str | None = None
+
 
 # --------------------------------------------------
 # Text chunking
@@ -122,6 +126,7 @@ def chunk_knowledge_unit(
                 page_number=unit.page_number,
                 source_type=unit.source_type,
                 metadata={
+                    **unit.metadata,
                     "document_id": unit.document_id,
                     "source_file": unit.source_file,
                     "page_number": str(unit.page_number),

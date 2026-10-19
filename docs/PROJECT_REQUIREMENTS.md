@@ -1,202 +1,71 @@
-# Project Requirements
+# ข้อกำหนดระบบ
 
-## Project
+เจ้าของโปรเจกต์ต้องการแชตบอตภาษาไทยที่ตอบจาก KB และ web ร่วมกันได้ ถูกต้อง ครบประเด็น กระชับ ตอบเร็ว และตรวจแหล่งที่มาได้
+ฉบับ 2026-10-17 แยกผลลัพธ์ที่ต้องได้ออกจากรายละเอียดเทคนิค ตามที่ผู้ใช้อนุญาตให้ overhaul
+Chroma, BM25, reranker, provider และ framework เป็นทางเลือกในการทำงาน ไม่ใช่เหตุให้ต้องรักษาโครงสร้างเดิม
 
-Agriculture Drone LINE Chatbot
+## R1 — ฐานความรู้และนโยบายแหล่งข้อมูล
 
-## Objective
+ใช้เอกสารที่โครงการอนุมัติเป็นแหล่งหลัก ครอบคลุมข้อความ ตารางที่เป็นข้อความ/ภาพ กราฟ แผนภาพ และภาพที่มีสาระ
+เก็บชื่อไฟล์ ตัวระบุเอกสาร หน้า/ช่วงหน้า และประเภทหลักฐาน ให้ย้อนตรวจต้นฉบับได้
+ต้องบอกหน้าหรือส่วนที่สกัดไม่สำเร็จ ห้ามถือว่าจำนวน chunks พิสูจน์ว่าอ่านเอกสารครบแล้ว
 
-Create a Thai-language LINE chatbot for agricultural-drone knowledge.
+ข้อยกเว้น: ไม่ใช้ `UAV01 Air Law.pdf` และ `UA03 AIR SPACE.pdf` เป็น KB อ้างอิงกฎหมาย/น่านฟ้า
+ใช้ [CAAT UAS Portal infographic](https://uasportal.caat.or.th/infographic) เป็นแหล่งที่กำหนด
+ถ้าต้องตามลิงก์เอกสารทางการ ให้ใช้งานตามนโยบาย CAAT และอ้าง URL หน้าที่อ่านจริง ห้ามแทนด้วยบทความทั่วไป
 
-The chatbot should answer using the project's approved knowledge sources.
+## R2 — ค้นพบหลักฐานที่ตรงคำถาม
 
-The chatbot must avoid hallucination.
+รองรับคำถามไทยและการพิมพ์คลาดเคลื่อน ค้นได้ทั้งความหมาย คำเฉพาะ รุ่น ตัวเลข และหน่วย
+เลือกหลักฐานให้ตรงพืช/อุปกรณ์/หัวข้อ รวมส่วนประกอบตารางและคำอธิบายที่จำเป็น
+รักษาความสัมพันธ์แถว คอลัมน์ หน่วย และเงื่อนไข ห้ามประกอบค่าจากคนละกรณี
+เลือกหรือเปลี่ยนวิธี retrieval ได้ตามผลลัพธ์ ไม่บังคับ algorithm ใดเป็นข้อกำหนดผลิตภัณฑ์
 
----
+## R3 — คำตอบมีหลักฐานรองรับ
 
-# Functional Requirements
+ตอบตรงคำถามและครบส่วนที่ยืนยันได้ ทุกข้อเท็จจริงสำคัญต้องมีหลักฐานและอ้างอิงใกล้ข้อความที่รองรับ
+KB ระบุชื่อไฟล์และหน้า/ช่วงหน้า Web ระบุชื่อหน้าและ URL จริง
+ไม่สร้างตัวเลข หน่วย เงื่อนไข quote หรือ source ID ขึ้นเอง ความกระชับต้องไม่ทำให้สาระจำเป็นหายไป
+สรุปคำตอบก่อน ตามด้วยเงื่อนไขที่จำเป็นและแหล่งอ้างอิง ขยายรายละเอียดเมื่อคำถามต้องการ
 
-## R1 — Knowledge Base and Source Policy
+ตัวอย่างรูปแบบ: `… [1]` แล้วแสดง `[1] เอกสารตัวอย่าง.pdf หน้า 12`
+หรือ `[2] ชื่อบทความ — https://example.org/articles/drone-guide?lang=th#limits`
+นี่คือตัวอย่างรูปแบบเท่านั้น ไม่ใช่แหล่งข้อมูลจริง
 
-The chatbot must use the project's provided knowledge-base files
-as the primary source for answering questions.
+## R4 — รวม KB และ web เมื่อข้อมูลไม่ครบ
 
-### Approved Knowledge Sources
+ประเมินว่าหลักฐานตอบครบหรือยัง ถ้า KB พอให้ตอบจาก KB
+ถ้า KB ตอบบางส่วน ให้คงข้อเท็จจริงนั้นไว้และค้นเว็บเติมเฉพาะส่วนที่ขาด แล้วรวมเป็นคำตอบเดียวพร้อมอ้างอิงแยกที่มา
+ถ้ายืนยันส่วนที่ขาดไม่ได้ ให้ตอบส่วนที่มีหลักฐานและบอกส่วนที่ยังไม่ทราบ
+ไม่ทิ้งข้อมูล KB ที่ใช้ได้เพียงเพราะส่วนอื่นต้องค้นเว็บ
 
-All provided agricultural-drone knowledge files in the project's
-knowledge-base/data set must be used as sources for the chatbot,
-including information contained in:
+## R5 — อ้างอิงเว็บตรงหน้าที่ใช้ข้อมูล
 
-- PDF text
-- native PDF tables
-- image-only tables
-- diagrams
-- charts
-- meaningful images and visual information
+ค้นเว็บได้เมื่อหลักฐานที่เหมาะสมไม่พอหรือเป็นหัวข้อที่ต้องใช้ข้อมูลปัจจุบัน เลือกแหล่งทางการเมื่อเหมาะสม
+อ้างลิงก์บทความ หน้า หรือเอกสารที่รองรับข้อความจริง รวม path, query และ fragment ที่จำเป็น
+ห้ามย่อลิงก์เป็นแค่โดเมน หน้าแรก หรือหน้าผลค้นหา เว้นแต่หน้านั้นมีหลักฐานที่ใช้จริง
+ไม่เดา URL และไม่ใช้ชื่อเว็บแทนการตรวจเนื้อหา ต้องแสดง URL ที่เปิดตามได้ใน LINE ด้วย
+หากแหล่งขัดกัน ให้ระบุวันที่/ขอบเขตที่ต่างกันหรือบอกข้อจำกัด ไม่เลือกผสมจนความหมายเปลี่ยน
 
-The ingestion pipeline should extract and normalize these sources
-into Knowledge Units before chunking and embedding.
+## R6 — จัดการข้อมูลขาดและบริการผิดพลาด
 
-Each knowledge record must preserve:
+เมื่อยืนยันไม่ได้ให้บอกตรง ๆ ไม่เดา ถ้ามีหลักฐานบางส่วนให้ตอบเฉพาะส่วนนั้น
+แยก “ไม่มีหลักฐานเพียงพอ” ออกจาก “บริการภายนอกใช้งานไม่ได้”
+จำกัด timeout/retry/failover ไม่วนไม่สิ้นสุด ไม่อ้างว่าไม่มีข้อมูลเพียงเพราะ provider ล่ม
 
-- document filename
-- document identifier
-- page number
-- source type
+## R7 — ส่งคำตอบผ่าน LINE อย่างปลอดภัย
 
----
+รับ webhook ตรวจ signature จัดการข้อความไทย ส่งเข้า pipeline และตอบด้วย LINE API
+รับ event ซ้ำหรือ restart แล้วต้องไม่สร้างงาน/ส่งคำตอบซ้ำโดยไม่จำเป็น
+แยกสถานะรับงาน ประมวลผล และผลส่ง ห้ามถือว่ารับ webhook สำเร็จแปลว่าผู้ใช้ได้รับคำตอบ
+ปกป้อง credentials และข้อมูลผู้ใช้
 
-### Source Exceptions
+## คุณภาพและขอบเขต
 
-The following two files are EXCLUDED from the normal PDF knowledge-base
-answering pipeline:
+คำตอบต้องเร็วโดยไม่แลกความถูกต้อง ความครบถ้วน และการอ้างอิง
+วัดเวลาแยก KB, mixed KB+web, web-only, cold/cache-hit และปัญหา provider เมื่อตรวจจริงตามขอบเขตที่อนุญาต
+ยังไม่กำหนด SLA production หรืออ้างว่าไม่มี hallucination จากผลตัวอย่างเล็ก ๆ
+ตรวจอัตโนมัติตามความเสี่ยงและให้เจ้าของลองใช้จริง โดยใช้ [TEST_PLAN](TEST_PLAN.md)
 
-1. `UAV01 Air Law.pdf`
-2. `UA03 AIR SPACE.pdf`
-
-The chatbot must NOT use the contents of these two files as the
-authoritative knowledge source.
-
-For information covered by these two documents, the chatbot must use:
-
-https://uasportal.caat.or.th/infographic
-
-as the designated source instead.
-
-This source replacement rule applies whenever the user's question
-requires information that would normally be obtained from:
-
-- `UAV01 Air Law.pdf`
-- `UA03 AIR SPACE.pdf`
-
-The system must preserve the source/reference used for the answer.
-
----
-
-### Source Priority
-
-When answering a question:
-
-1. Use the approved project knowledge-base files when they contain
-   sufficient information.
-
-2. For topics belonging specifically to `UAV01 Air Law.pdf` or
-   `UA03 AIR SPACE.pdf`, use the CAAT UAS Portal infographic source:
-
-   https://uasportal.caat.or.th/infographic
-
-3. If the required information is not available from the applicable
-   knowledge source, continue through the CRAG fallback process.
-
-4. Never invent information to fill missing knowledge.
-
----
-
-## R2 — Retrieval
-
-The system must:
-
-1. normalize the user question (repair Thai typos / wrong-keyboard text)
-2. embed the question and search Chroma (dense retrieval)
-3. also score candidates by exact-term matching (BM25 over Thai n-grams) and
-   fuse both rankings (hybrid retrieval)
-4. rerank the fused results by domain / crop / topic relevance and select a
-   topic-diverse top-k (reranking)
-5. keep the text and image chunks on the same page as a retrieved table or
-   diagram, so units and caveats are not lost
-6. provide those chunks to the LLM
-
-Hybrid retrieval and reranking are part of the project scope. Dense search alone
-misses exact terms such as nozzle names, numbers and units, which are central to
-this knowledge base.
-
----
-
-## R3 — Grounded Answer
-
-The LLM must answer using retrieved evidence.
-
-The answer must not invent facts that are not supported by
-the retrieved context.
-
-The response should provide source/reference information.
-
----
-
-## R4 — CRAG
-
-After retrieval, the system must determine whether the retrieved
-content is sufficient to answer the question.
-
-If sufficient:
-
-    answer from the applicable knowledge source
-
-If insufficient:
-
-    perform web fallback
-
-If both fail:
-
-    abstain
-
----
-
-## R5 — Web Fallback
-
-Web fallback uses Tavily.
-
-Prefer official sources where appropriate.
-
-Web-derived answers must include a URL/reference.
-
----
-
-## R6 — Abstain
-
-When reliable information cannot be found:
-
-The chatbot must explicitly say that the information could not be verified.
-
-It must not guess.
-
----
-
-## R7 — LINE
-
-The backend must:
-
-- receive LINE webhook
-- verify signature
-- parse message
-- execute RAG/CRAG
-- reply using LINE Reply API
-
----
-
-# Out of Scope
-
-Do not implement unless explicitly requested:
-
-- weather
-- image hosting
-- image retrieval to LINE
-- conversation memory
-- PostgreSQL
-- Redis
-- LangChain
-- LangGraph
-- LlamaIndex
-
----
-
-# Quality Requirements
-
-The system should:
-
-- support Thai questions
-- preserve source traceability
-- tolerate temporary API failures
-- not crash the entire ingestion job because one page fails
-- have automated regression tests
-- have a reproducible ingestion process
+รอบนี้ยังไม่ขยายเป็น weather, image hosting/ส่งภาพ, conversation memory หรือระบบหลายโฮสต์
+มีเป้าหมายเตรียม deploy แต่ยังไม่มีโฮสต์จริง การเลือกเทคโนโลยีเป็นการตัดสินใจออกแบบ ไม่ใช่รายการฟีเจอร์นอกขอบเขต

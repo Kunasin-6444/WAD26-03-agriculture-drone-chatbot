@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import threading
 import time
 from dataclasses import dataclass
 from urllib.parse import urlparse
@@ -12,11 +14,21 @@ from app.rag.evidence import Evidence
 from app.rag.source_policy import CAAT_PORTAL_INFOGRAPHIC_URL, valid_web_url
 
 logger = logging.getLogger(__name__)
-TRUSTED_DOMAINS = ["caat.or.th", "nstda.or.th", "thaipbs.or.th", "pttor.com", "bangchak.co.th"]
+TRUSTED_DOMAINS = ["caat.or.th", "nstda.or.th", "thaipbs.or.th", "pttor.com", "bangchak.co.th", "dji.com"]
 # Non-CAAT web answers are restricted to official/known sources; generic blogs and news
 # sites (seen in a real chat log) must not become citations for agronomy or price claims.
 PREFERRED_DOMAINS = ["doa.go.th", "doae.go.th", "moac.go.th", "eppo.go.th", "caat.or.th", "pttor.com", "bangchak.co.th"]
 WEB_ALLOWED_DOMAINS = list(dict.fromkeys(TRUSTED_DOMAINS + PREFERRED_DOMAINS))
+MAX_WEB_TIMEOUT_SECONDS = float(os.getenv("WEB_SEARCH_TIMEOUT_SECONDS", "6"))
+_client_local = threading.local()
+
+
+def allowed_domains() -> list[str]:
+    # Operator-approved official manufacturers/organizations can be added without
+    # source-code edits. User questions and fetched content cannot change this policy.
+    extras = [d.strip().lower().rstrip(".") for d in os.getenv("WEB_ALLOWED_DOMAINS_EXTRA", "").split(",") if d.strip()]
+    extras = [d for d in extras if "." in d and valid_web_url("https://" + d) and get_domain("https://" + d) == d]
+    return list(dict.fromkeys(WEB_ALLOWED_DOMAINS + extras))
 
 
 def get_domain(url: str) -> str:
@@ -31,7 +43,7 @@ def is_trusted_domain(url: str) -> bool:
         return False
     hostname = get_domain(url)
     return hostname.endswith((".go.th", ".ac.th", ".gov", ".edu")) or any(
-        hostname == domain or hostname.endswith("." + domain) for domain in TRUSTED_DOMAINS
+        hostname == domain or hostname.endswith("." + domain) for domain in allowed_domains()
     )
 
 
@@ -46,14 +58,23 @@ class WebSearchResult:
 
 def get_tavily_client(api_key: str | None = None) -> TavilyClient | None:
     key = api_key or TAVILY_API_KEY
-    return TavilyClient(api_key=key) if key else None
+    if not key:
+        return None
+    cached = getattr(_client_local, "entry", None)
+    if cached is None or cached[0] != key:
+        if cached is not None:
+            cached[1].close()
+        # requests.Session is reused for keep-alive within a worker thread;
+        # mutable sessions are never shared across concurrent worker threads.
+        _client_local.entry = (key, TavilyClient(api_key=key))
+    return _client_local.entry[1]
 
 
 def _timeout(deadline: float | None) -> float:
-    remaining = deadline - time.monotonic() if deadline else 4.0
+    remaining = deadline - time.monotonic() if deadline else MAX_WEB_TIMEOUT_SECONDS
     if remaining <= 0.2:
         raise TimeoutError("Web search budget exhausted")
-    return min(4.0, remaining)
+    return min(MAX_WEB_TIMEOUT_SECONDS, remaining)
 
 
 def _results(items: list[dict], is_caat: bool) -> list[WebSearchResult]:
@@ -61,7 +82,7 @@ def _results(items: list[dict], is_caat: bool) -> list[WebSearchResult]:
     for item in items:
         url = item.get("url", "").strip()
         content = (item.get("content") or item.get("raw_content") or "").strip()
-        if not valid_web_url(url) or not content or url.rstrip("/") in seen:
+        if not is_trusted_domain(url) or not content or url.rstrip("/") in seen:
             continue
         host = get_domain(url)
         if is_caat and not (host == "caat.or.th" or host.endswith(".caat.or.th")):
@@ -73,11 +94,18 @@ def _results(items: list[dict], is_caat: bool) -> list[WebSearchResult]:
 
 
 def search_web_fallback(query: str, is_caat_topic: bool = False, max_results: int = 4,
-                        tavily_client: TavilyClient | None = None, deadline: float | None = None) -> list[WebSearchResult]:
+                        tavily_client: TavilyClient | None = None, deadline: float | None = None,
+                        diagnostics: list[dict] | None = None) -> list[WebSearchResult]:
+    def failed(stage: str, exc: Exception | None = None):
+        if diagnostics is not None:
+            kind = ("not_configured" if exc is None else "budget_exhausted" if str(exc) == "Web search budget exhausted"
+                    else "provider_timeout" if "timeout" in type(exc).__name__.lower() else "provider_error")
+            diagnostics.append({"stage": stage, "error": kind})
     if max_results < 1:
         return []
     client = tavily_client or get_tavily_client()
     if not client:
+        failed("web_search")
         return []
     extracted = []
     if is_caat_topic:
@@ -86,14 +114,16 @@ def search_web_fallback(query: str, is_caat_topic: bool = False, max_results: in
                 chunks_per_source=3, extract_depth="basic", format="text", timeout=_timeout(deadline))
             extracted = _results(response.get("results", []), True)
         except Exception as exc:
+            failed("caat_extract", exc)
             logger.warning("CAAT extraction unavailable (%s)", type(exc).__name__)
     try:
         kwargs = dict(query=query, search_depth="basic", max_results=max_results, timeout=_timeout(deadline),
-                      include_domains=["uasportal.caat.or.th", "caat.or.th"] if is_caat_topic else WEB_ALLOWED_DOMAINS,
+                      include_domains=["uasportal.caat.or.th", "caat.or.th"] if is_caat_topic else allowed_domains(),
                       include_domains_mode="restrict")
         response = client.search(**kwargs)
         found = _results(response.get("results", []), is_caat_topic)
     except Exception as exc:
+        failed("web_search", exc)
         logger.warning("Web search unavailable (%s)", type(exc).__name__)
         found = []
     # Query-specific pages first; the infographic is still a real fetched source.
@@ -108,7 +138,7 @@ def search_web_fallback(query: str, is_caat_topic: bool = False, max_results: in
 def web_evidence(results: list[WebSearchResult]) -> list[Evidence]:
     evidence = []
     for result in results:
-        if not valid_web_url(result.url) or not result.content.strip():
+        if not is_trusted_domain(result.url) or not result.content.strip():
             continue
         # Retain complete paragraphs/lines rather than chopping words or table rows.
         chunks, lines, length = [], [], 0

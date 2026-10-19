@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from app.rag import rag_service
 from app.rag.crag_service import DEGRADED_MESSAGE, run_crag_pipeline
+from app.rag.evidence import document_evidence
 
 
 KB_CONTEXT = "[แหล่งข้อมูล 1]\nไฟล์: a.pdf\nหน้า: 1\nเนื้อหา: โดรนพ่นยาต้องตรวจสอบหัวฉีดก่อนใช้งาน"
@@ -42,7 +43,7 @@ class DegradedModeContract(unittest.TestCase):
         self.assertGreater(wait, 600)
 
     def test_pipeline_reports_degraded_not_insufficient_evidence(self):
-        with patch("app.rag.crag_service.retrieve_context", return_value=KB_CONTEXT), \
+        with patch("app.rag.crag_service.retrieve_evidence", return_value=document_evidence(KB_CONTEXT)), \
              patch("app.rag.crag_service.search_web_fallback", return_value=[]), \
              patch("app.rag.crag_service.evaluate_evidence",
                    return_value=rag_service.GroundedResult(reason="x", llm_unavailable=True)):

@@ -100,6 +100,35 @@ def clean_text(
     return "\n".join(lines)
 
 
+def native_text_outside_tables(page, rectangles: list[pymupdf.Rect]) -> str:
+    """Keep text outside tables even when a PDF groups it into the same block.
+
+    Block-level intersection used to remove footnotes and citation years along
+    with table cells. Character centers respect the actual table boundary.
+    """
+    data = page.get_text("rawdict", flags=pymupdf.TEXTFLAGS_RAWDICT & ~pymupdf.TEXT_PRESERVE_IMAGES)
+    lines = []
+    for block in data.get("blocks", []):
+        for line in block.get("lines", []):
+            pieces, current = [], []
+            for span in line.get("spans", []):
+                for char in span.get("chars", []):
+                    x0, y0, x1, y1 = char["bbox"]
+                    center = pymupdf.Point((x0 + x1) / 2, (y0 + y1) / 2)
+                    if any(center in rectangle for rectangle in rectangles):
+                        if current:
+                            pieces.append("".join(current))
+                            current = []
+                    else:
+                        current.append(char["c"])
+            if current:
+                pieces.append("".join(current))
+            text = " ".join(pieces).strip()
+            if text:
+                lines.append(text)
+    return "\n".join(lines)
+
+
 # --------------------------------------------------
 # Native PDF tables
 # --------------------------------------------------
@@ -236,13 +265,7 @@ def build_page_knowledge_units(
         # --------------------------------------------------
 
         if tab_rects:
-            blocks = page.get_text("blocks")
-            non_table_blocks = []
-            for b in blocks:
-                r = pymupdf.Rect(b[:4])
-                if not any(r.intersects(tr) for tr in tab_rects):
-                    non_table_blocks.append(b[4].strip())
-            page_text = clean_text("\n".join(b for b in non_table_blocks if b))
+            page_text = clean_text(native_text_outside_tables(page, tab_rects))
         else:
             page_text = clean_text(
                 page.get_text()

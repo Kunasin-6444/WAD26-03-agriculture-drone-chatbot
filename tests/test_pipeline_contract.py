@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from app.rag.crag_service import run_crag_pipeline
+from app.rag.evidence import document_evidence
 from app.rag.source_policy import CAAT_PORTAL_INFOGRAPHIC_URL
 from app.rag.web_fallback import WebSearchResult
 from tests.helpers import DOCUMENT_CONTEXT, llm_client, result_json
@@ -9,7 +10,7 @@ from tests.helpers import DOCUMENT_CONTEXT, llm_client, result_json
 
 class PipelineContractTests(unittest.TestCase):
     def setUp(self):
-        retrieval_patch = patch("app.rag.crag_service.retrieve_context", return_value=DOCUMENT_CONTEXT)
+        retrieval_patch = patch("app.rag.crag_service.retrieve_evidence", return_value=document_evidence(DOCUMENT_CONTEXT))
         search_patch = patch("app.rag.crag_service.search_web_fallback", return_value=[])
         self.retrieve = retrieval_patch.start()
         self.search = search_patch.start()
@@ -26,7 +27,7 @@ class PipelineContractTests(unittest.TestCase):
         self.assertIn("total_ms", answer.timings)
 
     def test_partial_evidence_searches_and_combines_both_sources(self):
-        self.search.return_value = [WebSearchResult("ราคาหัวฉีด", "https://supplier.example/nozzle", "หัวฉีดราคา 120 บาท", 0.9)]
+        self.search.return_value = [WebSearchResult("ราคาหัวฉีด", "https://doa.go.th/nozzle", "หัวฉีดราคา 120 บาท", 0.9)]
         initial = result_json("partial", missing=["ราคาหัวฉีดพัดส้ม"])
         final = result_json(claims=[("หัวฉีดพัดส้มมีอัตราการไหล 500 ml/หัวฉีด", "D1", "อัตราการไหล 500 ml/หัวฉีด"),
                                     ("หัวฉีดราคา 120 บาท", "W1", "หัวฉีดราคา 120 บาท")])
@@ -36,7 +37,7 @@ class PipelineContractTests(unittest.TestCase):
         self.assertIn("500", response.answer)
         self.assertIn("120 บาท", response.answer)
         self.assertIn("UAV07.pdf", response.answer)
-        self.assertIn("https://supplier.example/nozzle", response.answer)
+        self.assertIn("https://doa.go.th/nozzle", response.answer)
         self.assertIn("ราคาหัวฉีดพัดส้ม", self.search.call_args.args[0])
         self.assertEqual(client.chat.completions.create.call_count, 2)
 
@@ -49,7 +50,7 @@ class PipelineContractTests(unittest.TestCase):
         self.assertIn("ยังยืนยันไม่ได้: ราคา", response.answer)
 
     def test_no_evidence_abstains_without_generation(self):
-        self.retrieve.return_value = ""
+        self.retrieve.return_value = []
         client = llm_client()
         response = run_crag_pipeline("โดรนดาวอังคาร", client=client)
         self.assertEqual(response.source_type, "abstain")
@@ -87,7 +88,7 @@ class PipelineContractTests(unittest.TestCase):
         self.search.assert_not_called()
 
     def test_final_generation_failure_preserves_document_evidence(self):
-        self.search.return_value = [WebSearchResult("ราคา", "https://supplier.example", "ราคา 120 บาท", 0.9)]
+        self.search.return_value = [WebSearchResult("ราคา", "https://doa.go.th/prices", "ราคา 120 บาท", 0.9)]
         response = run_crag_pipeline("หัวฉีดราคาและไหลเท่าไร", client=llm_client(result_json("partial", missing=["ราคา"]), "{invalid"))
         self.assertEqual(response.grade, "AMBIGUOUS")
         self.assertIn("500", response.answer)

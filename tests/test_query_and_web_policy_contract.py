@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from app.rag import rag_service, web_fallback
 from app.rag.crag_service import run_crag_pipeline
+from app.rag.evidence import document_evidence
 
 KB_CONTEXT = "[แหล่งข้อมูล 1]\nไฟล์: a.pdf\nหน้า: 1\nเนื้อหา: อ้อย 2 เดือน"
 
@@ -15,7 +16,7 @@ class QueryAndWebPolicyContract(unittest.TestCase):
             seen["query"] = query
             return rag_service.GroundedResult(reason="x")
 
-        with patch("app.rag.crag_service.retrieve_context", return_value=KB_CONTEXT), \
+        with patch("app.rag.crag_service.retrieve_evidence", return_value=document_evidence(KB_CONTEXT)), \
              patch("app.rag.crag_service.search_web_fallback", return_value=[]), \
              patch("app.rag.crag_service.evaluate_evidence", side_effect=fake_eval):
             run_crag_pipeline("ฉีดวัชพืชในอ้อยตอน 2 gfnvo")

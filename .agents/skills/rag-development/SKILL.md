@@ -1,76 +1,21 @@
 ---
 name: rag-development
-description: Develop and debug the project's RAG pipeline including retrieval, context building, grounded generation, CRAG, and source citation. Use when implementing or debugging RAG behavior.
+description: Diagnose or change KB retrieval, mixed KB and web answers, grounding and source citations. Use only for relevant RAG work.
 ---
 
-# RAG Development Skill
+# RAG development
 
-## Pipeline
+Use [AGENTS](../../../AGENTS.md), [requirements](../../../docs/PROJECT_REQUIREMENTS.md),
+[architecture](../../../docs/ARCHITECTURE.md) and [verification policy](../../../docs/TEST_PLAN.md).
+This skill replaces the former fixed pipeline and mandatory completion checklist.
 
-Follow this pipeline:
+1. Start from the observed question/failure and the underlying evidence, not an assumed framework problem.
+2. Inspect only relevant extraction, retrieval, evidence packing, generation or validation steps.
+3. Keep verified KB facts when web fills missing aspects. Preserve units, conditions and source identity.
+4. Cite KB filename/pages and the exact web page/document URL supporting each claim; never invent references.
+5. Make the simplest working change; replacing architecture is allowed when justified by the task.
+6. Use meaningful focused offline checks where risk warrants them, then hand back a usable trial.
 
-User Query
- ->
-Embedding
- ->
-Chroma Retrieval
- ->
-Context
- ->
-Generation
-
-For CRAG:
-
-Retrieval
- ->
-Relevance Grader
- ->
-KB answer OR Web fallback
- ->
-Answer / Abstain
-
----
-
-## Rules
-
-1. Inspect retrieval results before modifying generation.
-
-2. If retrieval is wrong:
-   fix retrieval/content preparation first.
-
-3. Do not solve retrieval problems by adding arbitrary prompt text.
-
-4. Preserve source metadata.
-
-5. Every generated answer must be traceable to evidence.
-
-6. Test Thai semantic variations.
-
-7. Use real project questions for retrieval evaluation.
-
-8. Do not add reranking or hybrid retrieval unless baseline evidence
-   shows that it is necessary.
-
----
-
-## Debug order
-
-When answer quality is wrong:
-
-1. inspect source document
-2. inspect KnowledgeUnit
-3. inspect chunk
-4. inspect embedding/retrieval
-5. inspect retrieved context
-6. only then inspect generation prompt
-
----
-
-## Completion checklist
-
-- retrieval works
-- relevant chunks returned
-- source metadata preserved
-- grounded generation works
-- unsupported question is handled
-- tests pass
+Do not automatically call providers, run acceptance/holdout batches, re-ingest data or add grader/repair stages.
+No specific Chroma/BM25/reranker/chunk size/provider is a permanent requirement.
+Report what changed and remaining uncertainty; do not claim universal semantic correctness from validation or a small sample.

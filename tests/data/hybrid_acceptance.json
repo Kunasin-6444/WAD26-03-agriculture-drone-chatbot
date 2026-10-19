@@ -1,0 +1,27 @@
+{
+  "reviewed_at": "2026-10-17",
+  "web_reference": "https://ag.dji.com/t100/specs",
+  "note": "Tank volume was verified on the manufacturer's specific specs page. Web facts must be rechecked if the product changes. Regulatory steps are checked for routing/citations; legal completeness needs source review.",
+  "cases": [
+    {
+      "query": "พัดส้มมีปริมาณน้ำต่อหัวเท่าไร และ DJI AGRAS T100 มีความจุถังฉีดพ่นเท่าไร",
+      "sources": ["hybrid"], "terms": ["พัดส้ม"], "citations": [],
+      "citation_groups": [["UAV07", "หน้า 12"], ["UAV06", "หน้า 5"]],
+      "required_numbers": "500 100", "web_domains": ["dji.com"],
+      "require_sufficient": true, "target_seconds": 15
+    },
+    {
+      "query": "ตามสเปกของ DJI AGRAS T100 ถังฉีดพ่นมีความจุกี่ลิตร",
+      "sources": ["web_fallback"], "terms": [], "citations": [],
+      "required_numbers": "100", "web_domains": ["dji.com"],
+      "require_sufficient": true, "target_seconds": 15
+    },
+    {
+      "query": "พัดส้มมีปริมาณน้ำต่อหัวเท่าไร และขึ้นทะเบียนโดรนอย่างไร",
+      "sources": ["hybrid"], "terms": ["พัดส้ม"], "citations": [],
+      "citation_groups": [["UAV07", "หน้า 12"], ["UAV06", "หน้า 5"]],
+      "required_numbers": "500", "web_domains": ["caat.or.th"],
+      "require_sufficient": true, "target_seconds": 15
+    }
+  ]
+}

@@ -1,0 +1,2342 @@
+{
+  "schema_version": 1,
+  "status": "reviewed by the owner 2026-10-19 (56 ok / 10 แก้ / 0 ตัด in the CSV; u02 changed to fix on request); a05 still pending",
+  "created_at": "2026-10-18",
+  "review_method": "Expected answers written from the source PDFs. must_contain strings are machine-checked to exist on the stated PDF page (text layer); image-only facts were checked against rendered page images. Owner reviews each case; chemical-rate cases are flagged for a later expert check. PDF page numbers are 1-based. Do not tune on holdout.",
+  "scope": "New feature documents (4 PDFs) plus the UAV06 page 18 herbicide table. Complements source_gold.json.",
+  "source_sha256": {
+    "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf": "8941d7af80303560e26bb782785c5050f4a69bdaef7e6f0c9632b171976a9107",
+    "ฟีเจอร์การลงทุน.pdf": "a4bb6c34250503a7b022dacfa167ec4bd094c4f90ed229d64598a156080ba423",
+    "ฟีเจอร์ผสมสาร.pdf": "12ca39fb138bcf2d1949bf56e29bfef75bff428cc91eb6e53130ab8e4c701c25",
+    "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf": "68a08912e2470f847e5257ac65c6dd382d156793506384ca6c5de5ed2278bcab",
+    "ฟีเจอร์โดรนของฉัน.pdf": "7e2e325cda2f72384b2a048ae57cf5cf0a9442f8023f4381b3bb739045123089"
+  },
+  "cases": [
+    {
+      "id": "inv01",
+      "split": "dev",
+      "query": "อำเภอหนองเรือ ขอนแก่น มีพื้นที่ปลูกข้าวกี่ไร่",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 2
+            },
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 3
+            }
+          ]
+        }
+      ],
+      "expected_answer": "อำเภอหนองเรือ ขอนแก่น มีพื้นที่ปลูกข้าว 345,756 ไร่ (ปี 2562)",
+      "must_contain": [
+        "345,756"
+      ],
+      "kind": "table",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "fix",
+        "note": "อำเภอหนองเรือ ขอนแก่น มีพื้นที่ปลูกข้าว 345,756 ไร่ (ปี 2562)",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv02",
+      "split": "dev",
+      "query": "อำเภอไหนในชัยภูมิมีศักยภาพตลาดโดรนสูงที่สุด พื้นที่รวมเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 2
+            }
+          ]
+        }
+      ],
+      "expected_answer": "อำเภอที่มีศักยภาพตลาดโดรนสูงที่สุดในจังหวัดชัยภูมิคืออำเภอเมืองชัยภูมิ มีพื้นที่เพาะปลูกพืช 4 ชนิดรวม 499,958 ไร่",
+      "must_contain": [
+        "เมืองชัยภูมิ",
+        "499,958"
+      ],
+      "kind": "text",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv03",
+      "split": "holdout",
+      "query": "อำเภอนางรอง บุรีรัมย์ ปลูกข้าวกี่ไร่",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 7
+            }
+          ]
+        }
+      ],
+      "expected_answer": "อำเภอนางรอง บุรีรัมย์ปลูกข้าว 466,135 ไร่ (ตารางที่ 3 ปี 2562)",
+      "must_contain": [
+        "นางรอง",
+        "466,135"
+      ],
+      "kind": "table",
+      "flags": [
+        "เอกสารขัดกันเอง: หน้า 2 บอกว่าเมืองบุรีรัมย์ปลูกข้าวมากที่สุด 357,801 ไร่ แต่ตารางที่ 3 หน้า 7 ให้นางรอง 466,135 และเมืองบุรีรัมย์ 304,630"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "fix",
+        "note": "อำเภอนางรอง บุรีรัมย์ปลูกข้าว 466,135 ไร่ (ตารางที่ 3 ปี 2562)",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv04",
+      "split": "dev",
+      "query": "ราคา DJI AGRAS T40 แบบพร้อมบินเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 10
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ราคา DJI AGRAS T40 แบบพร้อมบินราคา ประมาณ 422,000 บาท (ราคา RTF)",
+      "must_contain": [
+        "T40",
+        "422,000"
+      ],
+      "kind": "table",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "fix",
+        "note": "ราคา DJI AGRAS T40 แบบพร้อมบินราคา ประมาณ 422,000 บาท (ราคา RTF)",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv05",
+      "split": "dev",
+      "query": "XAG P100 Pro ถังพ่นจุกี่ลิตร ราคาเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 11
+            }
+          ]
+        }
+      ],
+      "expected_answer": "XAG P100 Pro ถังพ่นจุ 50 ลิตร ราคา RTF ประมาณ 568,000 บาท",
+      "must_contain": [
+        "P100",
+        "568,000"
+      ],
+      "kind": "table",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "fix",
+        "note": "XAG P100 Pro ถังพ่นจุ 50 ลิตร ราคา RTF ประมาณ 568,000 บาท",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv06",
+      "split": "holdout",
+      "query": "NAcDrone EASY 70 Plus ราคาเท่าไร ถังกี่ลิตร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 12
+            }
+          ]
+        }
+      ],
+      "expected_answer": "NAcDrone EASY 70 Plus ราคา RTF ประมาณ 369,000 บาท ถัง 50 ลิตร",
+      "must_contain": [
+        "EASY 70",
+        "369,000"
+      ],
+      "kind": "table",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "fix",
+        "note": "NAcDrone EASY 70 Plus ราคา RTF ประมาณ 369,000 บาท ถัง 50 ลิตร",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv07",
+      "split": "dev",
+      "query": "โดรนรุ่นไหนในตารางราคาถูกที่สุด",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 13
+            }
+          ]
+        }
+      ],
+      "expected_answer": "โดรนที่ราคาถูกที่สุดในตารางคือ Segumo Drone 5 Pro Lite ราคาประมาณ 99,000 บาท",
+      "must_contain": [
+        "5 Pro Lite",
+        "99,000"
+      ],
+      "kind": "table-aggregate",
+      "flags": [
+        "ต้องดูทั้งตาราง 5 หน้า (หน้า 10-14) การค้นหาหน้าเดียวอาจไม่พอ"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv08",
+      "split": "dev",
+      "query": "AERODRONE AR-30L/6 ความจุถังและราคาเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 14
+            }
+          ]
+        }
+      ],
+      "expected_answer": "AERODRONE AR-30L/6 ถัง 30 ลิตร ราคาประมาณ 298,000 บาท",
+      "must_contain": [
+        "AR-30L/6",
+        "298000"
+      ],
+      "kind": "table",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "fix",
+        "note": "AERODRONE AR-30L/6 ถัง 30 ลิตร ราคาประมาณ 298,000 บาท",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv09",
+      "split": "holdout",
+      "query": "DJI AGRAS T30 กับ T40 ต่างกันอย่างไรเรื่องถัง ความกว้างการฉีด และราคา",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 10
+            }
+          ]
+        }
+      ],
+      "expected_answer": "DJI AGRAS T30 มีถัง 30 ลิตร ความกว้างการฉีดพ่น 9 เมตร ราคาประมาณ 349,500 บาท ส่วน DJI AGRAS T40 มีถัง 40 ลิตร ความกว้างการฉีดพ่น 11 เมตร ราคาประมาณ 422,000 บาท",
+      "must_contain": [
+        "349500",
+        "422,000"
+      ],
+      "kind": "table-compare",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv10",
+      "split": "dev",
+      "query": "สูตรคำนวณมูลค่าตลาดการฉีดพ่นคืออะไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 16
+            }
+          ]
+        }
+      ],
+      "expected_answer": "มูลค่าตลาดการฉีดพ่น = ผลรวมพื้นที่เกษตร × 0.3 × 2 (0.3 = เกษตรกรสนใจ 30%, 2 = พ่น 2 ครั้ง/ปี)",
+      "must_contain": [
+        "0.3"
+      ],
+      "kind": "formula",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "fix",
+        "note": "มูลค่าตลาดการฉีดพ่น = ผลรวมพื้นที่เกษตร × 0.3 × 2 (0.3 = เกษตรกรสนใจ 30%, 2 = พ่น 2 ครั้ง/ปี)",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv11",
+      "split": "dev",
+      "query": "ค่าใบอนุญาตนักบินและค่าฝึกอบรมคิดคนละเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 20
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ค่าใบอนุญาตนักบินคิดคนละ 3,000 บาท และค่าฝึกอบรมคิดคนละ 20,000 บาท",
+      "must_contain": [
+        "3,000",
+        "20,000"
+      ],
+      "kind": "formula",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv12",
+      "split": "holdout",
+      "query": "ค่าต่ออายุใบอนุญาตคิดอย่างไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 21
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ค่าต่ออายุใบอนุญาตคิดจาก 5,000 × จำนวนนักบินโดรน",
+      "must_contain": [
+        "5,000"
+      ],
+      "kind": "formula",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv13",
+      "split": "dev",
+      "query": "ค่าเสื่อมราคาโดรนต่อปีคิดอย่างไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 21
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ค่าเสื่อมราคาโดรนต่อปีคิดจาก 0.2 × ราคาโดรนพร้อมบิน",
+      "must_contain": [
+        "0.2"
+      ],
+      "kind": "formula",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv14",
+      "split": "dev",
+      "query": "ค่าน้ำมันในต้นทุนดำเนินการคิดยังไง",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 21
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ค่าน้ำมันในต้นทุนดำเนินการคิดเฉลี่ย 200 บาทต่อวัน ทุกวันทำงาน 220 วันต่อปี",
+      "must_contain": [
+        "200",
+        "220"
+      ],
+      "kind": "formula",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv15",
+      "split": "holdout",
+      "query": "รายได้จากการบริการต่อปีคำนวณอย่างไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 22
+            }
+          ]
+        }
+      ],
+      "expected_answer": "รายได้จากการบริการต่อปีคำนวณจาก พื้นที่ทำงานต่อวัน × ราคาบริการต่อไร่ × 220 วันทำงาน",
+      "must_contain": [
+        "220"
+      ],
+      "kind": "formula",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv16",
+      "split": "dev",
+      "query": "NPV ใช้อัตราคิดลดเท่าไรและคิดกี่ปี",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 32
+            }
+          ]
+        }
+      ],
+      "expected_answer": "การคำนวณ NPV ใช้อัตราคิดลด 7% และอายุโครงการ 5 ปี",
+      "must_contain": [
+        "7%"
+      ],
+      "kind": "text",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv17",
+      "split": "dev",
+      "query": "ตัวอย่างระยะเวลาคืนทุนได้เท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 36
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ตัวอย่างในเอกสารมีระยะเวลาคืนทุน 1.51 ปี หรือประมาณ 1 ปี 6 เดือน 6 วัน",
+      "must_contain": [
+        "1.51"
+      ],
+      "kind": "text",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv18",
+      "split": "holdout",
+      "query": "ตัวอย่าง ROI คำนวณได้กี่เปอร์เซ็นต์",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 36
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ตัวอย่างในเอกสารคำนวณ ROI ได้ 66.02% (691,980 / 1,048,000 × 100)",
+      "must_contain": [
+        "66.02"
+      ],
+      "kind": "formula",
+      "flags": [
+        "เอกสารขัดกันเอง: ภาพที่ 13 หน้า 31 แสดง ROI 20.58% / 25.41% / -30.58% ไม่ใช่ 66.02%"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv19",
+      "split": "dev",
+      "query": "จุดคุ้มทุน BEP คำนวณอย่างไร ตัวอย่างได้เท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 37
+            }
+          ]
+        }
+      ],
+      "expected_answer": "จุดคุ้มทุน (BEP) คำนวณจาก เงินลงทุนทั้งหมด / กำไรต่อไร่ ตัวอย่างในเอกสารคือ 827,000 / 42.07 = 19,657.38 ไร่",
+      "must_contain": [
+        "19,657.38"
+      ],
+      "kind": "formula",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv20",
+      "split": "dev",
+      "query": "ระบบ AI วิเคราะห์การลงทุนใช้บริการและโมเดลอะไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 24
+            },
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 25
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ระบบ AI วิเคราะห์การลงทุนใช้ Groq API กับโมเดล gpt-oss-120b โดยเชื่อมผ่าน n8n",
+      "must_contain": [
+        "Groq",
+        "gpt-oss-120b"
+      ],
+      "kind": "text",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv21",
+      "split": "holdout",
+      "query": "ดัชนีชี้วัดทางการเงินที่ระบบใช้เปรียบเทียบโดรนมีอะไรบ้าง",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 24
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ระบบใช้ดัชนีชี้วัดทางการเงิน 6 ตัวเปรียบเทียบโดรน ได้แก่ NPV, B/C Ratio, IRR, PB, ROI และ BEP",
+      "must_contain": [
+        "NPV",
+        "IRR",
+        "BEP"
+      ],
+      "kind": "list",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "inv22",
+      "split": "dev",
+      "query": "ตัวอย่างหน้าจอ หนองเรือมีมูลค่าตลาดคิดเป็นกี่ไร่ต่อวัน",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์การลงทุน.pdf",
+              "page_number": 17
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ในตัวอย่างหน้าจอ อำเภอหนองเรือมีมูลค่าตลาด 326,213 ไร่ คิดเป็น 1,483 ไร่ต่อวัน",
+      "must_contain": [
+        "1,483"
+      ],
+      "kind": "image",
+      "flags": [
+        "ข้อมูลอยู่ในภาพหน้าจอ (ภาพที่ 4)"
+      ],
+      "verified_by": "page_image",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix01",
+      "split": "dev",
+      "query": "สูตร WP คืออะไร มีตัวอย่างสารอะไรบ้าง",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 1
+            }
+          ]
+        }
+      ],
+      "expected_answer": "สูตร WP คือสารแบบผงละลายน้ำ ต้องคนให้ละลายก่อนใช้ ตัวอย่างสาร เช่น แมนโคเซบ คาร์เบนดาซิม และไตรโคเดอร์มา",
+      "must_contain": [
+        "Mancozeb",
+        "Carbendazim"
+      ],
+      "kind": "table",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix02",
+      "split": "dev",
+      "query": "ลำดับการเติมสารลงถังผสมเริ่มจากอะไร และสารจับใบเติมตอนไหน",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 3
+            },
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 4
+            }
+          ]
+        }
+      ],
+      "expected_answer": "การเติมสารลงถังผสมให้เริ่มจากสูตรผง (WP/WG/SG/SP) และคนให้ละลายหมด ตามด้วยสูตรน้ำ สูตรน้ำมัน และฮอร์โมน/ปุ๋ยน้ำ ส่วนสารจับใบให้เติมเป็นลำดับสุดท้ายเสมอ",
+      "must_contain": [
+        "สุดท้ายเสมอ"
+      ],
+      "kind": "list",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix03",
+      "split": "holdout",
+      "query": "หลัก W-A-L-E-S แต่ละตัวหมายถึงอะไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 4
+            },
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 5
+            }
+          ]
+        }
+      ],
+      "expected_answer": "หลัก W-A-L-E-S คือ W = สารชนิดผงและเม็ด, A = กวนให้เข้ากัน 2-5 นาที, L = ยาน้ำ (SC/SL/CS), E = ยาน้ำมัน (EC/EW/OD) และ S = สารละลายและสารเสริม",
+      "must_contain": [
+        "W-A-L-E-S",
+        "Agitate"
+      ],
+      "kind": "list",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix04",
+      "split": "dev",
+      "query": "น้ำที่ใช้ผสมสารควรมีค่า pH เท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 4
+            }
+          ]
+        }
+      ],
+      "expected_answer": "น้ำที่ใช้ผสมสารควรมีค่า pH ประมาณ 6.5-7.0",
+      "must_contain": [
+        "6.5"
+      ],
+      "kind": "text",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix05",
+      "split": "dev",
+      "query": "ผสมสูตรเพิ่มไนโตรเจนกำจัดเพลี้ย 25 ไร่ ต้องใช้ยูเรียเกล็ดกับอมิดาคลอพริดเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 6
+            }
+          ]
+        }
+      ],
+      "expected_answer": "สูตรเพิ่มไนโตรเจนกำจัดเพลี้ยสำหรับพื้นที่ 25 ไร่ ใช้ยูเรียเกล็ด 1,000 กรัม (1 กก.) และอมิดาคลอพริด 10% 250 ซีซี ผสมในน้ำ 500 ลิตร",
+      "must_contain": [
+        "1,000",
+        "250"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix06",
+      "split": "holdout",
+      "query": "ผสมสาร 150 ลิตร ต้องใช้คลอโรทาโลนิล 75% WP กี่กรัม",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 7
+            }
+          ]
+        }
+      ],
+      "expected_answer": "การผสมสาร 150 ลิตร ต้องใช้คลอโรทาโลนิล 75% WP 150 กรัม (คิดจากอัตรา 20 กรัมต่อน้ำ 20 ลิตร)",
+      "must_contain": [
+        "150"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix07",
+      "split": "dev",
+      "query": "อิมิดาโคลพริด 10% SL ใช้อัตราเท่าไรต่อน้ำ 20 ลิตร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 10
+            }
+          ]
+        }
+      ],
+      "expected_answer": "อิมิดาโคลพริด 10% SL ใช้อัตรา 10-20 ซีซีต่อน้ำ 20 ลิตร (ถ้าเป็นสูตร 70% WG ใช้ 3-5 กรัม)",
+      "must_contain": [
+        "10-20"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix08",
+      "split": "dev",
+      "query": "ไกลโฟเซต 48% SL ใช้อัตราเท่าไรต่อน้ำ 20 ลิตร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 23
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ไกลโฟเซต 48% SL ใช้อัตรา 100-150 ซีซีต่อน้ำ 20 ลิตร และออกฤทธิ์ช้า ใช้เวลา 3-7 วัน",
+      "must_contain": [
+        "100-150"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix09",
+      "split": "holdout",
+      "query": "พาราควอตใช้ในประเทศไทยได้ไหม",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 24
+            }
+          ]
+        }
+      ],
+      "expected_answer": "พาราควอตใช้ในประเทศไทยไม่ได้ เพราะเป็นวัตถุอันตรายชนิดที่ 4 ซึ่งห้ามใช้",
+      "must_contain": [
+        "ห้ามใช้ในประเทศไทย"
+      ],
+      "kind": "table",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix10",
+      "split": "dev",
+      "query": "อะทราซีนใช้คุมวัชพืชในพืชอะไร อัตราเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 24
+            }
+          ]
+        }
+      ],
+      "expected_answer": "อะทราซีนใช้คุมวัชพืชในไร่อ้อยและข้าวโพด อัตรา 60-80 กรัมต่อน้ำ 20 ลิตร โดยพ่นขณะดินชื้น",
+      "must_contain": [
+        "Atrazine",
+        "60-80"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix11",
+      "split": "dev",
+      "query": "ยูเรีย 46-0-0 ฉีดทางใบใช้อัตราเท่าไร ต้องระวังอะไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 30
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ยูเรีย 46-0-0 ฉีดพ่นทางใบใช้อัตรา 50-100 กรัมต่อน้ำ 20 ลิตร และต้องใช้ด้วยความระมัดระวังเพราะอาจทำให้ใบไหม้",
+      "must_contain": [
+        "50-100",
+        "ใบไหม้"
+      ],
+      "kind": "table-condition",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix12",
+      "split": "holdout",
+      "query": "แคลเซียมคีเลตไม่ควรผสมกับปุ๋ยแบบไหน",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 32
+            },
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 33
+            }
+          ]
+        }
+      ],
+      "expected_answer": "แคลเซียมคีเลตไม่ควรผสมกับปุ๋ยที่มีฟอสเฟตหรือซัลเฟตสูง",
+      "must_contain": [
+        "ซัลเฟต"
+      ],
+      "kind": "table-condition",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix13",
+      "split": "dev",
+      "query": "คาร์โบซัลแฟนยังใช้ได้ไหม",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 12
+            }
+          ]
+        }
+      ],
+      "expected_answer": "คาร์โบซัลแฟนห้ามใช้แล้ว เพราะเป็นวัตถุอันตรายชนิดที่ 4",
+      "must_contain": [
+        "Carbosulfan",
+        "ห้ามใช้"
+      ],
+      "kind": "table",
+      "flags": [
+        "เอกสารขัดกัน: ไฟล์วินิจฉัยโรคหน้า 18 แนะนำคาร์โบซัลแฟนกำจัดแมลงสิงในข้าว"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer ควรหาข้อมูลเพิ่มเติมจากผู้เชี่ยวชาญ",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "mix14",
+      "split": "dev",
+      "query": "สารจับไบต้องใส่ตอนไหน",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์ผสมสาร.pdf",
+              "page_number": 4
+            }
+          ]
+        }
+      ],
+      "expected_answer": "สารจับใบต้องใส่เป็นลำดับสุดท้ายเสมอ",
+      "must_contain": [
+        "สุดท้าย"
+      ],
+      "kind": "typo",
+      "flags": [
+        "คำถามพิมพ์ผิด (ไบ = ใบ)"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "dis01",
+      "split": "dev",
+      "query": "ระบบคำนวณเปอร์เซ็นต์ความน่าจะเป็นของโรคอย่างไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 4
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ระบบคำนวณเปอร์เซ็นต์ความน่าจะเป็นของโรคจาก Age Score + Symptom Score โดย Age Score ได้ 50 คะแนนเมื่ออยู่ในช่วงอายุที่เกิดโรค และ Symptom Score = (อาการที่ตรง / อาการที่เลือก) × 50",
+      "must_contain": [
+        "Age Score",
+        "Symptom Score"
+      ],
+      "kind": "formula",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "dis02",
+      "split": "dev",
+      "query": "หนอนกระทู้ข้าวโพดลายจุดใช้สารอะไร อัตราเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 7
+            }
+          ]
+        }
+      ],
+      "expected_answer": "หนอนกระทู้ข้าวโพดลายจุดใช้คลอร์ฟีนาเพอร์ 10% SC อัตรา 80 กรัมต่อน้ำ 20 ลิตร พ่นทุก 7 วันเมื่อพบหนอนขนาดเล็ก",
+      "must_contain": [
+        "คลอร์ฟีนาเพ",
+        "80"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง",
+        "หน่วย 'กรัม' กับสูตร SC (ของเหลว) ดูไม่สอดคล้อง ควรตรวจกับผู้รู้"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "dis03",
+      "split": "holdout",
+      "query": "ตั๊กแตนปาทังก้าในข้าวโพดกำจัดด้วยสารอะไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 6
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ตั๊กแตนปาทังก้าในข้าวโพดกำจัดด้วยคาร์บาริล 85% WP อัตรา 125 กรัมผสมน้ำ 20 ลิตร เมื่อพบตั๊กแตนเกิน 1 ตัวต่อตารางเมตร",
+      "must_contain": [
+        "คาร์บาริล",
+        "125"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "dis04",
+      "split": "dev",
+      "query": "โรคราน้ำค้างข้าวโพดใช้สารอะไร พ่นเมื่อไหร่",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 8
+            }
+          ]
+        }
+      ],
+      "expected_answer": "โรคราน้ำค้างข้าวโพดใช้เมทาแลกซิล 25% WP อัตรา 20-40 กรัมต่อน้ำ 20 ลิตร พ่นทุก 7 วัน 1-2 ครั้ง โดยพ่นครั้งแรกเมื่อข้าวโพดอายุ 5-7 วัน",
+      "must_contain": [
+        "เมทาแลกซิล",
+        "5-7"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "dis05",
+      "split": "dev",
+      "query": "หนอนกอลายจุดในอ้อยใช้สารอะไร พ่นกี่ครั้ง",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 12
+            }
+          ]
+        }
+      ],
+      "expected_answer": "หนอนกอลายจุดในอ้อยใช้คลอแรนทรานิลิโพรล 5.17% SC อัตรา 20 มล.ต่อน้ำ 20 ลิตร พ่น 2-3 ครั้ง ห่างกัน 14 วัน",
+      "must_contain": [
+        "คลอแรนทรานิลิโพรล",
+        "14"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "dis06",
+      "split": "holdout",
+      "query": "โรคใบขาวอ้อยเกิดจากเชื้ออะไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 15
+            }
+          ]
+        }
+      ],
+      "expected_answer": "โรคใบขาวอ้อยเกิดจากเชื้อไฟโตพลาสมา (Phytoplasma)",
+      "must_contain": [
+        "ไฟโตพลาสมา"
+      ],
+      "kind": "table",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "dis07",
+      "split": "dev",
+      "query": "หอยเชอรี่ในนาข้าวใช้สารอะไร อัตราเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 19
+            }
+          ]
+        }
+      ],
+      "expected_answer": "หอยเชอรี่ในนาข้าวใช้นิโคลซาไมด์-โอลามีน 83.1% WP อัตรา 50 กรัมต่อไร่ (25 กรัมต่อน้ำ 20 ลิตร)",
+      "must_contain": [
+        "นิโคลซาไมด์",
+        "50"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "dis08",
+      "split": "dev",
+      "query": "เพลี้ยแป้งมันสำปะหลังใช้สารอะไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 23
+            }
+          ]
+        }
+      ],
+      "expected_answer": "เพลี้ยแป้งมันสำปะหลังใช้ไทอะมีทอกแซม 25% WG อัตรา 4 กรัมต่อน้ำ 20 ลิตร พ่นเฉพาะจุดที่พบ",
+      "must_contain": [
+        "ไทอะมีทอก",
+        "4"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "dis09",
+      "split": "holdout",
+      "query": "สภาพอากาศแบบไหนนับว่าฝนตกชุกความชื้นสูง",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 29
+            }
+          ]
+        }
+      ],
+      "expected_answer": "สภาพอากาศที่นับว่าฝนตกชุกความชื้นสูงคือ ฝนตกติดต่อกันตั้งแต่ 3 วันขึ้นไป และความชื้นสัมพัทธ์ตั้งแต่ 80% ขึ้นไป",
+      "must_contain": [
+        "80"
+      ],
+      "kind": "table-condition",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "dis10",
+      "split": "dev",
+      "query": "สภาพน้ำขังในแปลงใช้เกณฑ์ฝนสะสมเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 29
+            }
+          ]
+        }
+      ],
+      "expected_answer": "สภาพน้ำขังในแปลงใช้เกณฑ์ปริมาณฝนสะสม 3 วันตั้งแต่ 50 มม. ขึ้นไป และฝนตกติดต่อกันตั้งแต่ 3 วันขึ้นไป",
+      "must_contain": [
+        "50"
+      ],
+      "kind": "table-condition",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "dis11",
+      "split": "dev",
+      "query": "อากาศร้อนแห้งแล้งทำให้ข้าวเสี่ยงโรคหรือแมลงอะไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 30
+            },
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 31
+            }
+          ]
+        }
+      ],
+      "expected_answer": "อากาศร้อนแห้งแล้ง (อุณหภูมิตั้งแต่ 35 °C ติดต่อกัน 3 วันขึ้นไป และฝนทิ้งช่วงตั้งแต่ 7 วันขึ้นไป) ทำให้ข้าวเสี่ยงต่อเพลี้ยไฟและโรคกาบใบเน่า",
+      "must_contain": [
+        "เพลี้ยไฟ"
+      ],
+      "kind": "table-multi",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "dis12",
+      "split": "holdout",
+      "query": "ฝนตกและลมแรงเกินกี่กิโลเมตรต่อชั่วโมงจึงเสี่ยง",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 29
+            }
+          ]
+        },
+        {
+          "aspect": "สิ่งที่เสี่ยง (โรค/แมลง)",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 32
+            },
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 35
+            },
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 36
+            },
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 37
+            },
+            {
+              "source_file": "ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf",
+              "page_number": 41
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ฝนตกร่วมกับลมพัดแรงตั้งแต่ 20 กม./ชม. ขึ้นไป (นับ 1 วัน) เป็นปัจจัยเสี่ยงที่ระบบใช้เตือนโรคและแมลง ขึ้นกับชนิดพืช ตัวอย่างในเอกสาร เช่น โรคใบขีดโปร่งแสงในข้าว โรคราสนิม โรคใบไหม้แผลใหญ่ หนอนเจาะลำต้นข้าวโพด และโรคยอดเน่าอ้อย",
+      "must_contain": [
+        "20"
+      ],
+      "kind": "table-condition",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ต้องบอกด้วยว่ามันเสี่ยงอะไร",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in",
+        "state_the_risk"
+      ]
+    },
+    {
+      "id": "my01",
+      "split": "dev",
+      "query": "ก่อนบินโดรนต้องตรวจอะไรบ้าง",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์โดรนของฉัน.pdf",
+              "page_number": 1
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ก่อนบินโดรนทุกครั้งต้องตรวจ 7 จุด ได้แก่ ใบพัด (ไม่มีรอยบิ่น ร้าว บิด หรือหลวม), มอเตอร์ (ไม่มีเสียงผิดปกติ ไม่ติดขัดหรือโยกคลอน), สายไฟ/ขั้วต่อ (ไม่มีคราบสนิม ฉนวนไม่ขาด), เซ็นเซอร์/เรดาร์/ระบบกันชน (ทำงานปกติ), แบตเตอรี่และขั้วไฟ (ไม่บวม ไม่มีคราบออกซิไดซ์), โครงสร้างลำตัว/ขาสกี (แน่นสมบูรณ์) และซอฟต์แวร์ (อัปเดตเป็นเวอร์ชันล่าสุด)",
+      "must_contain": [
+        "ใบพัด",
+        "มอเตอร์"
+      ],
+      "kind": "list",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ควรบอกคร่าวๆว่าตรวจสอบอะไรของส่วนนั้นด้วย",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in",
+        "what_to_check_per_item"
+      ]
+    },
+    {
+      "id": "my02",
+      "split": "dev",
+      "query": "ถ้าไม่ใช้งานนานควรเก็บแบตเตอรี่ไว้กี่เปอร์เซ็นต์",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์โดรนของฉัน.pdf",
+              "page_number": 2
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ถ้าไม่ใช้งานนาน ควรเก็บแบตเตอรี่ไว้ที่ 50-70% ในที่แห้งและไม่ให้โดนความร้อน",
+      "must_contain": [
+        "50"
+      ],
+      "kind": "table",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "my03",
+      "split": "holdout",
+      "query": "ใบพัดโดรนเกษตรควรเปลี่ยนเมื่อใช้งานกี่ชั่วโมง",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์โดรนของฉัน.pdf",
+              "page_number": 3
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ใบพัดโดรนเกษตรควรเปลี่ยนเมื่อใช้งานครบ 500 ชั่วโมง (ใบพัดหลัก 700 ชั่วโมง) หรือเปลี่ยนทันทีเมื่อพบรอยบิ่นหรือร้าว",
+      "must_contain": [
+        "500",
+        "700"
+      ],
+      "kind": "table",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "my04",
+      "split": "dev",
+      "query": "ห้ามใช้แบตเตอรี่ต่ำกว่ากี่เปอร์เซ็นต์ขณะบิน",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์โดรนของฉัน.pdf",
+              "page_number": 3
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ขณะบิน ห้ามใช้แบตเตอรี่จนต่ำกว่า 30%",
+      "must_contain": [
+        "30%"
+      ],
+      "kind": "text",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "my05",
+      "split": "dev",
+      "query": "ปั๊มฉีดพ่นต้องเปลี่ยนเมื่อไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์โดรนของฉัน.pdf",
+              "page_number": 3
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ปั๊มฉีดพ่นต้องเปลี่ยนเมื่อใช้งานครบ 500 ชั่วโมง และควรถอดตรวจการสึกหรอทุก 100 ชั่วโมง",
+      "must_contain": [
+        "500"
+      ],
+      "kind": "table",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "my06",
+      "split": "holdout",
+      "query": "ESC ต้องตรวจบ่อยแค่ไหนและเปลี่ยนเมื่อไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์โดรนของฉัน.pdf",
+              "page_number": 3
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ESC ต้องตรวจทุก 100 ชั่วโมงหรือทุก 6 เดือน และเปลี่ยนเมื่อครบ 3,000 ชั่วโมงหรือ 36 เดือน",
+      "must_contain": [
+        "3,000",
+        "36"
+      ],
+      "kind": "table",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "my07",
+      "split": "dev",
+      "query": "ทำความสะอาดขั้วแบตเตอรี่ใช้อะไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "ฟีเจอร์โดรนของฉัน.pdf",
+              "page_number": 2
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ทำความสะอาดขั้วแบตเตอรี่ด้วยสำลีหรือผ้าไมโครไฟเบอร์ชุบแอลกอฮอล์ 90-100% เช็ดบาง ๆ",
+      "must_contain": [
+        "แอลกอฮอล์"
+      ],
+      "kind": "text",
+      "flags": [],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "u01",
+      "split": "dev",
+      "query": "ฉีดพ่นยาคุมก่อนอ้อยงอกต้องใช้สารอะไร สำหรับวัชพืชใบแคบ",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": 18
+            }
+          ]
+        }
+      ],
+      "expected_answer": "สารกำจัดวัชพืชที่พ่นก่อนวัชพืชงอกในไร่อ้อยและคุมวัชพืชใบแคบได้ (กรัมสารออกฤทธิ์/ไร่) แบ่งเป็น สารที่คุมเฉพาะใบแคบ: อาลาคลอร์ 320-640 และเพนดิเมทาลิน 320-480; สารที่คุมได้ทั้งใบแคบและใบกว้าง: แอทราซีน 480-640, เมทริบูซีน 480-640, ไดยูรอน 480-640, อ๊อกซี่ฟลูออร์เฟน 160-200, ซัลเฟนทราโซน 140-180, เฮ็กซาซิโนน 160-200, เพนดิเมทาลิน+อิมาซาปิก 120-160+12, เพนดิเมทาลิน+แอทราซีน 120-160+240, ซัลเฟนทราโซน+แอทราซีน 120-140+240 และอ๊อกซี่ฟลูออร์เฟน+แอทราซีน 120-160+240 ทุกรายการมีสถานะสามารถใช้ได้",
+      "must_contain": [
+        "อาลาคลอร์",
+        "320-640",
+        "เพนดิเมทาลิน",
+        "320-480"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง",
+        "ตารางมีข้อความในไฟล์ PDF (ตรวจอัตโนมัติ 2026-10-19 หลัง ingest หน้า 18 ใหม่)"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer ควรหาข้อมูลเพิ่มเติมจากผู้เชี่ยวชาญ และควรบอกด้วยว่าสารอื่นๆได้แก่สารใดบ้างยกมาให้ครบไม่งั้นผู้อ่านจะมรู้ว่าสารอื่นๆ แล้วมันสารอะไรบ้างหละ",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in",
+        "complete_list"
+      ]
+    },
+    {
+      "id": "u02",
+      "split": "dev",
+      "query": "ฉีดพ่นยาคุมก่อนอ้อยงอกต้องใช้สารอะไร สำหรับวัชพืชใบกว้าง",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": 18
+            }
+          ]
+        }
+      ],
+      "expected_answer": "สารกำจัดวัชพืชที่พ่นก่อนวัชพืชงอกในไร่อ้อยและคุมวัชพืชใบกว้างได้ (คุมได้ทั้งใบแคบและใบกว้าง) มี 10 รายการ (กรัมสารออกฤทธิ์/ไร่): แอทราซีน 480-640, เมทริบูซีน 480-640, ไดยูรอน 480-640, อ๊อกซี่ฟลูออร์เฟน 160-200, ซัลเฟนทราโซน 140-180, เฮ็กซาซิโนน 160-200, เพนดิเมทาลิน+อิมาซาปิก 120-160+12, เพนดิเมทาลิน+แอทราซีน 120-160+240, ซัลเฟนทราโซน+แอทราซีน 120-140+240 และอ๊อกซี่ฟลูออร์เฟน+แอทราซีน 120-160+240 อาลาคลอร์และเพนดิเมทาลินเดี่ยวคุมเฉพาะใบแคบ จึงไม่ควรอยู่ในคำตอบ",
+      "must_contain": [
+        "ไดยูรอน",
+        "เฮ็กซาซิโนน",
+        "ซัลเฟนทราโซน+แอทราซีน",
+        "120-140+240"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง",
+        "ตารางมีข้อความในไฟล์ PDF (ตรวจอัตโนมัติ 2026-10-19 หลัง ingest หน้า 18 ใหม่)"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "fix",
+        "note": "ระบุด้วยว่า Disclaimer ควรหาข้อมูลเพิ่มเติมจากผู้เชี่ยวชาญ และควรบอกด้วยว่าสารอื่นๆได้แก่สารใดบ้างยกมาให้ครบไม่งั้นผู้อ่านจะมรู้ว่าสารอื่นๆ แล้วมันสารอะไรบ้างหละ | เจ้าของสั่งแก้ 2026-10-19: ตัวสะกดตาม PDF คือ เฮ็กซาซิโนน และ แอทราซีน",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in",
+        "complete_list"
+      ]
+    },
+    {
+      "id": "u03",
+      "split": "dev",
+      "query": "เพนดิเมทาลิน+อิมาซาปิก ควบคุมวัชพืชใบแคบหรือใบกว้าง อัตราเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": 18
+            }
+          ]
+        }
+      ],
+      "expected_answer": "เพนดิเมทาลิน+อิมาซาปิก ควบคุมได้ทั้งวัชพืชใบแคบและใบกว้าง ใช้พ่นก่อนวัชพืชงอก อัตรา 120-160+12 กรัมสารออกฤทธิ์/ไร่ หมายถึงใช้เพนดิเมทาลิน 120-160 กรัมสารออกฤทธิ์/ไร่ ร่วมกับอิมาซาปิก 12 กรัมสารออกฤทธิ์/ไร่",
+      "must_contain": [
+        "เพนดิเมทาลิน+อิมาซาปิก",
+        "120-160+12"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง",
+        "ตารางมีข้อความในไฟล์ PDF (ตรวจอัตโนมัติ 2026-10-19 หลัง ingest หน้า 18 ใหม่)"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "fix",
+        "note": "ระบุด้วยว่า Disclaimer งงอยู่ๆก็เอาเลขมาเขียน + - กัน",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: rewritten from the owner's note"
+      },
+      "answer_requirements": [
+        "lead_in",
+        "explain_mixture_rate"
+      ],
+      "split_note": "moved holdout->dev 2026-10-19: used repeatedly in live tuning (prompt rule for mixture rates came from this case), so it no longer measures unseen performance"
+    },
+    {
+      "id": "u04",
+      "split": "dev",
+      "query": "พาราควอทใช้ในไร่อ้อยได้ไหม",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": 18
+            }
+          ]
+        }
+      ],
+      "expected_answer": "พาราควอทห้ามใช้ในไร่อ้อย ทั้งพาราควอทเดี่ยวและสารผสมแอทราซีน+พาราควอท",
+      "must_contain": [
+        "พาราควอท",
+        "ห้ามใช้"
+      ],
+      "kind": "table",
+      "flags": [
+        "ตารางมีข้อความในไฟล์ PDF (ตรวจอัตโนมัติ 2026-10-19 หลัง ingest หน้า 18 ใหม่)"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "u05",
+      "split": "dev",
+      "query": "ไกลโฟเซตในไร่อ้อยใช้ได้ไหม อัตราเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": 18
+            }
+          ]
+        }
+      ],
+      "expected_answer": "ไกลโฟเซต (ในตารางเขียนว่า ไกโฟเซท) ในไร่อ้อยมีสถานะควบคุมการใช้ อัตรา 320-480 กรัมสารออกฤทธิ์/ไร่ พ่นหลังวัชพืชงอก คุมได้ทั้งใบแคบและใบกว้าง",
+      "must_contain": [
+        "320-480",
+        "ควบคุมการใช้"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง",
+        "ตารางมีข้อความในไฟล์ PDF (ตรวจอัตโนมัติ 2026-10-19 หลัง ingest หน้า 18 ใหม่)"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "u06",
+      "split": "dev",
+      "query": "2,4-D ในไร่อ้อยควบคุมวัชพืชชนิดไหน อัตราเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": 18
+            }
+          ]
+        }
+      ],
+      "expected_answer": "2,4-D ในไร่อ้อยควบคุมวัชพืชใบกว้างและแห้วหมู อัตรา 320-480 กรัมสารออกฤทธิ์/ไร่ พ่นหลังวัชพืชงอก",
+      "must_contain": [
+        "2,4-D",
+        "ใบกว้างและแห้วหมู"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง",
+        "ตารางมีข้อความในไฟล์ PDF (ตรวจอัตโนมัติ 2026-10-19 หลัง ingest หน้า 18 ใหม่)"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "ok",
+        "note": "ระบุด้วยว่า Disclaimer",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ],
+      "split_note": "moved holdout->dev 2026-10-19: used repeatedly in live tuning (prompt rule for mixture rates came from this case), so it no longer measures unseen performance"
+    },
+    {
+      "id": "u07",
+      "split": "dev",
+      "query": "ฉีดพ่นยาคุมก่อนอ้อยงอกต้องใช้สารอะไร",
+      "evidence_groups": [
+        {
+          "aspect": "คำตอบหลัก",
+          "pages": [
+            {
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": 18
+            }
+          ]
+        }
+      ],
+      "expected_answer": "สารกำจัดวัชพืชที่พ่นก่อนวัชพืชงอกในไร่อ้อยมี 12 รายการ (กรัมสารออกฤทธิ์/ไร่): อาลาคลอร์ 320-640 (ใบแคบ), แอทราซีน 480-640, เมทริบูซีน 480-640, ไดยูรอน 480-640, อ๊อกซี่ฟลูออร์เฟน 160-200, ซัลเฟนทราโซน 140-180, เฮ็กซาซิโนน 160-200, เพนดิเมทาลิน 320-480 (ใบแคบ), เพนดิเมทาลิน+อิมาซาปิก 120-160+12, เพนดิเมทาลิน+แอทราซีน 120-160+240, ซัลเฟนทราโซน+แอทราซีน 120-140+240 และอ๊อกซี่ฟลูออร์เฟน+แอทราซีน 120-160+240 รายการที่ไม่ได้วงเล็บคุมได้ทั้งใบแคบและใบกว้าง ทุกรายการมีสถานะสามารถใช้ได้",
+      "must_contain": [
+        "อ๊อกซี่ฟลูออร์เฟน+แอทราซีน",
+        "120-160+240"
+      ],
+      "kind": "table",
+      "flags": [
+        "อัตราสารเคมี: ควรให้ผู้เชี่ยวชาญตรวจภายหลัง",
+        "คำตอบที่ดีควรแยกใบแคบ / ใบแคบและกว้าง",
+        "ตารางมีข้อความในไฟล์ PDF (ตรวจอัตโนมัติ 2026-10-19 หลัง ingest หน้า 18 ใหม่)"
+      ],
+      "verified_by": "pdf_text",
+      "review": {
+        "decision": "fix",
+        "note": "ระบุด้วยว่า Disclaimer ระบุสารให้ครบ + ปริมาณ",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: rewritten from the owner's note"
+      },
+      "answer_requirements": [
+        "lead_in",
+        "complete_list",
+        "explain_mixture_rate"
+      ]
+    }
+  ],
+  "answer_only_cases": [
+    {
+      "id": "a01",
+      "query": "ทำประกันภัยโดรนต้องมีวงเงินเท่าไร",
+      "expected_answer": "วงเงินประกันภัยโดรนขึ้นกับน้ำหนักโดรน: โดรนไม่เกิน 25 กก. ต้องมีวงเงินไม่ต่ำกว่า 1,000,000 บาท และโดรนเกิน 25 กก. ต้องมีวงเงินไม่ต่ำกว่า 2,000,000 บาท",
+      "source": {
+        "source_file": "ขั้นตอนการยื่นขออนุญาตปฏิบัติการบินโดรนเกษตรเพื่อตนเอง.pdf",
+        "pages": [
+          5,
+          12
+        ]
+      },
+      "kind": "condition",
+      "flags": [
+        "ตอบผ่าน CAAT/เว็บตามนโยบาย ไฟล์นี้ไม่อยู่ใน KB"
+      ],
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "a02",
+      "query": "รายงาน AI ตัวอย่างแนะนำโดรนรุ่นไหน IRR เท่าไร",
+      "expected_answer": "ต้องตอบว่ายังยืนยันไม่ได้ เพราะค่าในภาพรายงาน AI ตัวอย่างหน้า 38 ไม่อยู่ในฐานความรู้ (ช่องว่างที่ยอมรับแล้ว)",
+      "source": {
+        "source_file": "ฟีเจอร์การลงทุน.pdf",
+        "pages": [
+          38
+        ]
+      },
+      "kind": "abstain",
+      "flags": [],
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "a03",
+      "query": "อัตราการใช้ไดยูรอนในสวนทุเรียนเท่าไร",
+      "expected_answer": "ต้องตอบว่าเอกสารไม่มีข้อมูลอัตราการใช้ไดยูรอนในสวนทุเรียน และห้ามนำอัตราของอ้อยหรือสับปะรดมาตอบแทน",
+      "source": {
+        "source_file": "ฟีเจอร์ผสมสาร.pdf",
+        "pages": [
+          25
+        ]
+      },
+      "kind": "abstain",
+      "flags": [
+        "ทดสอบการไม่เอาข้อมูลพืชอื่นมาตอบ"
+      ],
+      "review": {
+        "decision": "ok",
+        "note": "",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: lead-in sentence per owner note, facts unchanged"
+      },
+      "answer_requirements": [
+        "lead_in"
+      ]
+    },
+    {
+      "id": "a04",
+      "query": "ห้ามใช้แบตเตอรี่ต่ำกว่ากี่เปอร์เซ็นต์ขณะบิน",
+      "expected_answer": "ขณะบิน ห้ามใช้แบตเตอรี่จนต่ำกว่า 30% ตอบให้ตรงและเข้าใจง่าย เสริมข้อควรระวังเรื่องแบตเตอรี่จากเอกสารเดียวกันได้ แต่ไม่ควรมีแรงดันแบตของโดรนสำรวจ (25.0 V) ปนมา",
+      "source": {
+        "source_file": "ฟีเจอร์โดรนของฉัน.pdf",
+        "pages": [
+          3
+        ]
+      },
+      "kind": "focus",
+      "flags": [
+        "ตัวอย่างจริงที่มีข้อมูลคนละบริบทปนมา"
+      ],
+      "review": {
+        "decision": "fix",
+        "note": "ตอบให้เฉพาะแต่เข้าใจและมีข้อมูลเสริมที่บอกถึงข้อควรระวังเพิ่มเติมได้",
+        "reviewed_by": "owner",
+        "reviewed_at": "2026-10-19",
+        "rewritten_by": "Claude 2026-10-19: rewritten from the owner's note"
+      },
+      "answer_requirements": [
+        "lead_in",
+        "focused_with_cautions"
+      ]
+    },
+    {
+      "id": "a05",
+      "query": "แบตเท่าไหร่ห้ามบิน",
+      "expected_answer": "ขณะบิน: ห้ามใช้แบตจนต่ำกว่า 30% (ฟีเจอร์โดรนของฉัน หน้า 3) ขึ้นก่อน; ถ้าอ้าง 25.0 V ต้องระบุว่าเป็นการเช็คแบตก่อนลงพื้นที่ของโดรนสำรวจในเอกสาร UAV11 (แบตเต็ม 25.2 V) ไม่ใช่เกณฑ์ห้ามบินทั่วไป",
+      "source": {
+        "source_file": "ฟีเจอร์โดรนของฉัน.pdf",
+        "pages": [
+          3
+        ]
+      },
+      "kind": "focus",
+      "flags": [
+        "คำถามภาษาพูด",
+        "พบจริง 2026-10-18: คำตอบให้ 25.0 V มาก่อน 30% โดยไม่บอกบริบท",
+        "เพิ่มแถวนี้ลงแบบฟอร์ม CSV ตอนรวมผลตรวจ"
+      ],
+      "review": {
+        "decision": "pending",
+        "note": ""
+      },
+      "answer_requirements": [
+        "lead_in",
+        "focused_with_cautions"
+      ]
+    }
+  ],
+  "answer_style": "Owner 2026-10-19: answers open with a lead-in that restates the question, then full sentences; chemical-rate and diagnosis answers end with the server's expert-consult note; lists are complete with rates; mixture rates like 120-160+12 are explained per substance.",
+  "split_history": [
+    "2026-10-19: u03, u06 moved from holdout to dev after being used for live tuning; holdout = 17 untouched cases"
+  ]
+}

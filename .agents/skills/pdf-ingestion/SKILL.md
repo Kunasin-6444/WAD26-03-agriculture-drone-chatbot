@@ -1,68 +1,20 @@
 ---
 name: pdf-ingestion
-description: Build, debug, and test PDF ingestion for this project, including text, native tables, Vision extraction, Knowledge Units, and chunking.
+description: Diagnose or modify PDF text, table, visual extraction and chunk provenance for a concrete ingestion task.
 ---
 
-# PDF Ingestion Skill
+# PDF ingestion
 
-## Extraction strategy
+Follow [AGENTS](../../../AGENTS.md), [INGESTION](../../../docs/INGESTION.md)
+and [TEST_PLAN](../../../docs/TEST_PLAN.md).
+No fixed chunk size, extractor, model or mandatory live ingestion sequence is imposed by this skill.
 
-PDF
- ->
-text
- ->
-native tables
- ->
-Vision for meaningful visual content
- ->
-KnowledgeUnit
+- Start with the affected source page/record. Preserve filename, document ID, page/range, source type and provenance.
+- Keep row/column labels, units and conditions attached to values; do not fabricate unreadable visual content.
+- Distinguish complete, degraded and failed extraction. Native text alone does not prove complete visual coverage.
+- Use recorded/cached evidence and focused offline checks first. Vision/embedding calls require the user's permitted scope.
+- Retry only affected work when warranted; do not reprocess the entire corpus by default.
+- Do not corrupt unrelated pages, clear existing data or publish partial extraction as complete.
+- Keep index publication and rollback safe; follow the approved CAAT source exclusions.
 
----
-
-## Rules
-
-1. Preserve source filename.
-
-2. Preserve page number.
-
-3. Preserve source type.
-
-4. Never invent missing document content.
-
-5. Vision interpretation is useful but must remain traceable
-   to extracted evidence.
-
-6. Do not add image hosting to the MVP.
-
-7. Do not rerun the entire PDF unnecessarily while debugging.
-
-8. Prefer single-page tests during Vision development.
-
-9. External API quota failures must not corrupt unrelated
-   local processing.
-
-10. A failed Vision page should not crash the entire ingestion batch
-    when the current implementation is designed to tolerate it.
-
----
-
-## Validation
-
-For each ingestion change:
-
-1. test one page
-2. inspect KnowledgeUnits
-3. inspect chunks
-4. test retrieval
-5. only then run broader ingestion
-
----
-
-## Chunking baseline
-
-Current baseline:
-
-- 800 characters
-- 120 character overlap
-
-Do not optimize these numbers without retrieval evidence.
+Broader ingestion or retrieval evaluation is a deliberate follow-up, not an automatic completion checklist.

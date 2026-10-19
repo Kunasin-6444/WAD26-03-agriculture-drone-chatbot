@@ -1,83 +1,21 @@
 ---
 name: testing-verification
-description: Create, run, and review automated tests for the agriculture drone chatbot. Use whenever implementing features, fixing bugs, or verifying project completion.
+description: Select and perform proportionate verification for behavior changes or an explicit testing request. Avoid unnecessary live calls and repeated full suites.
 ---
 
-# Testing and Verification Skill
+# Testing and verification
 
-## Required workflow
+Follow [AGENTS](../../../AGENTS.md) and [TEST_PLAN](../../../docs/TEST_PLAN.md).
+This replaces the former mandatory full-suite-before-every-completion workflow.
 
-Before coding:
+- Identify the changed user-visible behavior and risk. Choose the smallest meaningful offline check.
+- Documentation-only edits need document/link checks, not pytest or live requests.
+- Add or replace regression tests when they protect consequential behavior; avoid tests that just mirror implementation.
+- Retain useful existing tests. Remove obsolete tests with a concrete replacement or explanation.
+- Expand to integration/full regression when the change or release scope justifies it. Do not repeat after every minor edit.
+- Run live/API, real LINE or ingestion only within the user's explicit scope; manual question submission authorizes that question.
+- If a provider is unavailable, record it and stop the batch rather than repeat it until green.
+- Separate historical results from current checks and explain untested limits briefly.
 
-1. identify acceptance criteria
-2. identify relevant tests
-
-After coding:
-
-1. run focused tests
-2. inspect failures
-3. fix implementation
-4. add regression tests
-5. rerun tests
-
-Before completion:
-
-1. run full test suite
-2. report exact results
-3. identify known limitations
-4. update TODO/status
-
----
-
-## Test categories
-
-### Unit
-
-- models
-- chunking
-- formatting
-- utility logic
-
-### Component
-
-- embedding
-- Chroma
-- retrieval
-
-### Integration
-
-- RAG
-- CRAG
-- Tavily fallback
-- FastAPI webhook
-- LINE
-
-### End-to-end
-
-Real Thai user questions.
-
----
-
-## Important test principle
-
-A test must verify expected behavior.
-
-Bad:
-
-"function executes"
-
-Good:
-
-"query retrieves the relevant UAV07 page-12 table
-containing the requested evidence"
-
----
-
-## Regression testing
-
-Whenever a bug is found:
-
-1. reproduce
-2. write a failing test
-3. fix
-4. rerun
+Passing every historical benchmark is not a gate for handing the owner a local manual trial.
+Do not change gold or expected values merely to match generated output.

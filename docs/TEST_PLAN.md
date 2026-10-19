@@ -1,218 +1,43 @@
-# Test Plan
-
-## Principle
-
-Tests must verify behavior.
-
-Do not treat "function executed without exception"
-as sufficient evidence of correctness.
-
----
-
-# Level 1 — Unit Tests
-
-## Chunking
-
-Verify:
-
-- empty input
-- short text
-- text larger than chunk size
-- overlap
-- invalid overlap
-- metadata preservation
-
----
-
-## Knowledge Unit
-
-Verify:
-
-- schema validation
-- valid source types
-- required metadata
-- empty content handling
-
----
-
-## Retrieval Formatting
-
-Verify:
-
-- retrieved chunks are formatted correctly
-- source filename is preserved
-- page number is preserved
-- source type is preserved
-
----
-
-# Level 2 — Component Tests
-
-## Embedding
-
-Verify:
-
-- non-empty vector returned
-- dimension is 3072
-- empty input raises error
-- temporary API failure is retried
-
-Do not hard-code exact vector values.
-
----
-
-## Chroma
-
-Verify:
-
-- insert
-- upsert
-- query
-- metadata
-- persistence
-
-Use an isolated test collection/database where possible.
-
----
-
-# Level 3 — Retrieval Tests
-
-Use real representative questions.
-
-Example:
-
-### Q1
-
-"หัวฉีดพัดส้มมีอัตราการไหลเท่าไรต่อหัวฉีด?"
-
-Expected evidence:
-
-UAV07 page 12 table containing:
-
-พัดส้ม
-1600 rpm
-500 ml/หัวฉีด
-1500 ml / 3 หัวฉีด
-
----
-
-### Q2
-
-"ที่ความสูง 1 เมตร หน้ากว้างการฉีดพ่นต่อหัวเท่าไร?"
-
-Expected evidence:
-
-UAV07 page 12 table:
-
-1.0 m
-2.8 m per head
-4.5 m for 3 heads
-
----
-
-### Q3
-
-"หัวฉีดแบบใดมีอัตราการไหลสูงที่สุด?"
-
-Expected evidence:
-
-UAV07 page 12 flow-rate table.
-
-The test should verify that the relevant table is
-retrieved in the top-K context.
-
-Do not require an exact rank unless the evaluation
-explicitly defines one.
-
----
-
-# Level 4 — Generation Tests
-
-Verify:
-
-- answer uses retrieved evidence
-- answer includes source
-- unsupported claims are not generated
-- Thai response quality
-- source/page references are preserved
-
-Use deterministic or controlled evaluation
-where practical.
-
----
-
-# Level 5 — CRAG Tests
-
-## In-scope
-
-Expected:
-
-KB answer
-
-## Out-of-scope
-
-Expected:
-
-web fallback
-
-## Ambiguous
-
-Expected:
-
-clarification or abstain,
-depending on implementation
-
-## Unsupported
-
-Expected:
-
-abstain
-
----
-
-# Level 6 — Web Fallback Tests
-
-Verify:
-
-- Tavily called when KB is insufficient
-- official sources preferred
-- URL retained
-- web answer does not claim KB evidence
-
----
-
-# Level 7 — LINE Tests
-
-Verify:
-
-- signature verification
-- message parsing
-- reply token handling
-- successful answer
-- error handling
-
----
-
-# Level 8 — End-to-End
-
-Flow:
-
-LINE message
- ->
-FastAPI
- ->
-CRAG
- ->
-retrieval/web
- ->
-LLM
- ->
-LINE reply
-
-At least 20-30 real Thai questions should be tested
-before final delivery, including:
-
-- in-scope
-- out-of-scope
-- ambiguous
-- unsupported
+# นโยบายการตรวจงาน
+
+ใช้ร่วมกับ [AGENTS](../AGENTS.md) เป้าหมายคือหาปัญหาที่สำคัญแล้วส่งให้เจ้าของลองได้เร็ว
+เอกสารนี้แทน workflow เดิมที่บังคับ full suite/live evaluation ทุกครั้ง
+
+| ประเภทงาน | การตรวจเริ่มต้น | ขยายเมื่อใด |
+| --- | --- | --- |
+| MD/คำอธิบาย | อ่านความสอดคล้อง ตรวจลิงก์ที่แก้และ whitespace | มีคำสั่งหรือ config ที่ต้องยืนยันจากโค้ด |
+| UI/formatting เล็กน้อย | เปิดดูหรือ focused offline check ตามจำเป็น | เปลี่ยน request/state flow |
+| logic ที่เสี่ยงผิด | focused offline tests ด้วย fixture/stub | มี failure ใหม่หรือกระทบหลาย component |
+| retrieval/grounding/citation | ตรวจหลักฐานตัวอย่างและ contract ที่เกี่ยวข้อง offline | ต้องเทียบพฤติกรรมหลายเส้นทางหรือขอวัด live |
+| schema/storage/webhook/release | regression ที่ครอบคลุมส่วนที่กระทบ; full suite เมื่อมีเหตุ | เปลี่ยน dependency/สัญญาหลักหรือเตรียม release จริง |
+| LLM, embeddings, Vision, Tavily, LINE จริง | ทำเฉพาะขอบเขตที่ผู้ใช้ขอ/อนุญาต | ไม่ขยาย batch หรือรันซ้ำเอง |
+
+## จังหวะการทำงาน
+
+กำหนดพฤติกรรมที่คาดหวัง แก้ปัญหา แล้วตรวจเท่าที่ตอบความเสี่ยงนั้นได้
+ใช้ผล focused check ที่ผ่านแล้วต่อได้ ไม่ต้องทวน full suite เว้นแต่การแก้ใหม่ทำให้ผลเดิมไม่น่าใช้
+เมื่อ fail ให้อ่านสาเหตุก่อนรันซ้ำ ความล้มเหลวจาก provider ไม่ใช่เหตุให้วน batch ทั้งชุด
+ไม่เขียน tests ที่ตรวจเพียงว่า function ถูกเรียก หรือสะท้อน implementation โดยไม่ตรวจพฤติกรรม
+งานที่ย้อนกลับง่ายและผลกระทบต่ำไม่จำเป็นต้องเพิ่ม automated test ทุกครั้ง
+
+## สิ่งที่ควรมี coverage เมื่อแก้ส่วนที่เกี่ยวข้อง
+
+- KB พอ: ตอบจาก KB พร้อมชื่อไฟล์/หน้าและเงื่อนไขครบ
+- KB บางส่วน: เก็บข้อเท็จจริงเดิม เติม web พร้อมที่มาของแต่ละประเด็น
+- Web: ใช้ URL ของหน้าจริง รวม path/query/fragment ไม่แทนด้วย homepage
+- ข้อมูลไม่พอ/บริการล่ม: แยกเหตุและไม่แต่งคำตอบหรืออ้างอิง
+- ตาราง: ไม่สลับพืช แถว คอลัมน์ ค่า หน่วย และเงื่อนไข
+- Cache/config/index revision: ไม่คืนคำตอบเก่าผิดบริบท
+- LINE: signature, redelivery/restart, dedup และผลส่งที่ไม่แน่นอน
+- Ingestion: provenance, incomplete/degraded และความปลอดภัยของการ publish
+
+รายการนี้เป็น coverage map ไม่ใช่คำสั่งให้รันทุกข้อทุกงาน
+เก็บ tests เดิมที่ตรวจพฤติกรรมจริง แทนที่ tests ที่ล้าสมัยพร้อมเหตุผล ไม่ลบทิ้งทั้งหมดเพียงเพราะเป็นของเก่า
+
+## Live และการรายงาน
+
+รอบปัจจุบันหยุด live/API evaluation อัตโนมัติตามคำขอผู้ใช้
+ถ้าผู้ใช้ขอ live ให้ใช้ขอบเขตเดิมที่ได้รับอนุญาต ไม่ถามซ้ำ แต่ไม่เพิ่มชุด/จำนวนเอง
+แยกเวลา cold/cache-hit, KB/web และ provider error; ตัวอย่างน้อยใช้ดูอาการ ไม่อ้างเป็น production p95
+Gold/expected answer ต้องอิงต้นฉบับ หากพบข้อผิดพลาดให้บันทึกแยกจากการปรับ output
+รายงานคำสั่งและผลจริงแบบสั้น แยกผลเก่า สิ่งที่ไม่ได้รัน และข้อจำกัด ห้ามอ้างว่า “ผ่านทั้งหมด” จากการตรวจเฉพาะจุด

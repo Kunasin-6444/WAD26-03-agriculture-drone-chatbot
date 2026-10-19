@@ -5,16 +5,31 @@ import json
 import re
 from dataclasses import dataclass, field
 from decimal import Decimal
+from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from app.rag.claim_consistency import claim_inconsistency
-from app.rag.source_policy import is_excluded_document
+from app.rag.source_policy import canonical_document_id, is_caat_url, is_excluded_document, requested_document_ids, valid_web_url, without_document_ids
+from app.rag.crag_grader import is_caat_air_law_or_airspace_topic
+from app.rag.table_grounding import table_inconsistency
 
 ABSTAIN_MESSAGE = "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ"
 CONTEXT_CHAR_BUDGET = 14000
 MAX_BODY_CHARS = 1800
 MAX_ANSWER_CHARS = 4200
 MAX_CLAIMS = 8
+MAX_INTRO_CHARS = 200
+# The owner's review (2026-10-19): chemical-rate and diagnosis answers must tell the reader to
+# check with an expert. Appended by the server, so it never depends on the model remembering.
+CHEMICAL_NOTE = ("หมายเหตุ: ข้อมูลนี้สรุปจากเอกสารอ้างอิงเพื่อประกอบการตัดสินใจเท่านั้น "
+                 "ก่อนใช้สารเคมีหรือวินิจฉัยโรคจริง ควรอ่านฉลากผลิตภัณฑ์และปรึกษาผู้เชี่ยวชาญหรือเจ้าหน้าที่เกษตร")
+# Two independent signals: a dose/rate stated in the answer (any document), or a cited document
+# whose whole subject is chemicals/diagnosis (document_topics.json, owner-editable).
+_CHEMICAL_RATE = re.compile(r"(?:กรัม|ซีซี|มล\.?|มิลลิลิตร|cc|ml)\s*(?:สารออกฤทธิ์)?\s*(?:/|ต่อ)\s*(?:ไร่|น้ำ|ลิตร)"
+                            r"|สารออกฤทธิ์|วัตถุอันตราย", re.IGNORECASE)
+ADVISORY_TOPICS = {"chemical", "diagnosis"}
+DOCUMENT_TOPICS_FILE = Path(__file__).with_name("document_topics.json")
 
 
 @dataclass(frozen=True)
@@ -25,10 +40,20 @@ class Evidence:
     page_number: str = ""
     url: str = ""
     title: str = ""
+    page_from: str = ""
+    page_end: str = ""
 
     @property
     def citation(self) -> str:
-        return self.url if self.url else f"{self.source_file}, หน้า {self.page_number}"
+        if not self.url:
+            first, last = self.page_from or self.page_number, self.page_end or self.page_number
+            pages = first if first == last else f"{first}–{last}"
+            return f"{self.source_file}, หน้า {pages}"
+        # Titles are untrusted display metadata. They must not inject extra links or
+        # reference lines; the URL always comes unchanged from the fetched source.
+        title = re.sub(r"https?://\S+", "", self.title, flags=re.IGNORECASE)
+        title = " ".join(re.sub(r"[\x00-\x1f\x7f\u202a-\u202e\u2066-\u2069]", " ", title).split())[:120]
+        return f"{title}\n{self.url}" if title else self.url
 
 
 @dataclass(frozen=True)
@@ -46,9 +71,11 @@ class GroundedResult:
     reason: str = ""
     is_caat_topic: bool = False
     llm_unavailable: bool = False
+    intro: str = ""
 
 
 def document_evidence(context: str) -> list[Evidence]:
+    """Parse legacy display fixtures only; live retrieval uses document_page_evidence."""
     evidence = []
     for block in re.split(r"\[แหล่งข้อมูล\s+\d+\]\s*", context):
         file = re.search(r"^ไฟล์:\s*([^\n]+)", block, re.MULTILINE)
@@ -63,13 +90,43 @@ def document_evidence(context: str) -> list[Evidence]:
     return evidence
 
 
-def pack_evidence(evidence: list[Evidence], budget: int = CONTEXT_CHAR_BUDGET) -> list[Evidence]:
+def document_page_evidence(pages: list[dict]) -> list[Evidence]:
+    """Keep server-owned page metadata separate from untrusted document text."""
+    evidence = []
+    for page in pages:
+        filename = page.get("source_file", "")
+        number = str(page.get("page_number", ""))
+        content = page.get("content", "")
+        if (not isinstance(filename, str) or not filename.strip() or is_excluded_document(filename)
+                or not number.isdigit() or int(number) < 1
+                or not isinstance(content, str) or not content.strip()):
+            continue
+        first, last = str(page.get("page_from") or number), str(page.get("page_end") or number)
+        if not (first.isdigit() and last.isdigit() and 1 <= int(first) <= int(number) <= int(last)):
+            continue
+        evidence.append(Evidence(f"D{len(evidence) + 1}", content.strip(), filename, number,
+                                 page_from=first if first != number else "",
+                                 page_end=last if last != number else ""))
+    return evidence
+
+
+def pack_evidence(evidence: list[Evidence], budget: int = CONTEXT_CHAR_BUDGET,
+                  required_ids: set[str] | None = None) -> list[Evidence]:
     """Keep complete sources; reserve room for both PDF and web when combined."""
     if budget < 1:
         return []
-    groups = [[e for e in evidence if not e.url], [e for e in evidence if e.url]]
-    active = [group for group in groups if group]
     packed, used_ids = [], set()
+    for item in evidence:
+        if required_ids and item.id in required_ids and item.id not in used_ids:
+            size = len(json.dumps(item.__dict__, ensure_ascii=False))
+            if size > budget or not item.content.strip():
+                return []  # cannot retain the already validated sources within this budget
+            packed.append(item)
+            used_ids.add(item.id)
+            budget -= size
+    candidates = [e for e in evidence if e.id not in used_ids]
+    groups = [[e for e in candidates if not e.url], [e for e in candidates if e.url]]
+    active = [group for group in groups if group]
     for group in active:
         remaining = budget // len(active)
         for item in group:
@@ -123,6 +180,49 @@ def _numbers(text: str) -> set[Decimal]:
     return {Decimal(value.replace(",", "")) for value in re.findall(r"\d+(?:,\d{3})*(?:\.\d+)?", text)}
 
 
+def _parse_claim(item: dict, by_id: dict[str, Evidence]) -> Claim:
+    """Validate one independent fact; a rejected fact never reaches the renderer."""
+    text = item.get("text", "")
+    citations = item.get("evidence", [])
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("Invalid claim text")
+    if len(text) > 400:
+        raise ValueError("Claim exceeds 400 characters; split independent facts")
+    if "http" in text.lower() or ".pdf" in text.lower() or "แหล่งอ้างอิง" in text:
+        raise ValueError("Inline citation in claim; use evidence metadata only")
+    if not isinstance(citations, list) or not citations or len(citations) > 4:
+        raise ValueError("Missing claim evidence")
+    ids, quotes = [], []
+    for citation in citations:
+        source_id, quote = citation.get("source_id"), citation.get("quote")
+        if not isinstance(quote, str):
+            quote = next((citation[k] for k in ("text", "content") if isinstance(citation.get(k), str)), None)
+        if source_id not in by_id or not isinstance(quote, str) or len(quote.strip()) < 3 or len(quote) > 800:
+            raise ValueError("Invalid citation")
+        if not _quote_supported(quote, by_id[source_id].content):
+            raise ValueError("Quote not in supplied evidence")
+        ids.append(source_id)
+        quotes.append(quote)
+    cited_content = " ".join(by_id[source_id].content for source_id in dict.fromkeys(ids))
+    cited_documents = {canonical_document_id(by_id[i].source_file) for i in ids if by_id[i].source_file}
+    if requested_document_ids(text) - cited_documents:
+        raise ValueError("Claim names a different document from its citation")
+    if is_caat_air_law_or_airspace_topic(text) and any(not is_caat_url(by_id[i].url) for i in ids):
+        raise ValueError("Regulatory claims require fetched CAAT sources")
+    if not _numbers(without_document_ids(text)).issubset(_numbers(" ".join(quotes) + " " + cited_content)):
+        raise ValueError("Unsupported numeric claim")
+    cited_text = " ".join(f"{by_id[i].content} {by_id[i].title} {by_id[i].url} {by_id[i].source_file}" for i in dict.fromkeys(ids))
+    problem = claim_inconsistency(text, quotes, cited_text)
+    if problem:
+        raise ValueError(f"Claim inconsistent with cited evidence ({problem})")
+    for source_id in dict.fromkeys(ids):
+        source_quotes = [quote for current_id, quote in zip(ids, quotes) if current_id == source_id]
+        problem = table_inconsistency(without_document_ids(text), source_quotes, by_id[source_id].content)
+        if problem:
+            raise ValueError(f"Claim inconsistent with cited table ({problem})")
+    return Claim(text.strip(), tuple(dict.fromkeys(ids)), tuple(zip(ids, quotes)))
+
+
 def parse_grounded_result(raw: str, evidence: list[Evidence]) -> GroundedResult:
     """Reject invalid IDs/quotes/numbers and incomplete JSON; never repair facts."""
     try:
@@ -139,44 +239,16 @@ def parse_grounded_result(raw: str, evidence: list[Evidence]) -> GroundedResult:
         if not isinstance(items, list) or len(items) > MAX_CLAIMS:
             raise ValueError("Invalid claims")
         by_id = {e.id: e for e in evidence}
-        claims = []
+        if len(by_id) != len(evidence) or any(e.url and not valid_web_url(e.url) for e in evidence):
+            raise ValueError("Invalid evidence metadata")
+        claims, rejected = [], []
         for item in items:
-            text = item.get("text", "")
-            citations = item.get("evidence", [])
-            if not isinstance(text, str) or not text.strip() or len(text) > 400 or "http" in text.lower() or ".pdf" in text.lower() or "แหล่งอ้างอิง" in text:
-                raise ValueError("Invalid claim text")
-            if not isinstance(citations, list) or not citations or len(citations) > 4:
-                raise ValueError("Missing claim evidence")
-            ids, quotes = [], []
-            for citation in citations:
-                source_id, quote = citation.get("source_id"), citation.get("quote")
-                if not isinstance(quote, str):
-                    # The model sometimes names the quote field "text"/"content". The value still
-                    # has to be a literal substring of the cited evidence (checked below), so
-                    # accepting the alias relaxes the key name only, never the grounding gate.
-                    quote = next((citation[k] for k in ("text", "content") if isinstance(citation.get(k), str)), None)
-                if source_id not in by_id or not isinstance(quote, str) or len(quote.strip()) < 3 or len(quote) > 800:
-                    raise ValueError("Invalid citation")
-                if not _quote_supported(quote, by_id[source_id].content):
-                    raise ValueError("Quote not in supplied evidence")
-                ids.append(source_id)
-                quotes.append(quote)
-            numbers = _numbers(text)
-            # A number must appear somewhere in the cited evidence (e.g. the same table's
-            # column header), not necessarily inside the model's trimmed quote span —
-            # requiring the latter rejected correct claims like "...1,500 ml for 3 nozzles"
-            # where "3" comes from the table header, not the narrow row the model quoted.
-            cited_content = " ".join(by_id[source_id].content for source_id in dict.fromkeys(ids))
-            quoted_numbers = _numbers(" ".join(quotes) + " " + cited_content)
-            if not numbers.issubset(quoted_numbers):
-                raise ValueError("Unsupported numeric claim")
-            # A real quote can still be attached to the wrong label (nozzle colour, crop,
-            # weed class, unit); see claim_consistency for exactly what is compared.
-            cited_text = " ".join(f"{by_id[i].content} {by_id[i].title} {by_id[i].url}" for i in dict.fromkeys(ids))
-            problem = claim_inconsistency(text, quotes, cited_text)
-            if problem:
-                raise ValueError(f"Claim inconsistent with cited evidence ({problem})")
-            claims.append(Claim(text.strip(), tuple(dict.fromkeys(ids)), tuple(zip(ids, quotes))))
+            try:
+                claims.append(_parse_claim(item, by_id))
+            except (ValueError, TypeError, AttributeError, KeyError) as exc:
+                rejected.append(str(exc))
+        if rejected and not claims:
+            raise ValueError("; ".join(rejected)[:250])
         if sum(len(c.text) + 4 for c in claims) > MAX_BODY_CHARS:
             raise ValueError("Answer exceeds concise body limit")
         status = data["status"]
@@ -186,9 +258,62 @@ def parse_grounded_result(raw: str, evidence: list[Evidence]) -> GroundedResult:
             raise ValueError("Insufficient response contains claims")
         if status == "partial" and (not claims or not missing):
             raise ValueError("Partial answer must identify missing evidence")
-        return GroundedResult(status, claims, [x.strip() for x in missing], str(data.get("reason", ""))[:300], data.get("is_caat_topic", False))
+        reason = str(data.get("reason", ""))[:300]
+        if rejected:
+            status = "partial"
+            missing = list(missing) + ["บางประเด็นของคำถามยังตรวจสอบหลักฐานไม่ได้"]
+            reason = "Some claims rejected: " + "; ".join(rejected)[:250]
+        return GroundedResult(status, claims, [x.strip() for x in missing], reason, data.get("is_caat_topic", False),
+                              intro=_intro(data.get("intro", "")))
     except (ValueError, TypeError, AttributeError, KeyError) as exc:
         return GroundedResult(reason=f"Evidence validation failed: {exc}")
+
+
+def _intro(value) -> str:
+    """A lead-in sentence carries no facts of its own: no numbers, no links. A bad one is
+    dropped, never a reason to lose the verified claims."""
+    if not isinstance(value, str):
+        return ""
+    text = " ".join(value.split())
+    if len(text) > MAX_INTRO_CHARS or re.search(r"[0-9๐-๙]|https?://|www\.", text, re.IGNORECASE):
+        return ""
+    return text
+
+
+@lru_cache(maxsize=1)
+def document_topics() -> dict[str, frozenset[str]]:
+    data = json.loads(DOCUMENT_TOPICS_FILE.read_text(encoding="utf-8"))
+    return {doc_id: frozenset(topics) for doc_id, topics in data.items() if not doc_id.startswith("_")}
+
+
+def needs_chemical_note(claims: list[Claim], evidence: list[Evidence]) -> bool:
+    if any(_CHEMICAL_RATE.search(claim.text) for claim in claims):
+        return True
+    # The cited source counts too: a claim naming only the substance still points at a table whose
+    # header carries the dose unit ("อัตราสารที่ใช้ (กรัมสารออกฤทธิ์/ไร่)").
+    if any(_CHEMICAL_RATE.search(item.content) for item in evidence):
+        return True
+    topics = document_topics()
+    return any(topics.get(canonical_document_id(item.source_file), frozenset()) & ADVISORY_TOPICS
+               for item in evidence if item.source_file)
+
+
+def merge_verified_partial(initial: GroundedResult, final: GroundedResult) -> GroundedResult:
+    """A repair or web generation cannot erase previously verified facts."""
+    if initial.status != "partial":
+        return final
+    if not final.claims:
+        return GroundedResult(initial.status, list(initial.claims), list(initial.missing_aspects), initial.reason,
+                              initial.is_caat_topic, initial.llm_unavailable or final.llm_unavailable, initial.intro)
+    claims = list(initial.claims)
+    for claim in final.claims:
+        compact = "".join(claim.text.split())
+        if not any(compact in "".join(old.text.split()) for old in claims):
+            claims.append(claim)
+    if len(claims) > MAX_CLAIMS or sum(len(c.text) + 4 for c in claims) > MAX_BODY_CHARS:
+        return initial
+    return GroundedResult(final.status, claims, list(final.missing_aspects), final.reason,
+                          final.is_caat_topic, final.llm_unavailable, initial.intro or final.intro)
 
 
 def render_grounded_answer(result: GroundedResult, evidence: list[Evidence]) -> str:
@@ -198,10 +323,22 @@ def render_grounded_answer(result: GroundedResult, evidence: list[Evidence]) -> 
     used = list(dict.fromkeys(source_id for claim in result.claims for source_id in claim.source_ids))
     if any(source_id not in by_id for source_id in used):
         return ABSTAIN_MESSAGE
-    labels = {source_id: index for index, source_id in enumerate(used, 1)}
-    body = "\n".join(f"• {claim.text} [{','.join(str(labels[s]) for s in claim.source_ids)}]" for claim in result.claims)
+    # Multiple chunks of one fetched page share a reference. Different paths on
+    # the same host stay distinct; do not canonicalize away queries/fragments.
+    labels, references_by_key = {}, {}
+    for source_id in used:
+        item = by_id[source_id]
+        key = (item.url,) if item.url else (item.source_file, item.page_number)
+        if key not in references_by_key:
+            references_by_key[key] = (len(references_by_key) + 1, item.citation)
+        labels[source_id] = references_by_key[key][0]
+    body = "\n".join(f"• {claim.text} [{','.join(dict.fromkeys(str(labels[s]) for s in claim.source_ids))}]" for claim in result.claims)
+    if result.intro:
+        body = f"{result.intro}\n{body}"
     if result.status == "partial":
         body += "\n\nยังยืนยันไม่ได้: " + "; ".join(result.missing_aspects)
-    references = "\n".join(f"[{labels[s]}] {by_id[s].citation}" for s in used)
+    if needs_chemical_note(result.claims, [by_id[source_id] for source_id in used]):
+        body += f"\n\n{CHEMICAL_NOTE}"
+    references = "\n".join(f"[{number}] {citation}" for number, citation in references_by_key.values())
     answer = f"{body}\n\nแหล่งอ้างอิง:\n{references}"
     return answer if len(answer) <= MAX_ANSWER_CHARS else ABSTAIN_MESSAGE

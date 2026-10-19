@@ -2,7 +2,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from app.rag.source_policy import CAAT_PORTAL_INFOGRAPHIC_URL
-from app.rag.web_fallback import WebSearchResult, is_trusted_domain, search_web_fallback, web_evidence
+from app.rag.web_fallback import MAX_WEB_TIMEOUT_SECONDS, WebSearchResult, get_tavily_client, is_trusted_domain, search_web_fallback, web_evidence
+import threading
 
 
 class WebSourceContractTests(unittest.TestCase):
@@ -16,7 +17,7 @@ class WebSourceContractTests(unittest.TestCase):
             with self.subTest(url=url):
                 self.assertFalse(is_trusted_domain(url))
 
-    def test_search_prefers_official_but_does_not_discard_relevant_same_domain_pages(self):
+    def test_search_rejects_untrusted_but_keeps_distinct_official_pages(self):
         client = MagicMock()
         client.search.return_value = {"results": [
             {"url": "https://unknown.example", "content": "คำตอบ", "score": 1},
@@ -24,9 +25,9 @@ class WebSourceContractTests(unittest.TestCase):
             {"url": "https://doa.go.th/b", "content": "ข้อมูลที่สอง", "score": 0.7},
         ]}
         results = search_web_fallback("หัวฉีด", tavily_client=client, max_results=3)
-        self.assertEqual([r.url for r in results], ["https://doa.go.th/a", "https://doa.go.th/b", "https://unknown.example"])
+        self.assertEqual([r.url for r in results], ["https://doa.go.th/a", "https://doa.go.th/b"])
         self.assertEqual(client.search.call_args.kwargs["max_results"], 3)
-        self.assertLessEqual(client.search.call_args.kwargs["timeout"], 4)
+        self.assertLessEqual(client.search.call_args.kwargs["timeout"], MAX_WEB_TIMEOUT_SECONDS)
 
     def test_invalid_empty_and_duplicate_urls_removed(self):
         client = MagicMock()
@@ -72,3 +73,19 @@ class WebSourceContractTests(unittest.TestCase):
         self.assertGreater(len(evidence), 1)
         self.assertEqual("\n".join(e.content for e in evidence), content)
         self.assertTrue(all(e.url == "https://doa.go.th/table" for e in evidence))
+
+    def test_search_timeout_cannot_overrun_remaining_request_budget(self):
+        client = MagicMock()
+        client.search.return_value = {"results": []}
+        with patch("app.rag.web_fallback.time.monotonic", return_value=100):
+            search_web_fallback("หัวฉีด", tavily_client=client, deadline=100.9)
+        self.assertLessEqual(client.search.call_args.kwargs["timeout"], .900001)
+
+    def test_transport_reuse_does_not_reuse_credentials_after_key_change(self):
+        with patch("app.rag.web_fallback._client_local", threading.local()), \
+             patch("app.rag.web_fallback.TavilyClient", side_effect=[MagicMock(), MagicMock()]) as create:
+            first = get_tavily_client(api_key="test-key-a")
+            self.assertIs(first, get_tavily_client(api_key="test-key-a"))
+            self.assertIsNot(first, get_tavily_client(api_key="test-key-b"))
+            first.close.assert_called_once()
+            self.assertEqual(create.call_count, 2)

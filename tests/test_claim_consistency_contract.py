@@ -9,6 +9,44 @@ NOZZLE_TABLE = ("อัตราการไหลของหัวฉีด (m
 WEED_PAGE = "สารกำจัดวัชพืชในอ้อย อัตรา 200 กรัม/ไร่\nอาลาคลอร์ | ใบแคบและกว้าง | ก่อนงอก\nอะทราซีน | ใบกว้าง | หลังงอก"
 
 
+MIXED_CLASS_TABLE = ("สารกำจัดวัชพืช (ชื่อสามัญ) | อัตราสารที่ใช้ (กรัมสารออกฤทธิ์/ไร่) | วัชพืชที่ควบคุมได้\n"
+                     "อัลฟาซีน | 100-200 | ใบแคบ\n"
+                     "เบตาซีน | 300-400 | ใบแคบและกว้าง\n"
+                     "อัลฟาซีน+แกมมาซีน | 50-60+5 | ใบแคบและกว้าง")
+
+
+class PerRowWeedClassTests(unittest.TestCase):
+    """A class label stated once for a list must fit every listed row (owner's live test 2026-10-19:
+    combined-class rows were listed under 'ใบแคบ' and passed because one listed row was narrow-only)."""
+
+    def check(self, claim):
+        from app.rag.table_grounding import table_inconsistency
+        return table_inconsistency(claim, [], MIXED_CLASS_TABLE)
+
+    def test_a_list_labelled_narrow_cannot_include_a_combined_class_row(self):
+        self.assertIn("weed class", self.check("สำหรับวัชพืชใบแคบ ได้แก่ อัลฟาซีน 100-200 และเบตาซีน 300-400 กรัมสารออกฤทธิ์/ไร่"))
+        self.assertIn("weed class", self.check("เบตาซีน 300-400 กรัมสารออกฤทธิ์/ไร่ ใบแคบ"))
+
+    def test_each_row_under_its_own_label_is_accepted(self):
+        self.assertEqual(self.check("คุมเฉพาะใบแคบ ได้แก่ อัลฟาซีน 100-200 ส่วนที่คุมได้ทั้งใบแคบและใบกว้าง ได้แก่ "
+                                    "เบตาซีน 300-400 และอัลฟาซีน+แกมมาซีน 50-60+5 กรัมสารออกฤทธิ์/ไร่"), "")
+        self.assertEqual(self.check("อัลฟาซีน 100-200 ใบแคบ, เบตาซีน 300-400 ใบแคบและกว้าง (กรัมสารออกฤทธิ์/ไร่)"), "")
+
+    def test_a_mixture_name_is_not_read_as_its_single_component_row(self):
+        self.assertEqual(self.check("คุมได้ทั้งใบแคบและใบกว้าง ได้แก่ อัลฟาซีน+แกมมาซีน 50-60+5 กรัมสารออกฤทธิ์/ไร่"), "")
+
+    def test_a_mixture_written_with_a_joining_word_is_the_mixture_row(self):
+        # Live answer 2026-10-19: a correct "X ร่วมกับ Y" claim was rejected as single-substance row X.
+        self.assertEqual(self.check("สารผสมอัลฟาซีนร่วมกับแกมมาซีนใช้อัตรา 50-60 และ 5 กรัมสารออกฤทธิ์/ไร่ตามลำดับ "
+                                    "ควบคุมวัชพืชใบแคบและกว้าง"), "")
+        self.assertIn("weed class", self.check("อัลฟาซีนผสมกับแกมมาซีน 50-60+5 กรัมสารออกฤทธิ์/ไร่ ใช้คุมวัชพืชใบแคบ"))
+
+    def test_explaining_a_mixture_rate_per_component_is_accepted_but_a_wrong_single_rate_is_not(self):
+        self.assertEqual(self.check("อัลฟาซีน+แกมมาซีน คุมได้ทั้งใบแคบและใบกว้าง อัตรา 50-60+5 กรัมสารออกฤทธิ์/ไร่ "
+                                    "หมายถึงอัลฟาซีน 50-60 ร่วมกับแกมมาซีน 5 กรัมสารออกฤทธิ์/ไร่"), "")
+        self.assertIn("row", self.check("อัลฟาซีน+แกมมาซีน 50-60+5 กรัมสารออกฤทธิ์/ไร่ ส่วนอัลฟาซีนเดี่ยว 50-60 กรัมสารออกฤทธิ์/ไร่"))
+
+
 class ClaimConsistencyTests(unittest.TestCase):
     def check(self, claim, quote, content):
         return claim_inconsistency(claim, [quote], content)

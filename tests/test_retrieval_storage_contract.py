@@ -33,10 +33,11 @@ class RetrievalStorageContractTests(unittest.TestCase):
         unit = KnowledgeUnit(id="storage-regression", document_id="uav07", source_file="UAV07.pdf", page_number=12, source_type="table", content="หัวฉีด 500 ml")
         chunks = chunk_knowledge_unit(unit)
         self.addCleanup(collection.delete, ids=[chunk.id for chunk in chunks])
-        with patch("app.rag.vector_store.embed_text", return_value=[1.0, 0.0, 0.0]):
+        with patch("app.rag.vector_store.embed_text", return_value=[1.0] + [0.0] * 3071) as embed:
             add_chunks(chunks)
             add_chunks(chunks)
             result = search("หัวฉีด", n_results=1)
+        self.assertEqual(embed.call_count, 2)  # one ingestion embedding + one query; reingest is cached
         self.assertEqual(result["documents"][0][0], unit.content)
         self.assertEqual(result["metadatas"][0][0]["page_number"], "12")
         self.assertEqual(len(collection.get(ids=[chunks[0].id])["ids"]), 1)

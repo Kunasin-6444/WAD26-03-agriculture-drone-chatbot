@@ -1,31 +1,13 @@
 ---
-description: Prevents unnecessary architecture changes and scope creep.
+description: Architecture may change to meet user outcomes while preserving data and scope.
 alwaysOn: true
 ---
 
-# Change Control
+# Change control
 
-Before implementing a substantial architecture change:
-
-1. inspect the current implementation
-2. explain why the current implementation cannot satisfy the requirement
-3. prefer a local fix if possible
-
-Do NOT:
-- replace Chroma
-- replace Gemini Embedding 2 (it would require re-ingesting the whole knowledge base)
-- replace FastAPI
-- introduce a framework abstraction
-- add another database
-- redesign the ingestion architecture
-
-unless the current implementation is demonstrably insufficient
-for an explicit project requirement.
-
-LLM provider: Google AI Studio (Gemini via its OpenAI-compatible endpoint) is the
-default; KKU GenAI remains an alternative selected only through environment variables
-(`LLM_BASE_URL`, `LLM_API_KEY`, `RAG_MODEL`, `LLM_FALLBACK_MODELS`). Changing the
-default provider or model needs measured evidence (latency and answer correctness on
-the acceptance set), not a guess.
-
-For ambiguous improvements, choose the simplest MVP solution.
+Follow [AGENTS.md](../../AGENTS.md) and [requirements](../../docs/PROJECT_REQUIREMENTS.md).
+The owner permits architecture overhaul. No permanent bans on replacing frameworks, vector stores, models, providers or ingestion design apply.
+Inspect the relevant code, choose a simple justified change, explain impacts and preserve a reversible migration path.
+Do not require a paid benchmark merely to discuss or implement an architecture choice.
+Do not change technology without a problem it solves, erase data or weaken grounding/citations to improve a score.
+Respect existing authorization, tool permissions and the stopped automatic API-testing policy.

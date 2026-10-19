@@ -36,9 +36,9 @@ _UNITS: dict[str, tuple[str, ...]] = {
     "ha": ("ha", "เฮกตาร์"),
     "pct": ("%", "เปอร์เซ็นต์", "เปอร์เซนต์"),
     "rpm": ("rpm", "รอบ/นาที", "รอบต่อนาที", "รอบ"),
-    "sec": ("วินาที",),
-    "min": ("นาที",),
-    "hr": ("ชั่วโมง", "ชม."),
+    "sec": ("วินาที", "s", "sec", "second", "seconds"),
+    "min": ("นาที", "min", "minute", "minutes"),
+    "hr": ("ชั่วโมง", "ชม.", "h", "hr", "hour", "hours"),
     "deg": ("องศา", "°"),
 }
 # Units of one dimension are mutually exclusive: a claim may not use "l" when the evidence
@@ -49,6 +49,26 @@ _DIMENSIONS = (("ml", "l"), ("g", "kg"), ("m", "cm", "mm", "km"), ("rai", "ha"),
 _ALIAS_TO_UNIT = {alias: unit for unit, aliases in _UNITS.items() for alias in aliases}
 _ALTERNATION = "|".join(re.escape(a) for a in sorted(_ALIAS_TO_UNIT, key=len, reverse=True))
 _CLAIM_UNIT = re.compile(rf"\d\s*({_ALTERNATION})(?![A-Za-z])", re.IGNORECASE)
+_BASE_UNIT = re.compile(rf"(?<![a-z])({_ALTERNATION})(?![a-z])", re.IGNORECASE)
+_TIME_ALIASES = {alias: unit for unit in ("sec", "min", "hr") for alias in _UNITS[unit]}
+_TIME_PATTERN = "|".join(re.escape(alias) for alias in sorted(_TIME_ALIASES, key=len, reverse=True))
+
+
+def time_denominator(text: str) -> str | None:
+    text = _flat(text).casefold()
+    text = re.sub(r"^(?:/|ต่อ|per)(?:\d+)?(?:หัวฉีด|หัว|nozzles?)", "", text)
+    match = re.match(rf"^(?:/|ต่อ|per)(?:1)?({_TIME_PATTERN})(?![a-z])", text)
+    return _TIME_ALIASES[match[1]] if match else None
+
+
+def rate_units(text: str) -> set[tuple[str, str]]:
+    text = _flat(text).casefold()
+    rates = set()
+    for match in _BASE_UNIT.finditer(text):
+        time = time_denominator(text[match.end():])
+        if time:
+            rates.add((_ALIAS_TO_UNIT[match[1]], time))
+    return rates
 
 
 def _alias_pattern(alias: str) -> str:
@@ -69,6 +89,7 @@ _NOZZLE_ENGLISH = {"ส้ม": "orange", "แดง": "red", "เหลือ�
 _NOZZLE_ENGLISH_RE = {th: re.compile(rf"(?<![a-z]){en}(?![a-z])") for th, en in _NOZZLE_ENGLISH.items()}
 _WEED_CLASS = re.compile(r"ใบ(?:แคบ|กว้าง)(?:(?:และ|หรือ|,|/|-)(?:ประเภท)?(?:ใบ)?(?:แคบ|กว้าง))*")
 _CROPS_LONGEST_FIRST = sorted(SUPPORTED_CROPS, key=len, reverse=True)
+_EMERGENCE = re.compile(r"(ก่อน|หลัง)(วัชพืช|" + "|".join(map(re.escape, _CROPS_LONGEST_FIRST)) + r")งอก")
 
 
 def _flat(text: str) -> str:
@@ -112,6 +133,12 @@ def claim_inconsistency(claim_text: str, quotes: list[str] | tuple[str, ...], ci
     quote_text = " ".join(quotes)
     evidence_text = f"{cited_content} {quote_text}"
     claim_flat, quote_flat, evidence_flat = _flat(claim_text), _flat(quote_text), _flat(evidence_text)
+    stated_emergence = set(_EMERGENCE.findall(claim_flat))
+    supported_emergence = set(_EMERGENCE.findall(quote_flat)) or set(_EMERGENCE.findall(evidence_flat))
+    if stated_emergence and supported_emergence and stated_emergence - supported_emergence:
+        return "emergence timing or subject conflicts with evidence"
+    if rate_units(claim_text) - rate_units(evidence_text):
+        return "rate unit not declared in evidence"
 
     evidence_units = _units(evidence_text)
     for dimension in _DIMENSIONS:

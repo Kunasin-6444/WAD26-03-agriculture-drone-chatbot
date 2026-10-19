@@ -54,6 +54,61 @@ def embed_text(
             "Cannot embed empty text"
         )
 
+    return _embed_parts([types.Part.from_text(text=text)], max_retries, timeout_seconds)
+
+
+def embed_pdf_page(
+    pdf_bytes: bytes,
+    max_retries: int = 5,
+    timeout_seconds: float = 30.0,
+) -> list[float]:
+    """Embed the actual PDF bytes, including visual content, without transcription."""
+    if not pdf_bytes.startswith(b"%PDF-"):
+        raise ValueError("Expected PDF bytes")
+    return _embed_parts(
+        [types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf")],
+        max_retries, timeout_seconds,
+    )
+
+
+class EmbeddingShapeError(RuntimeError):
+    """The service answered, but not with one nonempty vector per input."""
+
+
+def _embed_parts(parts: list[types.Part], max_retries: int, timeout_seconds: float) -> list[float]:
+    return _embed_request([types.Content(parts=parts)], max_retries, timeout_seconds)[0]
+
+
+def embed_texts(
+    texts: list[str],
+    batch_size: int | None = None,
+    max_retries: int = 5,
+    timeout_seconds: float = 60.0,
+) -> list[list[float]]:
+    """Embed many document texts with one API call per batch.
+
+    A response that does not hold exactly one vector per input is never trusted
+    (vectors cannot be matched back to texts); that batch is embedded one by one.
+    """
+    if any(not text.strip() for text in texts):
+        raise ValueError("Cannot embed empty text")
+    size = batch_size or int(os.getenv("EMBED_BATCH_SIZE", "24"))
+    if size < 1:
+        raise ValueError("Embedding batch size must be positive")
+    vectors: list[list[float]] = []
+    for start in range(0, len(texts), size):
+        batch = texts[start:start + size]
+        try:
+            vectors.extend(_embed_request(
+                [types.Content(parts=[types.Part.from_text(text=text)]) for text in batch],
+                max_retries, timeout_seconds))
+        except EmbeddingShapeError:
+            vectors.extend(embed_text(text, max_retries, timeout_seconds) for text in batch)
+    return vectors
+
+
+def _embed_request(contents: list[types.Content], max_retries: int, timeout_seconds: float) -> list[list[float]]:
+
     if max_retries < 1 or timeout_seconds <= 0:
         raise ValueError("Retry count and timeout must be positive")
 
@@ -67,27 +122,27 @@ def embed_text(
                     timeout=int(timeout_seconds * 1000),
                     retry_options=types.HttpRetryOptions(attempts=1),
                 )),
-                contents=[
-                    types.Content(
-                        parts=[
-                            types.Part.from_text(
-                                text=text
-                            )
-                        ]
-                    )
-                ],
+                contents=contents,
             )
 
-            if not result.embeddings:
-                raise RuntimeError(
-                    "Gemini returned no embedding"
-                )
+            embeddings = result.embeddings or []
+            if len(embeddings) != len(contents) or not all(item.values for item in embeddings):
+                if len(contents) == 1:
+                    raise RuntimeError("Gemini must return exactly one nonempty embedding")
+                raise EmbeddingShapeError(
+                    f"Expected {len(contents)} nonempty embeddings, got {len(embeddings)}")
 
-            return result.embeddings[0].values
+            return [item.values for item in embeddings]
 
+        except EmbeddingShapeError:
+            raise
         except Exception as exc:
             last_exc = exc
             exc_str = str(exc)
+
+            # Invalid inputs/auth/model errors will not recover through backoff.
+            if getattr(exc, "code", None) in {400, 401, 403, 404}:
+                break
 
             if attempt == max_retries - 1:
                 break
