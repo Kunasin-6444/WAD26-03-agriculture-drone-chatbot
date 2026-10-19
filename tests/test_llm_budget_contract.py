@@ -15,6 +15,10 @@ class LlmBudgetContractTests(unittest.TestCase):
         patcher = patch("app.rag.rag_service.FALLBACK_MODELS", ["gemini-3.5-flash-lite", "gpt-5.6-luna", "nova-2-lite-v1"])
         patcher.start()
         self.addCleanup(patcher.stop)
+        # Same for LLM_ATTEMPT_TIMEOUT_SECONDS: a slower model's .env (e.g. 25 s) is not the code default.
+        timeout = patch("app.rag.rag_service.ATTEMPT_TIMEOUT_SECONDS", 8.0)
+        timeout.start()
+        self.addCleanup(timeout.stop)
 
     def test_shared_evidence_once_and_concise_instructions(self):
         client = llm_client(result_json())

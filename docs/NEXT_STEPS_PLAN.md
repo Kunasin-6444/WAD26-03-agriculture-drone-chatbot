@@ -9,12 +9,14 @@
   เตรียมเสร็จแล้ว (offline): `app/rag/prompts/grounded_answer_concise.txt` (36 บรรทัด / 6.9 KB เทียบ 55 / 15.5 KB) เลือกด้วย `RAG_PROMPT=full|concise` ค่าเริ่มต้นยัง full;
   `scripts/evaluate_answers.py` ล็อกโมเดลเดียว (ปิด fallback/สำรอง ถ้าปิดไม่ได้จะไม่ยอมรัน) + ผู้ตรวจเป็นโมเดลอื่น + CSV ให้เจ้าของสุ่มตรวจ; ผลอยู่ `cache/eval/`;
   ชุดคัดกรอง 17 ข้อ (dev เท่านั้น) `tests/data/screening_ids.txt`; ย้าย u03/u06 จาก holdout ไป dev เพราะใช้ปรับระบบไปแล้ว (holdout เหลือ 17 ข้อที่ยังไม่เคยใช้)
-- 20 ต.ค. (หลัง quota KKU รีเซ็ต, ต้องได้อนุมัติ): commit → เช็ค quota (models.list ฟรี) →
+- 20 ต.ค. (หลัง quota KKU รีเซ็ต, ต้องได้อนุมัติ; commit เสร็จแล้ว 19 ต.ค.): เช็ค quota (models.list ฟรี) →
   `python -m scripts.evaluate_answers --model gemini-3.8-flash --prompt full --ids <ชุดคัดกรอง> --attempt-timeout 25 --kb-budget 25 --request-timeout 40` และ `--prompt concise` (รวม ~34 คำตอบบน 3.8 + ~34 ตรวจบน terra)
   → เจ้าของสุ่มตรวจ ~10 แถวใน CSV ว่าผู้ตรวจตัดสินตรงกับคน → วัดการค้นหา `scripts.eval_retrieval --gold tests/data/source_gold_2026-10-18.json --split dev` (embedding ฟรีของ Google)
-- 21 ต.ค.: prompt ที่ชนะ → วัดเต็ม dev 50 ข้อบน 3.8-flash และ baseline เดิม (lite + full) เพื่อเทียบในรายงาน, จัดหมวดข้อผิด (error analysis)
-- 22 ต.ค.: แก้หมวดที่เจอบ่อยสุด 1–2 หมวด วัดซ้ำ, ตั้ง `.env` (RAG_MODEL/RAG_PROMPT/เวลา) ตามผล, เช็ค holdout ครั้งเดียว
-- 23–24 ต.ค.: รูปแบบข้อความบน LINE (LINE ไม่แสดง markdown), เตรียมช่องทางให้ผู้ทดสอบเข้าถึง
+- **งบ quota:** คำถามละ ~8–10K token, KKU ~350K token/วัน/โมเดล (ตัวเลขของ lite; 3.8 ยังไม่รู้) → ~35 คำถาม/วัน/โมเดล
+  คัดกรอง 2 prompt × 17 ข้อ ≈ 300K (เกือบเต็มวันของ 3.8), dev เต็ม 50 ข้อ ≈ 450K → ต้องแบ่ง 2 วัน; แต่ละโมเดลมี quota แยก จึงรัน baseline lite คู่ขนานได้
+- 21–22 ต.ค.: prompt ที่ชนะ → dev 50 ข้อบน 3.8-flash (แบ่ง 25/25 สองวัน) + baseline lite+full บน dev ชุดเดียวกัน (quota ของ lite), จัดหมวดข้อผิด (error analysis)
+- 23 ต.ค.: แก้หมวดที่เจอบ่อยสุด 1–2 หมวด วัดซ้ำเฉพาะข้อที่เกี่ยว, ตั้ง `.env` (RAG_MODEL/RAG_PROMPT/เวลา) ตามผล, รูปแบบข้อความบน LINE (LINE ไม่แสดง markdown)
+- 24 ต.ค.: holdout 17 ข้อครั้งเดียวกับค่าสุดท้าย (~150K) — ห้ามปรับต่อหลังเห็นผล holdout; เตรียมช่องทางให้ผู้ทดสอบเข้าถึง (รอเจ้าของบอกว่าใช้ LINE หรือหน้าเว็บ)
 - 25 ต.ค.: freeze, regression เต็มชุดครั้งเดียว
 - 26 ต.ค.: ทดสอบใช้จริง เก็บ log/ข้อผิด → 27 ต.ค.–1 พ.ย. แก้ตามผล + รายงานอาจารย์ → 2 พ.ย. ส่ง
 
@@ -25,7 +27,7 @@
 ทำแล้ว (ย้อนกลับได้ ไม่ลบหลักฐาน): ย้ายผลรันเก่า 60 ไฟล์ไป `docs/archive/reports-2026-10-17/`, ลบ stub 5 บรรทัด 11 ไฟล์ที่ต้นฉบับอยู่ใน `docs/archive/md-overhaul-2026-10-17/` แล้ว (`docs/` 87 → 16 รายการ),
 แก้ลิงก์ CURRENT_STATE/DEPLOYMENT/README, สคริปต์เก่าเขียนผลไป `cache/eval/` แทน `docs/`, ลบ `__pycache__`, ลบ `scripts/repair_uav06_p17.py` (แทนด้วย `restore_pages`)
 รอเจ้าของตัดสินใจ:
-1. **commit** — ไฟล์ untracked 135 (รวมโค้ดหลัก pipeline/table_grounding/line_inbox, Dockerfile, gold set, PDF ใหม่ 4 ไฟล์) + modified 64 ยังไม่อยู่ใน git
+1. ~~commit~~ เสร็จ 2026-10-19 บน branch `wip/ingest-v2-eval-2026-10-19`: 9a839c1 (งานทั้งหมด 131 ไฟล์) + da536a8 (clean docs); `main` ยังอยู่ที่ 2496ed3 รวมเข้า main เมื่อเจ้าของสั่ง
 2. ลบ backup ที่ซ้ำ ~160 MB: `cache/backup_chroma_before_junk_cleanup_20261019`, `..._before_vision_model_retry_20261019`, `cache/deployment-verification-20261017` (เก็บ `..._before_uav06_reingest_20261018` = ข้อมูล legacy ต้นฉบับ และ `..._before_plain_fallback_20261019` = จุดย้อนล่าสุด)
 3. ถอด ingest รุ่นเก่า (`ingest_pdf`, `ingest_all_data`, `knowledge_builder`, `clean_kb`, `repair_kb`, `analyze_pdf`) พร้อมปรับเทสต์ 4–5 ไฟล์ — ลดความสับสนและกันการรัน ingest เก่าทับ index (แนะนำหลัง 26 ต.ค.)
 4. สคริปต์ใช้ครั้งเดียวที่ไม่มีใครเรียก: `audit_contract_gaps`, `smoke_direct_pdf`, `inspect_evidence`; `tests/data/hybrid_acceptance.json` ไม่มีผู้ใช้
