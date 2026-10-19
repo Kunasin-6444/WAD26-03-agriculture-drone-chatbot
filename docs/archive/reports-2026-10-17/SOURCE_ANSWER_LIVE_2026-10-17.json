@@ -1,0 +1,1063 @@
+{
+  "generated_at": "2026-10-17T11:25:47.737210+07:00",
+  "mode": "live",
+  "note": "Automatic source/aspect checks; semantic review against originals remains necessary. Sample p95 is not a production guarantee. Provider failures stay in the denominator.",
+  "warmup": true,
+  "answer_cache": "bypassed",
+  "repeat": 1,
+  "concurrency": 1,
+  "dataset": "tests\\data\\source_gold.json",
+  "complete_run": true,
+  "total": 12,
+  "contract_passed": 10,
+  "latency_passed": 12,
+  "mean_seconds": 3.055,
+  "p50_seconds": 2.4450000000000003,
+  "p95_seconds": 7.437,
+  "provider_error_requests": 0,
+  "by_source": {
+    "abstain": {
+      "total": 1,
+      "contract_passed": 0,
+      "latency_passed": 1,
+      "mean_seconds": 7.437,
+      "p50_seconds": 7.437,
+      "p95_seconds": 7.437,
+      "provider_error_requests": 0
+    },
+    "knowledge_base": {
+      "total": 11,
+      "contract_passed": 10,
+      "latency_passed": 11,
+      "mean_seconds": 2.656,
+      "p50_seconds": 2.422,
+      "p95_seconds": 5.063,
+      "provider_error_requests": 0
+    }
+  },
+  "results": [
+    {
+      "id": 1,
+      "split": "dev",
+      "query": "หัวฉีดพัดส้มมีปริมาณน้ำต่อหัวและรอบการทำงานเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "ปริมาณต่อหัวและรอบ",
+          "pages": [
+            {
+              "source_file": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf",
+              "page_number": 12
+            },
+            {
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": 5
+            }
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "row": "พัดส้ม",
+          "column": "ปริมาณ (ml/หัวฉีด)",
+          "value": 500,
+          "unit": "ml/หัวฉีด",
+          "conditions": {
+            "rpm": 1600
+          }
+        }
+      ],
+      "must_not_infer": [
+        "ไม่มีหน่วยเวลาในคอลัมน์ปริมาณ จึงห้ามอ้างว่า 500 ml/min"
+      ],
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 8,
+      "required_numbers": "500",
+      "require_sufficient": true,
+      "case_id": "s01",
+      "iteration": 1,
+      "answer": "• หัวฉีดพัดส้มมีปริมาณน้ำต่อหัว 500 มล. [1]\n• หัวฉีดพัดส้มมีรอบการทำงาน 1600 รอบต่อนาที [1]\n\nแหล่งอ้างอิง:\n[1] UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานระบุปริมาณน้ำต่อหัวและรอบการทำงานของหัวฉีดพัดส้มครบถ้วน",
+      "timings": {
+        "retrieval_ms": 922.0,
+        "kb_generation_ms": 4141.0,
+        "total_ms": 5063.0
+      },
+      "evidence_trace": [
+        {
+          "text": "หัวฉีดพัดส้มมีปริมาณน้ำต่อหัว 500 มล.",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "พัดส้ม | 1600 | 500",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": "5"
+            }
+          ]
+        },
+        {
+          "text": "หัวฉีดพัดส้มมีรอบการทำงาน 1600 รอบต่อนาที",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "พัดส้ม | 1600 | 500",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": "5"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐานระบุปริมาณน้ำต่อหัวและรอบการทำงานของหัวฉีดพัดส้มครบถ้วน",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 5.063,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 2,
+      "split": "dev",
+      "query": "หัวฉีดพัดแดงกับพัดน้ำเงินมีปริมาณต่อหัวต่างกันเท่าไรตามตาราง โดยไม่ต้องคำนวณผลต่าง",
+      "evidence_groups": [
+        {
+          "aspect": "ปริมาณของทั้งสองแถว",
+          "pages": [
+            {
+              "source_file": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf",
+              "page_number": 12
+            },
+            {
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": 5
+            }
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "row": "พัดแดง",
+          "value": 1150,
+          "unit": "ml/หัวฉีด",
+          "conditions": {
+            "rpm": 1600
+          }
+        },
+        {
+          "row": "พัดน้ำเงิน",
+          "value": 950,
+          "unit": "ml/หัวฉีด",
+          "conditions": {
+            "rpm": 1600
+          }
+        }
+      ],
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 8,
+      "required_numbers": "1150 950",
+      "require_sufficient": true,
+      "case_id": "s02",
+      "iteration": 1,
+      "answer": "• หัวฉีดพัดแดงมีปริมาณ 1150 ml/หัวฉีด [1]\n• หัวฉีดพัดน้ำเงินมีปริมาณ 950 ml/หัวฉีด [1]\n\nแหล่งอ้างอิง:\n[1] UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานมีข้อมูลปริมาณน้ำต่อหัวฉีดของพัดแดงและพัดน้ำเงินครบถ้วน",
+      "timings": {
+        "retrieval_ms": 829.0,
+        "kb_generation_ms": 1437.0,
+        "total_ms": 2266.0
+      },
+      "evidence_trace": [
+        {
+          "text": "หัวฉีดพัดแดงมีปริมาณ 1150 ml/หัวฉีด",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "พัดแดง | 1600 | 1150 | 3450",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": "5"
+            }
+          ]
+        },
+        {
+          "text": "หัวฉีดพัดน้ำเงินมีปริมาณ 950 ml/หัวฉีด",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "พัดน้ำเงิน | 1600 | 950 | 2850",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": "5"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐานมีข้อมูลปริมาณน้ำต่อหัวฉีดของพัดแดงและพัดน้ำเงินครบถ้วน",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 2.266,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 3,
+      "split": "dev",
+      "query": "ในเอกสาร UAV07 ที่ความสูง 1 เมตร หน้ากว้างต่อหัวและรวม 3 หัวเป็นเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "หน้ากว้างสองคอลัมน์",
+          "pages": [
+            {
+              "source_file": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf",
+              "page_number": 12
+            }
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "row": "1.0",
+          "column": "หน้ากว้าง (เมตรต่อหัว)",
+          "value": 2.8,
+          "unit": "m/หัว"
+        },
+        {
+          "row": "1.0",
+          "column": "หน้ากว้างรวม (เมตรต่อ 3 หัว)",
+          "value": 4.5,
+          "unit": "m/3 หัว"
+        }
+      ],
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 8,
+      "required_numbers": "2.8 4.5",
+      "require_sufficient": true,
+      "case_id": "s03",
+      "iteration": 1,
+      "answer": "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "ไม่มีหลักฐานเกี่ยวกับเอกสาร UAV07 และหน้ากว้างต่อหัวหรือรวม 3 หัวในหลักฐานที่ให้",
+      "timings": {
+        "retrieval_ms": 812.0,
+        "kb_generation_ms": 2485.0,
+        "web_search_ms": 2859.0,
+        "final_generation_ms": 1281.0,
+        "total_ms": 7437.0
+      },
+      "evidence_trace": [],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "insufficient",
+          "reason": "Evidence validation failed: Claim inconsistent with cited table (table value/unit/column mismatch in T2 (T2:R2))",
+          "llm_unavailable": false
+        },
+        {
+          "stage": "web",
+          "source_count": 4
+        },
+        {
+          "stage": "combined",
+          "status": "insufficient",
+          "reason": "ไม่มีหลักฐานเกี่ยวกับเอกสาร UAV07 และหน้ากว้างต่อหัวหรือรวม 3 หัวในหลักฐานที่ให้",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 7.437,
+      "contract_pass": false,
+      "latency_pass": true,
+      "reasons": [
+        "unexpected_source_type",
+        "answer_incomplete",
+        "missing_verified_numeric_fact",
+        "missing_verified_source_aspect"
+      ]
+    },
+    {
+      "id": 4,
+      "split": "dev",
+      "query": "พัดส้มมีปริมาณต่อหัวเท่าไร และ GCP ช่วยในการสำรวจแปลงอ้อยอย่างไร",
+      "evidence_groups": [
+        {
+          "aspect": "ปริมาณหัวฉีด",
+          "pages": [
+            {
+              "source_file": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf",
+              "page_number": 12
+            },
+            {
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": 5
+            }
+          ]
+        },
+        {
+          "aspect": "GCP",
+          "pages": [
+            {
+              "source_file": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf",
+              "page_number": 8
+            }
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "row": "พัดส้ม",
+          "value": 500,
+          "unit": "ml/หัวฉีด",
+          "conditions": {
+            "rpm": 1600
+          }
+        },
+        {
+          "statement": "GCP ช่วยต่อภาพโดยเฉพาะแปลงอ้อยโตที่ยอดปกคลุมพื้นที่ และช่วยคำนวณความสูง DSM–DTM ร่วมกับ RTK GPS"
+        }
+      ],
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 8,
+      "required_numbers": "500",
+      "require_sufficient": true,
+      "case_id": "s04",
+      "iteration": 1,
+      "answer": "• พัดส้มมีปริมาณ 500 มิลลิลิตรต่อหัวฉีด [1]\n• GCP ช่วยในการต่อภาพโดยเฉพาะในแปลงอ้อยโตที่ยอดอ้อยปกคลุมพื้นที่ทั้งหมด และช่วยคำนวณความสูงโดยใช้ DSM – DTM ร่วมกับ RTK GPS [2]\n\nแหล่งอ้างอิง:\n[1] UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12\n[2] UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 8",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานระบุข้อมูลปริมาณต่อหัวของหัวฉีดพัดส้ม และประโยชน์ของ GCP ในการสำรวจแปลงอ้อยครบถ้วน",
+      "timings": {
+        "retrieval_ms": 1078.0,
+        "kb_generation_ms": 1407.0,
+        "total_ms": 2485.0
+      },
+      "evidence_trace": [
+        {
+          "text": "พัดส้มมีปริมาณ 500 มิลลิลิตรต่อหัวฉีด",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "1 | พัดส้ม | 1600 | 500 | 1500",
+              "citation": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12",
+              "source_file": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf",
+              "page_number": "12"
+            }
+          ]
+        },
+        {
+          "text": "GCP ช่วยในการต่อภาพโดยเฉพาะในแปลงอ้อยโตที่ยอดอ้อยปกคลุมพื้นที่ทั้งหมด และช่วยคำนวณความสูงโดยใช้ DSM – DTM ร่วมกับ RTK GPS",
+          "evidence": [
+            {
+              "source_id": "D2",
+              "quote": "ช่วยในการต่อภาพโดยเฉพาะในแปลงอ้อยโตที่ยอด\nอ้อยปกคลุมพื้นที่ทั้งหมด\nช่วยคำนวณความสูง โดยใช้DSM – DTM  (ใช้\nร่วมกับ RTK GPS)",
+              "citation": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 8",
+              "source_file": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf",
+              "page_number": "8"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐานระบุข้อมูลปริมาณต่อหัวของหัวฉีดพัดส้ม และประโยชน์ของ GCP ในการสำรวจแปลงอ้อยครบถ้วน",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 2.485,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 5,
+      "split": "dev",
+      "query": "ภาพใบไม้ตัวอย่าง GSD 1.2 mm ในเอกสาร UAV12 มีขนาดกี่พิกเซล",
+      "evidence_groups": [
+        {
+          "aspect": "ภาพ GSD",
+          "pages": [
+            {
+              "source_file": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf",
+              "page_number": 3
+            }
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "value": "46 x 73",
+          "unit": "px",
+          "conditions": {
+            "GSD": "1.2 mm"
+          }
+        }
+      ],
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 8,
+      "required_numbers": "46 x 73",
+      "require_sufficient": true,
+      "case_id": "s05",
+      "iteration": 1,
+      "answer": "• ภาพใบไม้ตัวอย่าง GSD 1.2 mm มีขนาด 46 x 73 พิกเซล [1]\n\nแหล่งอ้างอิง:\n[1] UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 3",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "",
+      "timings": {
+        "retrieval_ms": 843.0,
+        "kb_generation_ms": 1407.0,
+        "total_ms": 2250.0
+      },
+      "evidence_trace": [
+        {
+          "text": "ภาพใบไม้ตัวอย่าง GSD 1.2 mm มีขนาด 46 x 73 พิกเซล",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "1.2 มม. GSD (แสดงผ่านภาพใบไม้ขนาด 46 x 73 พิกเซล และขนาดประมาณ 55.2 x 87.6 มม.)",
+              "citation": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 3",
+              "source_file": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf",
+              "page_number": "3"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 2.25,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 6,
+      "split": "dev",
+      "query": "สารกำจัดวัชพืชประเภทสัมผัสตายกับดูดซึมแสดงอาการเร็วช้าต่างกันอย่างไร",
+      "evidence_groups": [
+        {
+          "aspect": "ประเภทสารและช่วงเวลา",
+          "pages": [
+            {
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": 3
+            }
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "row": "สัมผัสตายหรือกึ่งเคลื่อนย้าย",
+          "value": "2–5",
+          "unit": "วัน",
+          "conditions": {
+            "application": "พ่นให้ทั่วทุกส่วนของวัชพืช"
+          }
+        },
+        {
+          "row": "ดูดซึม",
+          "value": "1–4",
+          "unit": "สัปดาห์"
+        }
+      ],
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 8,
+      "required_numbers": "2–5 1–4",
+      "require_sufficient": true,
+      "case_id": "s06",
+      "iteration": 1,
+      "answer": "• สารกำจัดวัชพืชประเภทสัมผัสตาย อาการของวัชพืชจะเห็นผลเร็วภายใน 2-5 วัน [1]\n• สารกำจัดวัชพืชประเภทดูดซึม อาการของวัชพืชเกิดช้า ประมาณ 1-4 สัปดาห์ [1]\n\nแหล่งอ้างอิง:\n[1] UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 3",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานระบุระยะเวลาการแสดงอาการของสารกำจัดวัชพืชทั้งประเภทสัมผัสตายและดูดซึมไว้อย่างชัดเจน",
+      "timings": {
+        "retrieval_ms": 828.0,
+        "kb_generation_ms": 1625.0,
+        "total_ms": 2453.0
+      },
+      "evidence_trace": [
+        {
+          "text": "สารกำจัดวัชพืชประเภทสัมผัสตาย อาการของวัชพืชจะเห็นผลเร็วภายใน 2-5 วัน",
+          "evidence": [
+            {
+              "source_id": "D7",
+              "quote": "สารกำจัดวัชพืชประเภทสัมผัสตาย หรือกึ่งเคลื่อนย้าย หรือ \"ยาฆ่า\" เป็นสารที่มีการเคลื่อนย้ายน้อย ดังนั้นต้องพ่นสารให้ทั่วทุกส่วนของต้นวัชพืช จึงจะกำจัดได้หมด อาการของวัชพืชจะเห็นผลเร็วภายใน 2-5 วัน",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 3",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "3"
+            }
+          ]
+        },
+        {
+          "text": "สารกำจัดวัชพืชประเภทดูดซึม อาการของวัชพืชเกิดช้า ประมาณ 1-4 สัปดาห์",
+          "evidence": [
+            {
+              "source_id": "D7",
+              "quote": "สารกำจัดวัชพืชประเภทดูดซึม จัดเป็น \"ยาฆ่า\" อีกประเภทหนึ่ง สารประเภทนี้จะถูกดูดซึมไปยังส่วนต่าง ๆ ของต้นวัชพืช อาการของวัชพืชเกิดช้า ประมาณ 1-4 สัปดาห์",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 3",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "3"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐานระบุระยะเวลาการแสดงอาการของสารกำจัดวัชพืชทั้งประเภทสัมผัสตายและดูดซึมไว้อย่างชัดเจน",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 2.468,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 7,
+      "split": "dev",
+      "query": "การพ่นสารก่อนวัชพืชงอกควรเตรียมผิวดินและความชื้นอย่างไร",
+      "evidence_groups": [
+        {
+          "aspect": "การเตรียมดินก่อนวัชพืชงอก",
+          "pages": [
+            {
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": 4
+            }
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "statement": "พ่นคลุมดินทันทีหลังปลูกพืชหรือก่อนพืชปลูกและวัชพืชงอก เตรียมดินประณีต ผิวหน้าดินละเอียดสม่ำเสมอ และมีความชื้นพอสมควร"
+        }
+      ],
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 8,
+      "required_numbers": "",
+      "require_sufficient": true,
+      "case_id": "s07",
+      "iteration": 1,
+      "answer": "• การเตรียมดินต้องประณีต มีการไถพรวนหลายๆ ครั้ง และคราดเก็บวัชพืชข้ามฤดูออกจากแปลง เพื่อให้น้ำยาได้สัมผัสผิวดินสม่ำเสมอทั่วทั้งแปลง หรือเตรียมดินอย่างประณีต ผิวหน้าดินควรละเอียดสม่ำเสมอ [1,2]\n• ความชื้นของดินในขณะพ่นสารกำจัดวัชพืช ดินต้องมีความชื้นพอควรหรือมีความชื้นพอสมควร [1,2]\n\nแหล่งอ้างอิง:\n[1] UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 6\n[2] UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 4",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานระบุข้อมูลเกี่ยวกับการเตรียมผิวดินและความชื้นของดินสำหรับการพ่นสารกำจัดวัชพืชก่อนวัชพืชงอกไว้อย่างครบถ้วน",
+      "timings": {
+        "retrieval_ms": 782.0,
+        "kb_generation_ms": 2046.0,
+        "total_ms": 2828.0
+      },
+      "evidence_trace": [
+        {
+          "text": "การเตรียมดินต้องประณีต มีการไถพรวนหลายๆ ครั้ง และคราดเก็บวัชพืชข้ามฤดูออกจากแปลง เพื่อให้น้ำยาได้สัมผัสผิวดินสม่ำเสมอทั่วทั้งแปลง หรือเตรียมดินอย่างประณีต ผิวหน้าดินควรละเอียดสม่ำเสมอ",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "การเตรียมดิน ต้องประณีต มีการไถพรวนหลายๆ ครั้ง และคราดเก็บวัชพืชข้ามฤดู ออกจากแปลง เพื่อน้ำยาจะได้สัมผัสผิวดินสม่ำเสมอทั่วทั้งแปลง",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 6",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "6"
+            },
+            {
+              "source_id": "D2",
+              "quote": "ต้องเตรียมดินอย่างประณีต ผิวหน้าดินควรละเอียดสม่ำเสมอ",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 4",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "4"
+            }
+          ]
+        },
+        {
+          "text": "ความชื้นของดินในขณะพ่นสารกำจัดวัชพืช ดินต้องมีความชื้นพอควรหรือมีความชื้นพอสมควร",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "ความชื้นของดิน ขณะพ่นสารกำจัดวัชพืช ดินต้องชื้นพอควร",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 6",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "6"
+            },
+            {
+              "source_id": "D2",
+              "quote": "ดินมีความชื้นพอสมควร",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 4",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "4"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐานระบุข้อมูลเกี่ยวกับการเตรียมผิวดินและความชื้นของดินสำหรับการพ่นสารกำจัดวัชพืชก่อนวัชพืชงอกไว้อย่างครบถ้วน",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 2.828,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 8,
+      "split": "dev",
+      "query": "ควรเลือกหัวฉีดแบบพัดหรือแบบกรวยสำหรับสารกำจัดวัชพืช",
+      "evidence_groups": [
+        {
+          "aspect": "ประเภทหัวฉีดกับสาร",
+          "pages": [
+            {
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": 17,
+              "printed_page": "244"
+            }
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "row": "FAN",
+          "statement": "ใช้กับสารกำจัดวัชพืช"
+        },
+        {
+          "row": "CONE",
+          "statement": "ใช้กับสารกำจัดแมลงและโรคพืช"
+        }
+      ],
+      "must_not_infer": [
+        "244 เป็นเลขสไลด์ที่พิมพ์ไว้ ต้องอ้าง PDF หน้า 17 เพื่อให้เปิดตามได้"
+      ],
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 8,
+      "required_numbers": "",
+      "require_sufficient": true,
+      "case_id": "s08",
+      "iteration": 1,
+      "answer": "• หัวฉีดแบบพัดใช้กับสารกำจัดวัชพืช [1]\n• หัวฉีดแบบกรวยใช้กับสารกำจัดแมลงและโรคพืช [1]\n\nแหล่งอ้างอิง:\n[1] UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 17",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานระบุชัดเจนว่าหัวฉีดแบบพัดใช้กับสารกำจัดวัชพืช และหัวฉีดแบบกรวยใช้กับสารกำจัดแมลงและโรคพืช",
+      "timings": {
+        "retrieval_ms": 813.0,
+        "kb_generation_ms": 1203.0,
+        "total_ms": 2016.0
+      },
+      "evidence_trace": [
+        {
+          "text": "หัวฉีดแบบพัดใช้กับสารกำจัดวัชพืช",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "หัวฉีดแบบพัด (FAN) ใช้กับสารกำจัดวัชพืช",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 17",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "17"
+            }
+          ]
+        },
+        {
+          "text": "หัวฉีดแบบกรวยใช้กับสารกำจัดแมลงและโรคพืช",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "หัวฉีดแบบกรวย (CONE) ใช้กับสารกำจัดแมลง โรคพืช",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 17",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "17"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐานระบุชัดเจนว่าหัวฉีดแบบพัดใช้กับสารกำจัดวัชพืช และหัวฉีดแบบกรวยใช้กับสารกำจัดแมลงและโรคพืช",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 2.016,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 9,
+      "split": "holdout",
+      "query": "หัวฉีดพัดเหลืองที่ 1600 rpm มีปริมาณต่อหัวและรวม 3 หัวเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "สองคอลัมน์ของพัดเหลือง",
+          "pages": [
+            {
+              "source_file": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf",
+              "page_number": 12
+            },
+            {
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": 5
+            }
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "row": "พัดเหลือง",
+          "value": 775,
+          "unit": "ml/หัวฉีด"
+        },
+        {
+          "row": "พัดเหลือง",
+          "value": 2325,
+          "unit": "ml/3 หัวฉีด"
+        }
+      ],
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 8,
+      "required_numbers": "775 2325",
+      "require_sufficient": true,
+      "case_id": "s09",
+      "iteration": 1,
+      "answer": "• หัวฉีดพัดเหลืองที่ 1600 rpm มีปริมาณ 775 มิลลิลิตรต่อหัวฉีด [1]\n• หัวฉีดพัดเหลืองที่ 1600 rpm มีปริมาณรวม 3 หัวฉีดเท่ากับ 2325 มิลลิลิตร [1]\n\nแหล่งอ้างอิง:\n[1] UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานระบุปริมาณต่อหัวฉีดและปริมาณสำหรับ 3 หัวฉีดของหัวฉีดพัดเหลืองที่ 1600 rpm ครบถ้วน",
+      "timings": {
+        "retrieval_ms": 828.0,
+        "kb_generation_ms": 1594.0,
+        "total_ms": 2422.0
+      },
+      "evidence_trace": [
+        {
+          "text": "หัวฉีดพัดเหลืองที่ 1600 rpm มีปริมาณ 775 มิลลิลิตรต่อหัวฉีด",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "3 | พัดเหลือง | 1600 | 775 | 2325",
+              "citation": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12",
+              "source_file": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf",
+              "page_number": "12"
+            }
+          ]
+        },
+        {
+          "text": "หัวฉีดพัดเหลืองที่ 1600 rpm มีปริมาณรวม 3 หัวฉีดเท่ากับ 2325 มิลลิลิตร",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "3 | พัดเหลือง | 1600 | 775 | 2325",
+              "citation": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12",
+              "source_file": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf",
+              "page_number": "12"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐานระบุปริมาณต่อหัวฉีดและปริมาณสำหรับ 3 หัวฉีดของหัวฉีดพัดเหลืองที่ 1600 rpm ครบถ้วน",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 2.422,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 10,
+      "split": "holdout",
+      "query": "ตามตาราง UAV07 ที่ความสูง 2 เมตร หน้ากว้างรวม 3 หัวฉีดเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "หน้ากว้างรวมตามแถวความสูง",
+          "pages": [
+            {
+              "source_file": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf",
+              "page_number": 12
+            }
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "row": "2.0",
+          "column": "หน้ากว้างรวม",
+          "value": 7.4,
+          "unit": "m/3 หัว"
+        }
+      ],
+      "must_not_infer": [
+        "5.7 เป็นค่าต่อหัว ไม่ใช่ค่ารวม 3 หัว"
+      ],
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 8,
+      "required_numbers": "7.4",
+      "require_sufficient": true,
+      "case_id": "s10",
+      "iteration": 1,
+      "answer": "• ตามตารางหน้ากว้างการฉีดพ่น ที่ความสูง 2 เมตร มีหน้ากว้างรวม 3 หัวฉีดเท่ากับ 7.412 เมตร [1]\n\nแหล่งอ้างอิง:\n[1] UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานจากตารางระยะหน้ากว้างการฉีดพ่นระบุค่าที่ความสูง 2 เมตรได้อย่างครบถ้วน",
+      "timings": {
+        "retrieval_ms": 828.0,
+        "kb_generation_ms": 1266.0,
+        "total_ms": 2094.0
+      },
+      "evidence_trace": [
+        {
+          "text": "ตามตารางหน้ากว้างการฉีดพ่น ที่ความสูง 2 เมตร มีหน้ากว้างรวม 3 หัวฉีดเท่ากับ 7.412 เมตร",
+          "evidence": [
+            {
+              "source_id": "D2",
+              "quote": "2.0 | 5.712 | 7.412",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": "5"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐานจากตารางระยะหน้ากว้างการฉีดพ่นระบุค่าที่ความสูง 2 เมตรได้อย่างครบถ้วน",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 2.094,
+      "contract_pass": false,
+      "latency_pass": true,
+      "reasons": [
+        "missing_verified_numeric_fact",
+        "missing_verified_source_aspect"
+      ]
+    },
+    {
+      "id": 11,
+      "split": "holdout",
+      "query": "Reflectance เป็นคุณสมบัติของวัตถุหรือขึ้นอยู่กับแสง และค่ามีช่วงเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "นิยามและช่วงค่า",
+          "pages": [
+            {
+              "source_file": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf",
+              "page_number": 14
+            }
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "statement": "Reflectance is an inherent property of an object; it does not depend on lighting conditions.",
+          "value": "0–1",
+          "unit": "dimensionless"
+        }
+      ],
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 8,
+      "required_numbers": "0–1",
+      "require_sufficient": true,
+      "case_id": "s11",
+      "iteration": 1,
+      "answer": "• Reflectance เป็นคุณสมบัติเฉพาะของวัตถุ และไม่ขึ้นอยู่กับสภาพแสง [1]\n• ค่า Reflectance มีช่วงตั้งแต่ 0 ถึง 1 [1]\n\nแหล่งอ้างอิง:\n[1] UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 14",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานระบุครบถ้วนว่า Reflectance เป็นคุณสมบัติเฉพาะของวัตถุ ไม่ขึ้นอยู่กับแสง และมีค่าในช่วง 0-1",
+      "timings": {
+        "retrieval_ms": 797.0,
+        "kb_generation_ms": 1468.0,
+        "total_ms": 2265.0
+      },
+      "evidence_trace": [
+        {
+          "text": "Reflectance เป็นคุณสมบัติเฉพาะของวัตถุ และไม่ขึ้นอยู่กับสภาพแสง",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "Reflectance is an inherent property of an object; it does not depend on lighting conditions.",
+              "citation": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 14",
+              "source_file": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf",
+              "page_number": "14"
+            }
+          ]
+        },
+        {
+          "text": "ค่า Reflectance มีช่วงตั้งแต่ 0 ถึง 1",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "Its value range 0-1.",
+              "citation": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf, หน้า 14",
+              "source_file": "UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ายมีคุณภาพ อ.ขวัญ.pdf",
+              "page_number": "14"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐานระบุครบถ้วนว่า Reflectance เป็นคุณสมบัติเฉพาะของวัตถุ ไม่ขึ้นอยู่กับแสง และมีค่าในช่วง 0-1",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 2.265,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "id": 12,
+      "split": "holdout",
+      "query": "สารกำจัดวัชพืชประเภทใช้ทางดินถูกดูดซึมทางใด และดินควรมีสภาพอย่างไร",
+      "evidence_groups": [
+        {
+          "aspect": "กลไกและสภาพดิน",
+          "pages": [
+            {
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": 3
+            }
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "statement": "ดูดซึมทางราก ผิวหน้าดินเรียบสม่ำเสมอและมีความชื้นเพียงพอเป็นตัวพาสารไปสัมผัสเมล็ดวัชพืชใต้ดิน"
+        }
+      ],
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 8,
+      "required_numbers": "",
+      "require_sufficient": true,
+      "case_id": "s12",
+      "iteration": 1,
+      "answer": "• สารกำจัดวัชพืชประเภทใช้ทางดินหรือยาคุม จะถูกดูดซึมทางรากและเคลื่อนย้ายไปยังส่วนต่าง ๆ ของวัชพืช [1]\n• ประสิทธิภาพของสารกำจัดวัชพืชประเภทใช้ทางดินจะสูงเมื่อผิวดินเรียบสม่ำเสมอ และมีความชื้นเพียงพอที่จะเป็นตัวพาเอาสารไปสัมผัสกับเมล็ดของวัชพืชที่อยู่ใต้ดินได้ [1]\n\nแหล่งอ้างอิง:\n[1] UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 3",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานระบุการดูดซึมและสภาพดินของสารกำจัดวัชพืชประเภทใช้ทางดินไว้อย่างครบถ้วน",
+      "timings": {
+        "retrieval_ms": 766.0,
+        "kb_generation_ms": 2297.0,
+        "total_ms": 3063.0
+      },
+      "evidence_trace": [
+        {
+          "text": "สารกำจัดวัชพืชประเภทใช้ทางดินหรือยาคุม จะถูกดูดซึมทางรากและเคลื่อนย้ายไปยังส่วนต่าง ๆ ของวัชพืช",
+          "evidence": [
+            {
+              "source_id": "D8",
+              "quote": "3 สารกำจัดวัชพืชประเภทใช้ทางดิน หรือ \"ยาคุม\" สารเหล่านี้จะถูกดูดซึมทางราก เคลื่อนย้ายไปยังส่วนต่าง ๆ ของวัชพืช",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 3",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "3"
+            }
+          ]
+        },
+        {
+          "text": "ประสิทธิภาพของสารกำจัดวัชพืชประเภทใช้ทางดินจะสูงเมื่อผิวดินเรียบสม่ำเสมอ และมีความชื้นเพียงพอที่จะเป็นตัวพาเอาสารไปสัมผัสกับเมล็ดของวัชพืชที่อยู่ใต้ดินได้",
+          "evidence": [
+            {
+              "source_id": "D8",
+              "quote": "ประสิทธิภาพของสารประเภทนี้จะสูง เมื่อผิวดินเรียบสม่ำเสมอ และมีความชื้นเพียงพอที่จะเป็นตัวพาเอาสารไปสัมผัสกับเมล็ดของวัชพืชที่อยู่ใต้ดินได้",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 3",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "3"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐานระบุการดูดซึมและสภาพดินของสารกำจัดวัชพืชประเภทใช้ทางดินไว้อย่างครบถ้วน",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 3.063,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    }
+  ]
+}

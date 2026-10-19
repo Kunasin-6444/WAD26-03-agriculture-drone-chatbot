@@ -1,0 +1,14 @@
+chroma path: D:\Years4\webApp\project\agriculture-drone-chatbot\chroma_db   chunks: 997
+  UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf        pages= 23 no_chunk=0 numbers_missing=0/143 (0.0%)
+  UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษ pages= 27 no_chunk=0 numbers_missing=0/28 (0.0%)
+  UAV08 วัชพืชและการควบคุม application.pdf pages= 48 no_chunk=0 numbers_missing=0/79 (0.0%)
+  UAV09 การใช้สารกำจัดวัชพืช.pdf           pages= 26 no_chunk=0 numbers_missing=0/26 (0.0%)
+  UAV10 พื้นฐานการใช้ภาพถ่ายทางอากาศเพื่อก pages= 48 no_chunk=0 numbers_missing=0/189 (0.0%)
+  UAV11 การสาธิตการใช้โดรนสำรวจ.pdf        pages= 18 no_chunk=0 numbers_missing=0/48 (0.0%)
+  UAV12 การตั้งเงื่อนไขการบินเพื่อให้ภาพถ่ pages= 29 no_chunk=0 numbers_missing=0/77 (0.0%)
+  ฟีเจอร์การลงทุน.pdf                      pages= 39 no_chunk=0 numbers_missing=0/733 (0.0%)
+  ฟีเจอร์ผสมสาร.pdf                        pages= 34 no_chunk=0 numbers_missing=0/371 (0.0%)
+  ฟีเจอร์วินิจฉัยโรคและ ปัจจัยเสี่ยง.pdf   pages= 47 no_chunk=0 numbers_missing=0/409 (0.0%)
+  ฟีเจอร์โดรนของฉัน.pdf                    pages=  4 no_chunk=0 numbers_missing=0/26 (0.0%)
+
+OK

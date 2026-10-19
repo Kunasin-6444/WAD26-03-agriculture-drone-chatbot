@@ -1,3 +1,5 @@
+> Historical snapshot before the 2026-10-17 MD overhaul. Not current instructions or status. Relative Markdown links rebased for this location.
+
 # ตรวจระบบตอบจากเอกสารและค้นเว็บ (ฉบับประวัติ — โค้ดถูกเขียนใหม่แล้ว)
 
 วันที่ตรวจ: 14 ตุลาคม 2026 (Asia/Bangkok)
@@ -6,7 +8,7 @@
 > โค้ด pipeline ถูกเขียนใหม่ทั้งหมด (`evidence.py`, `intent_router.py`,
 > `query_normalizer.py`, `slide_retriever.py`, `source_policy.py`, `prompts/`)
 > เลขบรรทัดในรายงานนี้จึงไม่ตรงกับโค้ดปัจจุบันอีกต่อไป ดูสถานะล่าสุดที่
-> [CURRENT_STATE.md](CURRENT_STATE.md) จากการตรวจโค้ดปัจจุบันซ้ำอีกครั้ง พบว่า:
+> [CURRENT_STATE.md](../../../CURRENT_STATE.md) จากการตรวจโค้ดปัจจุบันซ้ำอีกครั้ง พบว่า:
 > - ข้อ 1 (CAAT เนื้อหาปลอม), 3 (อ้างอิงไม่ตรวจ), 5 (ตารางทิ้งข้อความ), 6 (URL substring match) — **แก้แล้ว**
 > - ข้อ 2 (sufficiency ไม่มีโครงสร้าง) — **แก้แล้ว** ด้วย `GroundedResult.status` (sufficient/partial/insufficient)
 > - ข้อ 4 (grader/generator เห็นหลักฐานคนละชุด) — **แก้แล้ว** โดยรวม grading กับ generation เป็น LLM call เดียว (`evaluate_evidence`)

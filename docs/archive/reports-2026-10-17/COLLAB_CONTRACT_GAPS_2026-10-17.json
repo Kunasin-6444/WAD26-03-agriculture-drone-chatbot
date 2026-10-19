@@ -1,0 +1,7 @@
+{
+  "generated_at": "2026-10-17T10:12:38.157072+07:00",
+  "mode": "offline",
+  "findings": [],
+  "critical_gap_count": 0,
+  "note": "Synthetic failure probes. They measure reproducible gaps, not the rate of wrong live answers."
+}

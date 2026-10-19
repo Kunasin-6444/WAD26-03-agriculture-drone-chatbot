@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "live_status": 200,
+  "ready_status": 200,
+  "readiness": {
+    "status": "ready",
+    "checks": {
+      "knowledge_index": true,
+      "inbox": true,
+      "worker": true
+    },
+    "external_providers": "not_probed"
+  },
+  "isolated_inbox": true,
+  "external_calls": false,
+  "seconds": 9.602
+}

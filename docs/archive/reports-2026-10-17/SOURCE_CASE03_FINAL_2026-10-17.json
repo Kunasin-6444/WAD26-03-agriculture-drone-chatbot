@@ -1,0 +1,118 @@
+{
+  "generated_at": "2026-10-17T11:30:03.146952+07:00",
+  "mode": "live",
+  "note": "Automatic source/aspect checks; semantic review against originals remains necessary. Sample p95 is not a production guarantee. Provider failures stay in the denominator.",
+  "warmup": true,
+  "answer_cache": "bypassed",
+  "repeat": 1,
+  "concurrency": 1,
+  "dataset": "tests\\data\\source_gold.json",
+  "complete_run": true,
+  "total": 1,
+  "contract_passed": 1,
+  "latency_passed": 1,
+  "mean_seconds": 4.922,
+  "p50_seconds": 4.922,
+  "p95_seconds": 4.922,
+  "provider_error_requests": 0,
+  "by_source": {
+    "knowledge_base": {
+      "total": 1,
+      "contract_passed": 1,
+      "latency_passed": 1,
+      "mean_seconds": 4.922,
+      "p50_seconds": 4.922,
+      "p95_seconds": 4.922,
+      "provider_error_requests": 0
+    }
+  },
+  "results": [
+    {
+      "id": 3,
+      "split": "dev",
+      "query": "ในเอกสาร UAV07 ที่ความสูง 1 เมตร หน้ากว้างต่อหัวและรวม 3 หัวเป็นเท่าไร",
+      "evidence_groups": [
+        {
+          "aspect": "หน้ากว้างสองคอลัมน์",
+          "pages": [
+            {
+              "source_file": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf",
+              "page_number": 12
+            }
+          ]
+        }
+      ],
+      "facts": [
+        {
+          "row": "1.0",
+          "column": "หน้ากว้าง (เมตรต่อหัว)",
+          "value": 2.8,
+          "unit": "m/หัว"
+        },
+        {
+          "row": "1.0",
+          "column": "หน้ากว้างรวม (เมตรต่อ 3 หัว)",
+          "value": 4.5,
+          "unit": "m/3 หัว"
+        }
+      ],
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [],
+      "citations": [],
+      "target_seconds": 8,
+      "required_numbers": "2.8 4.5",
+      "require_sufficient": true,
+      "case_id": "s03",
+      "iteration": 1,
+      "answer": "• ที่ความสูง 1 เมตร หน้ากว้างต่อหัวเป็น 2.8 เมตร [1]\n• ที่ความสูง 1 เมตร หน้ากว้างรวม 3 หัวเป็น 4.5 เมตร [1]\n\nแหล่งอ้างอิง:\n[1] UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานจากเอกสาร D1 ระบุค่าความสูง หน้ากว้างต่อหัว และหน้ากว้างรวม 3 หัว ตรงตามคำถามครบถ้วน",
+      "timings": {
+        "retrieval_ms": 922.0,
+        "kb_generation_ms": 4000.0,
+        "total_ms": 4922.0
+      },
+      "evidence_trace": [
+        {
+          "text": "ที่ความสูง 1 เมตร หน้ากว้างต่อหัวเป็น 2.8 เมตร",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "1.0 | 2.8 | 4.5",
+              "citation": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12",
+              "source_file": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf",
+              "page_number": "12"
+            }
+          ]
+        },
+        {
+          "text": "ที่ความสูง 1 เมตร หน้ากว้างรวม 3 หัวเป็น 4.5 เมตร",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "1.0 | 2.8 | 4.5",
+              "citation": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12",
+              "source_file": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf",
+              "page_number": "12"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐานจากเอกสาร D1 ระบุค่าความสูง หน้ากว้างต่อหัว และหน้ากว้างรวม 3 หัว ตรงตามคำถามครบถ้วน",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 4.922,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    }
+  ]
+}

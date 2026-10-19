@@ -1,4 +1,20 @@
+> Historical snapshot before the 2026-10-17 MD overhaul. Not current instructions or status. Relative Markdown links rebased for this location.
+
 # Pre-Launch Checklist
+
+> Latest delivery gates: [RELEASE_READINESS_2026-10-17.md](../../../RELEASE_READINESS_2026-10-17.md).
+> Prepare-only scope: no host or real LINE send. Do not infer release approval from
+> older test counts below; verify current live/source results and the incomplete
+> investment screenshot (page 38) before claiming complete knowledge coverage.
+
+> 2026-10-17: the original table-row and duplicate-event probes are fixed and regression
+> tested; see [COLLAB_FIXES_2026-10-17.md](../../../COLLAB_FIXES_2026-10-17.md). Remaining release
+> work includes full semantic/live evaluation, R2 configuration, provider capacity and
+> production storage/backup/readiness. Older blocker descriptions below are historical.
+
+> 2026-10-16 audit: release remains blocked by table-row semantic consistency and
+> duplicate LINE event handling. See [PROJECT_AUDIT_2026-10-16.md](../../../PROJECT_AUDIT_2026-10-16.md)
+> and `CONTRACT_GAP_REPORT.json`; older test counts and live scores below are historical.
 
 Created 2026-10-15, after the pipeline rewrite + same-day bug-fix round (see
 `TODO.md`'s "Latency fix — 2026-10-15" section for the detailed history).

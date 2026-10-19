@@ -1,0 +1,28 @@
+{
+  "generated_at": "2026-10-16T21:43:40.526060+07:00",
+  "mode": "offline",
+  "findings": [
+    {
+      "id": "R3_TABLE_ROW",
+      "severity": "high",
+      "requirement": "R3",
+      "problem": "A real multi-row quote can support a claim using another row's value.",
+      "synthetic_evidence": "หัวฉีด | รอบ (rpm) | ปริมาณ (ml/หัวฉีด)\nพัดส้ม | 1600 | 500\nพัดแดง | 1600 | 1150",
+      "incorrect_accepted_claim": "หัวฉีดพัดส้มมีปริมาณ 1150 ml ต่อหัวฉีด ที่ 1600 rpm"
+    },
+    {
+      "id": "R7_DUPLICATE_EVENT",
+      "severity": "high",
+      "requirement": "R7/operational reliability",
+      "problem": "A duplicate webhookEventId runs generation and reply twice.",
+      "http_statuses": [
+        200,
+        200
+      ],
+      "pipeline_calls": 2,
+      "reply_calls": 2
+    }
+  ],
+  "critical_gap_count": 2,
+  "note": "Synthetic failure probes. They measure reproducible gaps, not the rate of wrong live answers."
+}

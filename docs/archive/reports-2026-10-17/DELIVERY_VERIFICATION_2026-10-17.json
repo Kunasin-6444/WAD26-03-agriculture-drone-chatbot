@@ -1,0 +1,83 @@
+{
+  "status": "deployment_package_verified_quality_gate_open",
+  "runtime_sha256": "436b5b03fd2c6686d3eb0cc33dc3319040d1d89dfdd19129aca56e25eb5285e4",
+  "runtime_image": "agriculture-drone-chatbot:release",
+  "runtime_image_id": "sha256:43c0634b30f26a9dc96c046c2e7b056de7a4e358fdaf34b7f301c68616d5b134",
+  "offline_tests": {
+    "windows": {
+      "passed": 372,
+      "subtests_passed": 67,
+      "seconds": 72.78
+    },
+    "linux": {
+      "passed": 371,
+      "skipped": 1,
+      "subtests_passed": 67,
+      "seconds": 52.39,
+      "skip_reason": "synthetic Thai font test requires Windows Tahoma"
+    }
+  },
+  "full_live_batches_before_final_transient_failover_fix": {
+    "DELIVERY_ACCEPTANCE_2026-10-17.json": {
+      "total": 28,
+      "contract_passed": 26,
+      "latency_passed": 24,
+      "runtime_sha256": "c2fd70580ed5c94aea90274f7bf66ebf4bb5259e4e63156678df646b95f3b078",
+      "p50_seconds": 5.5785,
+      "p95_seconds": 14.579
+    },
+    "DELIVERY_HYBRID_2026-10-17.json": {
+      "total": 3,
+      "contract_passed": 2,
+      "latency_passed": 2,
+      "runtime_sha256": "c2fd70580ed5c94aea90274f7bf66ebf4bb5259e4e63156678df646b95f3b078",
+      "p50_seconds": 11.203,
+      "p95_seconds": 23.062
+    },
+    "DELIVERY_SOURCE_2026-10-17.json": {
+      "total": 12,
+      "contract_passed": 9,
+      "latency_passed": 11,
+      "runtime_sha256": "c2fd70580ed5c94aea90274f7bf66ebf4bb5259e4e63156678df646b95f3b078",
+      "p50_seconds": 2.6094999999999997,
+      "p95_seconds": 11.422
+    }
+  },
+  "targeted_recheck_after_final_fix": {
+    "total": 3,
+    "contract_passed": 3,
+    "latency_passed": 3,
+    "p50_seconds": 8.031,
+    "p95_seconds": 10.594
+  },
+  "linux_http": {
+    "live": {
+      "status": "alive"
+    },
+    "ready": {
+      "status": "ready",
+      "checks": {
+        "knowledge_index": true,
+        "inbox": true,
+        "worker": true
+      },
+      "external_providers": "not_probed"
+    },
+    "uid": 10001,
+    "runtime_sha256": "436b5b03fd2c6686d3eb0cc33dc3319040d1d89dfdd19129aca56e25eb5285e4",
+    "network": "none",
+    "production_inbox_used": false,
+    "default_image_command": true
+  },
+  "knowledge": {
+    "chunks": 997,
+    "approved_pdfs": 11,
+    "pdf_pages_including_blank": 343,
+    "native_integrity_passed": true,
+    "visual_ingestion_complete": false,
+    "incomplete_visual": "investment PDF page 38"
+  },
+  "production_host_deployed": false,
+  "real_line_message_sent": false,
+  "full_acceptance_rerun_after_final_transient_fix": false
+}

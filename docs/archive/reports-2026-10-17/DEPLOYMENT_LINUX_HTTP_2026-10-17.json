@@ -1,0 +1,19 @@
+{
+  "live": {
+    "status": "alive"
+  },
+  "ready": {
+    "status": "ready",
+    "checks": {
+      "knowledge_index": true,
+      "inbox": true,
+      "worker": true
+    },
+    "external_providers": "not_probed"
+  },
+  "uid": 10001,
+  "runtime_sha256": "436b5b03fd2c6686d3eb0cc33dc3319040d1d89dfdd19129aca56e25eb5285e4",
+  "network": "none",
+  "production_inbox_used": false,
+  "default_image_command": true
+}

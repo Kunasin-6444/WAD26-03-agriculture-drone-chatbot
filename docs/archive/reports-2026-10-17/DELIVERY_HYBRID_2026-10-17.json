@@ -1,0 +1,275 @@
+{
+  "generated_at": "2026-10-17T18:39:06.944854+07:00",
+  "mode": "live",
+  "note": "Automatic source/aspect checks; semantic review against originals remains necessary. Sample p95 is not a production guarantee. Provider failures stay in the denominator.",
+  "warmup": true,
+  "answer_cache": "bypassed",
+  "repeat": 1,
+  "runtime_sha256": "c2fd70580ed5c94aea90274f7bf66ebf4bb5259e4e63156678df646b95f3b078",
+  "runtime_changed_during_run": false,
+  "concurrency": 1,
+  "configuration": {
+    "model": "gemini-3.5-flash-lite",
+    "retrieval_mode": "text",
+    "reranker": "diverse",
+    "structured_output": false,
+    "secondary_structured_output": true
+  },
+  "dataset": "tests\\data\\hybrid_acceptance.json",
+  "complete_run": true,
+  "total": 3,
+  "contract_passed": 2,
+  "latency_passed": 2,
+  "mean_seconds": 14.891,
+  "p50_seconds": 11.203,
+  "p95_seconds": 23.062,
+  "provider_error_requests": 1,
+  "by_source": {
+    "abstain": {
+      "total": 1,
+      "contract_passed": 0,
+      "latency_passed": 0,
+      "mean_seconds": 23.062,
+      "p50_seconds": 23.062,
+      "p95_seconds": 23.062,
+      "provider_error_requests": 1
+    },
+    "hybrid": {
+      "total": 1,
+      "contract_passed": 1,
+      "latency_passed": 1,
+      "mean_seconds": 10.407,
+      "p50_seconds": 10.407,
+      "p95_seconds": 10.407,
+      "provider_error_requests": 0
+    },
+    "web_fallback": {
+      "total": 1,
+      "contract_passed": 1,
+      "latency_passed": 1,
+      "mean_seconds": 11.203,
+      "p50_seconds": 11.203,
+      "p95_seconds": 11.203,
+      "provider_error_requests": 0
+    }
+  },
+  "results": [
+    {
+      "query": "พัดส้มมีปริมาณน้ำต่อหัวเท่าไร และ DJI AGRAS T100 มีความจุถังฉีดพ่นเท่าไร",
+      "sources": [
+        "hybrid"
+      ],
+      "terms": [
+        "พัดส้ม"
+      ],
+      "citations": [],
+      "citation_groups": [
+        [
+          "UAV07",
+          "หน้า 12"
+        ],
+        [
+          "UAV06",
+          "หน้า 5"
+        ]
+      ],
+      "required_numbers": "500 100",
+      "web_domains": [
+        "dji.com"
+      ],
+      "require_sufficient": true,
+      "target_seconds": 15,
+      "case_id": 1,
+      "id": 1,
+      "iteration": 1,
+      "answer": "ขณะนี้ระบบกำลังปรับปรุงชั่วคราว ไม่สามารถตอบคำถามได้ในขณะนี้ กรุณาลองใหม่อีกครั้งในภายหลังครับ",
+      "source_type": "abstain",
+      "grade": "INCORRECT",
+      "grade_reason": "No verified web evidence",
+      "timings": {
+        "retrieval_ms": 1453.0,
+        "kb_generation_ms": 21609.0,
+        "web_search_ms": 0.0,
+        "total_ms": 23062.0
+      },
+      "evidence_trace": [],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "insufficient",
+          "reason": "Every LLM attempt failed outright",
+          "llm_unavailable": true
+        },
+        {
+          "stage": "web_search",
+          "error": "budget_exhausted"
+        },
+        {
+          "stage": "web",
+          "source_count": 0
+        }
+      ],
+      "seconds": 23.062,
+      "contract_pass": false,
+      "latency_pass": false,
+      "reasons": [
+        "unexpected_source_type",
+        "missing_expected_answer_aspect",
+        "missing_expected_source",
+        "answer_incomplete",
+        "missing_verified_numeric_fact",
+        "missing_exact_web_page_citation"
+      ]
+    },
+    {
+      "query": "ตามสเปกของ DJI AGRAS T100 ถังฉีดพ่นมีความจุกี่ลิตร",
+      "sources": [
+        "web_fallback"
+      ],
+      "terms": [],
+      "citations": [],
+      "required_numbers": "100",
+      "web_domains": [
+        "dji.com"
+      ],
+      "require_sufficient": true,
+      "target_seconds": 15,
+      "case_id": 2,
+      "id": 2,
+      "iteration": 1,
+      "answer": "• DJI AGRAS T100 ถังฉีดพ่นมีความจุ 100 ลิตร [1]\n\nแหล่งอ้างอิง:\n[1] DJI AGRAS T100 - Especificaciones - DJI\nhttps://ag.dji.com/th/t100/specs",
+      "source_type": "web_fallback",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานจาก W1 ระบุความจุของถังฉีดพ่นสำหรับ DJI AGRAS T100 ชัดเจน",
+      "timings": {
+        "retrieval_ms": 6594.0,
+        "kb_generation_ms": 2078.0,
+        "web_search_ms": 1141.0,
+        "final_generation_ms": 1390.0,
+        "total_ms": 11203.0
+      },
+      "evidence_trace": [
+        {
+          "text": "DJI AGRAS T100 ถังฉีดพ่นมีความจุ 100 ลิตร",
+          "evidence": [
+            {
+              "source_id": "W1",
+              "quote": "Volumen\n 100 L",
+              "citation": "DJI AGRAS T100 - Especificaciones - DJI\nhttps://ag.dji.com/th/t100/specs",
+              "url": "https://ag.dji.com/th/t100/specs"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "insufficient",
+          "reason": "หลักฐานไม่ปรากฏข้อมูลสเปกความจุถังฉีดพ่นของโดรนรุ่น DJI AGRAS T100",
+          "llm_unavailable": false
+        },
+        {
+          "stage": "web",
+          "source_count": 4
+        },
+        {
+          "stage": "combined",
+          "status": "sufficient",
+          "reason": "หลักฐานจาก W1 ระบุความจุของถังฉีดพ่นสำหรับ DJI AGRAS T100 ชัดเจน",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 11.203,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "query": "พัดส้มมีปริมาณน้ำต่อหัวเท่าไร และขึ้นทะเบียนโดรนอย่างไร",
+      "sources": [
+        "hybrid"
+      ],
+      "terms": [
+        "พัดส้ม"
+      ],
+      "citations": [],
+      "citation_groups": [
+        [
+          "UAV07",
+          "หน้า 12"
+        ],
+        [
+          "UAV06",
+          "หน้า 5"
+        ]
+      ],
+      "required_numbers": "500",
+      "web_domains": [
+        "caat.or.th"
+      ],
+      "require_sufficient": true,
+      "target_seconds": 15,
+      "case_id": 3,
+      "id": 3,
+      "iteration": 1,
+      "answer": "• หัวฉีดพัดส้มมีปริมาณน้ำ 500 มล. ต่อหัวฉีด [1]\n• การขึ้นทะเบียนโดรนให้ผู้ขอขึ้นทะเบียนลงทะเบียนเข้าสู่ระบบ UAS Portal เลือกประเภทอากาศยานฯ ตามขนาดน้ำหนักที่ต้องการจดทะเบียน กรอกข้อมูลการจดทะเบียนอากาศยานซึ่งไม่มีนักบิน พร้อมวัตถุประสงค์การปฏิบัติการบิน พร้อมแนบเอกสารหลักฐานที่เกี่ยวข้องให้ครบถ้วน พร้อมรับรองข้อมูล และกดยืนยันการขึ้นทะเบียน เพื่อรอรับผลการจดทะเบียนและหมายเลข [2]\n\nแหล่งอ้างอิง:\n[1] UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12\n[2] แนวทางการปฏิบัติส าหรับผู้ขอรับบริการ\nhttps://uasportal.caat.or.th/images/infographic/guidelines/Guidelines_for_Service_Applicants.pdf",
+      "source_type": "hybrid",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานครอบคลุมทั้งข้อมูลปริมาณน้ำต่อหัวของหัวฉีดพัดส้ม และขั้นตอนการขึ้นทะเบียนโดรนผ่านระบบ UAS Portal",
+      "timings": {
+        "retrieval_ms": 1250.0,
+        "kb_generation_ms": 2469.0,
+        "web_search_ms": 3828.0,
+        "final_generation_ms": 2860.0,
+        "total_ms": 10407.0
+      },
+      "evidence_trace": [
+        {
+          "text": "หัวฉีดพัดส้มมีปริมาณน้ำ 500 มล. ต่อหัวฉีด",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "1 | พัดส้ม | 1600 | 500 | 1500",
+              "citation": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf, หน้า 12",
+              "source_file": "UAV07 หัวฉีดกับคุณภาพการฉีดพ่นของโดรนเกษตร.pdf",
+              "page_number": "12"
+            }
+          ]
+        },
+        {
+          "text": "การขึ้นทะเบียนโดรนให้ผู้ขอขึ้นทะเบียนลงทะเบียนเข้าสู่ระบบ UAS Portal เลือกประเภทอากาศยานฯ ตามขนาดน้ำหนักที่ต้องการจดทะเบียน กรอกข้อมูลการจดทะเบียนอากาศยานซึ่งไม่มีนักบิน พร้อมวัตถุประสงค์การปฏิบัติการบิน พร้อมแนบเอกสารหลักฐานที่เกี่ยวข้องให้ครบถ้วน พร้อมรับรองข้อมูล และกดยืนยันการขึ้นทะเบียน เพื่อรอรับผลการจดทะเบียนและหมายเลข",
+          "evidence": [
+            {
+              "source_id": "W1",
+              "quote": "1. ผู้ขอขึ้นทะเบียน ลงทะเบียนเข้าสู่ ระบบ UAS Portal 2. ผู้ขอขึ้นทะเบียน เลือกประเภทอากาศยานฯ ตามขนาดน ้าหนักที่ต้องการ จดทะเบียน 3. ผู้ขอขึ้นทะเบียน กรอกข้อมูลการจดทะเบียน อากาศยานซึ่งไม่มีนักบิน วัตถุประสงค์การปฏิบัติการบิน พร้อมแนบเอกสารหลักฐาน ที่เกี่ยวข้องให้ครบถ้วน พร้อมรับรองข้อมูล และกดยืนยันการขึ้นทะเบียน 4. ผู้ขอขึ้นทะเบียน ได้รับผลการจดทะเบียนอากาศยาน ซึ่งไม่มีนักบิน และหมายเลข",
+              "citation": "แนวทางการปฏิบัติส าหรับผู้ขอรับบริการ\nhttps://uasportal.caat.or.th/images/infographic/guidelines/Guidelines_for_Service_Applicants.pdf",
+              "url": "https://uasportal.caat.or.th/images/infographic/guidelines/Guidelines_for_Service_Applicants.pdf"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "partial",
+          "reason": "หลักฐานระบุปริมาณน้ำต่อหัวของหัวฉีดพัดส้ม แต่ไม่มีข้อมูลเกี่ยวกับการขึ้นทะเบียนโดรน",
+          "llm_unavailable": false
+        },
+        {
+          "stage": "web",
+          "source_count": 4
+        },
+        {
+          "stage": "combined",
+          "status": "sufficient",
+          "reason": "หลักฐานครอบคลุมทั้งข้อมูลปริมาณน้ำต่อหัวของหัวฉีดพัดส้ม และขั้นตอนการขึ้นทะเบียนโดรนผ่านระบบ UAS Portal",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 10.407,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    }
+  ]
+}

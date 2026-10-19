@@ -1,8 +1,69 @@
+> Historical snapshot before the 2026-10-17 MD overhaul. Not current instructions or status. Relative Markdown links rebased for this location.
+
 # TODO
+
+Current delivery status: [RELEASE_READINESS_2026-10-17.md](../../../RELEASE_READINESS_2026-10-17.md).
+Partial KB + web, exact-page citations, diverse reranking, the replacement evaluator,
+ingestion v2 and Docker/Compose are implemented. Remaining quality and deployment gates
+are recorded there. Counts and unchecked items below describe earlier snapshots.
+
+- [x] Final offline: Windows 372 tests + 67 subtests; Linux 371 tests + 67 subtests, 1 Windows-font skip.
+- [x] Build pinned non-root runtime image and test real Uvicorn HTTP startup against an isolated copy of the 997-chunk KB; verify Windows/Linux retrieval agrees offline.
+- [x] Complete live batches without changing code during each run; retain failures and add timeout/5xx cooldown with regressions. Targeted hybrid recheck after the fix: 3/3.
+- [ ] Close full answer-completeness/quote and latency gates; the 28-case batch passed 26/28 contracts and 24/28 latency, source gold 9/12 strict checks. Targeted passes are not full acceptance.
+- [ ] Complete Vision extraction/review of investment page 38 and extend source semantic annotations systematically.
+- [ ] On an actual host, validate volumes/backup restore/HTTPS and authorized real LINE delivery. No host or real LINE send this round.
+
+Current next-work plan: [NEXT_STEPS_PLAN.md](../../../NEXT_STEPS_PLAN.md) — source-verified gold,
+R2 retrieval, grounded web fallback, measured latency, Direct PDF comparison and deployment gates.
+
+### 2026-10-17 — Claude Code collaboration and Codex integration
+
+See [COLLAB_FIXES_2026-10-17.md](../../../COLLAB_FIXES_2026-10-17.md) and `CLAUDE_STATUS.md`.
+
+- [x] Close the original R3 row-swap probe; add row/column/unit/denominator and transposed-table regressions.
+- [x] Add durable SQLite LINE inbox, prompt ACK, event-ID deduplication, lease recovery and delivery outcome handling.
+- [x] Prevent unsafe push after an ambiguous reply; bound push retry-key lifetime and classify HTTP 409 by request context.
+- [x] Invalidate answer cache on KB/WAL revision and text/direct mode changes; do not cache CAAT answers as static data.
+- [x] Full offline suite: 236 tests + 55 subtests pass; original R3/R7 probes: exit 0, zero failures.
+- [x] Live 3-query sample: 3/3 answer contracts, 2/3 latency targets; mean 5.479s. This is not a full quality/latency certification.
+- [ ] Resolve R2 reranking configuration with dev/holdout evidence, without weakening requirements.
+- [ ] Complete original-PDF semantic annotations, full live acceptance and deployment/load/recovery validation.
+
+Entries below retain the historical state as of their stated dates.
+
+### 2026-10-16 — Requirements and engineering audit
+
+See [PROJECT_AUDIT_2026-10-16.md](../../../PROJECT_AUDIT_2026-10-16.md) for the requirement matrix, evidence and alternatives.
+
+- [x] Reproduce and fix stale Vision caches, delete-before-upsert, count-only BM25 cache invalidation, unconditional page sleeps and silent incomplete ingestion.
+- [x] Add content-addressed text embedding cache, source/extraction provenance, canonical records and JSON ingestion reports; incomplete CLI/batch runs return nonzero.
+- [x] Reproduce and fix citation-record injection by passing typed Evidence from retrieval metadata through CRAG in both modes.
+- [x] Fix acceptance CLI falsely returning success despite failed checks; reject empty evaluations. Live 3-question smoke after the citation fix passes 3/3 contract checks but 0/3 latency targets (mean 15.021s); see `AUDIT_LIVE_ACCEPTANCE_SMOKE.json`.
+- [x] Pin 112 dependency constraints and Python 3.12.10; installed environment passes `pip check` (not a clean-install/CVE audit).
+- [x] Final offline suite: **180 tests + 41 subtests pass**, one existing Starlette deprecation warning. Legacy KB integrity passes with **774 chunks / 7 PDFs / 219 pages**.
+- [x] Close the original R3 table-row probe (2026-10-17); broader semantic/table extraction validation remains open.
+- [x] Add durable async LINE event handling + webhookEventId deduplication and safe delivery retry policy (2026-10-17).
+- [ ] Replace broad regex-derived gold with manually verified source pages/facts, then compare alternatives on identical inputs and budgets.
+- [ ] Resolve the mismatch between literal R2 reranking requirements and the default `global/none`; do not enable worse heuristics just to match text.
+- [ ] Run controlled complete re-ingestion to populate new provenance after extraction quality is validated; historical chunks are unchanged by code fixes.
+
+The 2026-10-16 probe returned exit 1 with two gaps. After the 2026-10-17 fixes it returns exit 0;
+see `COLLAB_CONTRACT_GAPS_2026-10-17.json`. Passing pytest/probes is not a release approval.
+
+### 2026-10-16 — Direct PDF embedding experiment
+
+- [x] Add opt-in direct `gemini-embedding-2` PDF page ingestion and a separate collection.
+- [x] Cache page snapshots/vectors; retain published pages if an embedding fails.
+- [x] Read retrieved PDF pages on demand into cached, page-cited evidence for existing grounded answers.
+- [x] Add offline contracts, a one-page live smoke command, and retrieval comparison mode.
+- [x] Live one-page probe retrieves UAV07 page 12, reads its table, and answers 500 ml/nozzle at 1600 rpm with the original page citation. Fixed SDK schema serialization and Gemini's minimum 10s generation deadline found by this probe.
+- [x] Final verification: 162 tests + 41 subtests pass (one existing Starlette warning); legacy ingestion integrity passes with 774 chunks. Warm probe confirms no repeat PDF embedding/reading (retrieval/read 0.750s), but its answer is partial because the source does not specify a time unit. See both smoke reports; do not count the warm run as a full answer pass.
+- [ ] Compare the full direct index with the text baseline before changing the bot default (see `DIRECT_PDF.md`).
 
 ## Next session (after daily API quota resets)
 
-See [PRE_LAUNCH_CHECKLIST.md](PRE_LAUNCH_CHECKLIST.md) for the full pre-launch list — this
+See [PRE_LAUNCH_CHECKLIST.md](../../../PRE_LAUNCH_CHECKLIST.md) for the full pre-launch list — this
 is just the immediate next step:
 
 - [ ] Re-run `python -m scripts.evaluate_acceptance` (all 28 cases, no `--limit`) with a
@@ -15,8 +76,8 @@ is just the immediate next step:
 
 ### Review follow-up — 2026-10-14 (resolved by pipeline rewrite + 2026-10-15 fixes)
 
-System review: [RAG_SYSTEM_REVIEW.md](RAG_SYSTEM_REVIEW.md) — now historical, see its banner.
-Current status: see [CURRENT_STATE.md](CURRENT_STATE.md). 74 contract tests pass
+System review: [RAG_SYSTEM_REVIEW.md](../../../RAG_SYSTEM_REVIEW.md) — now historical, see its banner.
+Current status: see [CURRENT_STATE.md](../../../CURRENT_STATE.md). 74 contract tests pass
 (`python -m pytest tests/`); live acceptance re-run still pending (see below).
 
 - [x] Fetch actual CAAT evidence instead of injecting static facts (`web_fallback.py` calls `client.extract()` on the real CAAT page)
@@ -71,7 +132,7 @@ Current status: see [CURRENT_STATE.md](CURRENT_STATE.md). 74 contract tests pass
 
 ### P3 — Deployment
 
-See [PRE_LAUNCH_CHECKLIST.md](PRE_LAUNCH_CHECKLIST.md) for the full breakdown.
+See [PRE_LAUNCH_CHECKLIST.md](../../../PRE_LAUNCH_CHECKLIST.md) for the full breakdown.
 
 - [ ] Deployment configuration
 - [ ] Environment variables

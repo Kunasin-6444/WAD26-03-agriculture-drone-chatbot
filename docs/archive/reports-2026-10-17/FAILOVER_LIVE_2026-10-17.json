@@ -1,0 +1,280 @@
+{
+  "generated_at": "2026-10-17T11:15:43.706672+07:00",
+  "mode": "live",
+  "note": "Automatic source/aspect checks; semantic review against originals remains necessary. Sample p95 is not a production guarantee. Provider failures stay in the denominator.",
+  "warmup": true,
+  "answer_cache": "bypassed",
+  "repeat": 1,
+  "concurrency": 1,
+  "dataset": "acceptance_28",
+  "complete_run": true,
+  "total": 3,
+  "contract_passed": 3,
+  "latency_passed": 2,
+  "mean_seconds": 5.537,
+  "p50_seconds": 5.61,
+  "p95_seconds": 8.282,
+  "provider_error_requests": 0,
+  "by_source": {
+    "knowledge_base": {
+      "total": 3,
+      "contract_passed": 3,
+      "latency_passed": 2,
+      "mean_seconds": 5.537,
+      "p50_seconds": 5.61,
+      "p95_seconds": 8.282,
+      "provider_error_requests": 0
+    }
+  },
+  "results": [
+    {
+      "query": "ข้อควรระวังในการผสมสารกำจัดวัชพืชมากกว่า 1 ชนิด",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "สาร"
+      ],
+      "citations": [
+        "UAV"
+      ],
+      "target_seconds": 8,
+      "case_id": 11,
+      "id": 11,
+      "iteration": 1,
+      "answer": "• การผสมสารกำจัดวัชพืชมากกว่า 1 ชนิดในถังเดียวกัน มีวัตถุประสงค์เพื่อทำให้การใช้สารกำจัดวัชพืชมีประสิทธิภาพสูงขึ้นหรือสามารถควบคุมวัชพืชได้มากชนิดขึ้น [1]\n• ควรเทน้ำลงในถังพ่นเล็กน้อยก่อน เพื่อป้องกันไม่ให้สารติดก้นถัง [1]\n• ให้ละลายสารสำเร็จรูปที่อยู่ในรูปผงละเอียดกับน้ำก่อนเพียงเล็กน้อย คนให้ละลายเข้ากัน แล้วจึงเทลงในถังพ่น และเติมน้ำลงไปประมาณครึ่งถัง [1]\n• ให้ละลายน้ำกับสารสำเร็จรูปที่อยู่ในรูปของเหลวในลักษณะเดียวกับผงละเอียด แล้วจึงเทลงในถังพ่น หลังจากนั้นจึงเติมน้ำที่เหลือให้ได้ปริมาตรตามที่ต้องการ [1]\n• ห้ามผสมสารสำเร็จรูปเข้มข้นปนกันโดยตรง [1]\n\nแหล่งอ้างอิง:\n[1] UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 10",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานจาก D1 ระบุขั้นตอนและข้อควรระวังในการผสมสารกำจัดวัชพืชมากกว่า 1 ชนิดไว้อย่างครบถ้วน",
+      "timings": {
+        "retrieval_ms": 1047.0,
+        "kb_generation_ms": 4563.0,
+        "total_ms": 5610.0
+      },
+      "evidence_trace": [
+        {
+          "text": "การผสมสารกำจัดวัชพืชมากกว่า 1 ชนิดในถังเดียวกัน มีวัตถุประสงค์เพื่อทำให้การใช้สารกำจัดวัชพืชมีประสิทธิภาพสูงขึ้นหรือสามารถควบคุมวัชพืชได้มากชนิดขึ้น",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "การผสมสารกำจัดวัชพืช การผสมสารกำจัดวัชพืชมากกว่า 1 ชนิดในถังเดียวกัน เพื่อทำให้การใช้สารกำจัดวัชพืชมีประสิทธิภาพสูงขึ้นหรือสามารถควบคุมวัชพืช ได้มากชนิดขึ้น",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 10",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "10"
+            }
+          ]
+        },
+        {
+          "text": "ควรเทน้ำลงในถังพ่นเล็กน้อยก่อน เพื่อป้องกันไม่ให้สารติดก้นถัง",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "เทน้ำลงในถังพ่น เล็กน้อย เพื่อป้องกัน ไม่ให้สารติดก้นถัง",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 10",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "10"
+            }
+          ]
+        },
+        {
+          "text": "ให้ละลายสารสำเร็จรูปที่อยู่ในรูปผงละเอียดกับน้ำก่อนเพียงเล็กน้อย คนให้ละลายเข้ากัน แล้วจึงเทลงในถังพ่น และเติมน้ำลงไปประมาณครึ่งถัง",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "ละลายสารสำเร็จรูปที่อยู่ ในรูปผงละเอียดกับน้ำ ก่อนเพียงเล็กน้อย คนให้ ละลายเข้ากัน แล้วจึงเทลง ในถังพ่น เติมน้ำลงไป ประมาณครึ่งถัง",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 10",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "10"
+            }
+          ]
+        },
+        {
+          "text": "ให้ละลายน้ำกับสารสำเร็จรูปที่อยู่ในรูปของเหลวในลักษณะเดียวกับผงละเอียด แล้วจึงเทลงในถังพ่น หลังจากนั้นจึงเติมน้ำที่เหลือให้ได้ปริมาตรตามที่ต้องการ",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "ละลายน้ำกับสารสำเร็จรูป ที่อยู่ในรูปของเหลวใน ลักษณะเดียวกับข้อ 2 แล้ว จึงเทลงในถังพ่น หลังจาก นั้นจึงเติมน้ำที่เหลือให้ได้ ปริมาตรตามที่ต้องการ",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 10",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "10"
+            }
+          ]
+        },
+        {
+          "text": "ห้ามผสมสารสำเร็จรูปเข้มข้นปนกันโดยตรง",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "ห้ามผสมสารสำเร็จรูป เข้มข้นปนกันโดยตรง",
+              "citation": "UAV09 การใช้สารกำจัดวัชพืช.pdf, หน้า 10",
+              "source_file": "UAV09 การใช้สารกำจัดวัชพืช.pdf",
+              "page_number": "10"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐานจาก D1 ระบุขั้นตอนและข้อควรระวังในการผสมสารกำจัดวัชพืชมากกว่า 1 ชนิดไว้อย่างครบถ้วน",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 5.61,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "query": "วัชพืชในข้าวโพดควรควบคุมอย่างไร",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "ข้าวโพด"
+      ],
+      "citations": [
+        "UAV"
+      ],
+      "target_seconds": 8,
+      "case_id": 12,
+      "id": 12,
+      "iteration": 1,
+      "answer": "• สารกำจัดวัชพืชที่ใช้ในข้าวโพดในระยะ pre-planting คือ glyphosate [1]\n• สารกำจัดวัชพืชที่ใช้ในข้าวโพดในระยะ pre-emergence ได้แก่ alachlor, atrazine, isoxaflutole, metolachlor, acetochlor และ pendimethalin [1]\n• สารกำจัดวัชพืชที่ใช้ในข้าวโพดในระยะ post-emergence ได้แก่ 2,4-D, metribuzine+ 2,4-D และ atrazine [1]\n\nแหล่งอ้างอิง:\n[1] UAV08 วัชพืชและการควบคุม application.pdf, หน้า 43",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐาน D1 ระบุประเภทและตัวอย่างสารกำจัดวัชพืชที่ใช้ในข้าวโพดจำแนกตามระยะการเจริญเติบโตได้อย่างชัดเจนครบถ้วน",
+      "timings": {
+        "retrieval_ms": 843.0,
+        "kb_generation_ms": 1860.0,
+        "total_ms": 2718.0
+      },
+      "evidence_trace": [
+        {
+          "text": "สารกำจัดวัชพืชที่ใช้ในข้าวโพดในระยะ pre-planting คือ glyphosate",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "สาร pre-planting: glyphosate",
+              "citation": "UAV08 วัชพืชและการควบคุม application.pdf, หน้า 43",
+              "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+              "page_number": "43"
+            }
+          ]
+        },
+        {
+          "text": "สารกำจัดวัชพืชที่ใช้ในข้าวโพดในระยะ pre-emergence ได้แก่ alachlor, atrazine, isoxaflutole, metolachlor, acetochlor และ pendimethalin",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "สาร pre-emergence: alachlor, atrazine, isoxaflutole, metolachlor, acetochlor, pendimethalin",
+              "citation": "UAV08 วัชพืชและการควบคุม application.pdf, หน้า 43",
+              "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+              "page_number": "43"
+            }
+          ]
+        },
+        {
+          "text": "สารกำจัดวัชพืชที่ใช้ในข้าวโพดในระยะ post-emergence ได้แก่ 2,4-D, metribuzine+ 2,4-D และ atrazine",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "สาร post-emergence: 2,4-D, metribuzine+ 2,4-D, atrazine",
+              "citation": "UAV08 วัชพืชและการควบคุม application.pdf, หน้า 43",
+              "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+              "page_number": "43"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐาน D1 ระบุประเภทและตัวอย่างสารกำจัดวัชพืชที่ใช้ในข้าวโพดจำแนกตามระยะการเจริญเติบโตได้อย่างชัดเจนครบถ้วน",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 2.718,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    },
+    {
+      "query": "การควบคุมวัชพืชในอ้อยช่วงแตกกอ",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "อ้อย"
+      ],
+      "citations": [
+        "UAV"
+      ],
+      "target_seconds": 8,
+      "case_id": 13,
+      "id": 13,
+      "iteration": 1,
+      "answer": "• เครื่องมือที่สามารถทำงานได้ในแปลงอ้อยจนถึงระยะแตกกอ ได้แก่ โดรนและรถแทรกเตอร์ [1]\n• เครื่องมือที่สามารถทำงานได้ครอบคลุมจนถึงระยะแตกกอ [1]\n\nยังยืนยันไม่ได้: บางประเด็นของคำถามยังตรวจสอบหลักฐานไม่ได้\n\nแหล่งอ้างอิง:\n[1] UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 14",
+      "source_type": "knowledge_base",
+      "grade": "AMBIGUOUS",
+      "grade_reason": "Some claims rejected: Quote not in supplied evidence",
+      "timings": {
+        "retrieval_ms": 844.0,
+        "kb_generation_ms": 1891.0,
+        "web_search_ms": 3562.0,
+        "final_generation_ms": 1985.0,
+        "total_ms": 8282.0
+      },
+      "evidence_trace": [
+        {
+          "text": "เครื่องมือที่สามารถทำงานได้ในแปลงอ้อยจนถึงระยะแตกกอ ได้แก่ โดรนและรถแทรกเตอร์",
+          "evidence": [
+            {
+              "source_id": "D2",
+              "quote": "เครื่องมือที่สามารถทำงานได้จนถึงระยะแตกกอ",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 14",
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": "14"
+            }
+          ]
+        },
+        {
+          "text": "เครื่องมือที่สามารถทำงานได้ครอบคลุมจนถึงระยะแตกกอ",
+          "evidence": [
+            {
+              "source_id": "D2",
+              "quote": "เครื่องมือที่สามารถทำงานได้จนถึงระยะแตกกอ",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 14",
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": "14"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "partial",
+          "reason": "Some claims rejected: Quote not in supplied evidence",
+          "llm_unavailable": false
+        },
+        {
+          "stage": "web",
+          "source_count": 4
+        },
+        {
+          "stage": "combined",
+          "status": "partial",
+          "reason": "Some claims rejected: Quote not in supplied evidence",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 8.282,
+      "contract_pass": true,
+      "latency_pass": false,
+      "reasons": []
+    }
+  ]
+}

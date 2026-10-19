@@ -1,0 +1,152 @@
+{
+  "generated_at": "2026-10-17T11:24:20.083829+07:00",
+  "mode": "live",
+  "note": "Automatic source/aspect checks; semantic review against originals remains necessary. Sample p95 is not a production guarantee. Provider failures stay in the denominator.",
+  "warmup": true,
+  "answer_cache": "bypassed",
+  "repeat": 1,
+  "concurrency": 1,
+  "dataset": "tests\\data\\hybrid_acceptance.json",
+  "complete_run": true,
+  "total": 1,
+  "contract_passed": 1,
+  "latency_passed": 1,
+  "mean_seconds": 11.438,
+  "p50_seconds": 11.438,
+  "p95_seconds": 11.438,
+  "provider_error_requests": 0,
+  "by_source": {
+    "hybrid": {
+      "total": 1,
+      "contract_passed": 1,
+      "latency_passed": 1,
+      "mean_seconds": 11.438,
+      "p50_seconds": 11.438,
+      "p95_seconds": 11.438,
+      "provider_error_requests": 0
+    }
+  },
+  "results": [
+    {
+      "query": "พัดส้มมีปริมาณน้ำต่อหัวเท่าไร และขึ้นทะเบียนโดรนอย่างไร",
+      "sources": [
+        "hybrid"
+      ],
+      "terms": [
+        "พัดส้ม"
+      ],
+      "citations": [],
+      "citation_groups": [
+        [
+          "UAV07",
+          "หน้า 12"
+        ],
+        [
+          "UAV06",
+          "หน้า 5"
+        ]
+      ],
+      "required_numbers": "500",
+      "web_domains": [
+        "caat.or.th"
+      ],
+      "require_sufficient": true,
+      "target_seconds": 15,
+      "case_id": 3,
+      "id": 3,
+      "iteration": 1,
+      "answer": "• พัดส้มมีปริมาณน้ำ 500 มล. ต่อหัวฉีด ที่รอบการทำงาน 1600 รอบต่อนาที [1]\n• หัวฉีดพัดส้มมีปริมาณน้ำต่อหัว 500 มิลลิลิตร ที่รอบการทำงาน 1600 รอบต่อนาที [1]\n• การขึ้นทะเบียนโดรนให้ผู้ขอขึ้นทะเบียนลงทะเบียนเข้าสู่ระบบ UAS Portal [2]\n• เลือกประเภทอากาศยานฯ ตามขนาดน้ำหนักที่ต้องการจดทะเบียน [2]\n• กรอกข้อมูลการจดทะเบียนอากาศยานซึ่งไม่มีนักบินและวัตถุประสงค์การปฏิบัติการบิน พร้อมแนบเอกสารหลักฐานที่เกี่ยวข้อง พร้อมรับรองข้อมูลและกดยืนยันการขึ้นทะเบียนเพื่อรับผลการจดทะเบียน [2]\n\nแหล่งอ้างอิง:\n[1] UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5\n[2] แนวทางการปฏิบัติส าหรับผู้ขอรับบริการ\nhttps://uasportal.caat.or.th/images/infographic/guidelines/Guidelines_for_Service_Applicants.pdf",
+      "source_type": "hybrid",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานครอบคลุมทั้งข้อมูลปริมาณน้ำต่อหัวของหัวฉีดพัดส้มและขั้นตอนการขึ้นทะเบียนโดรนผ่านระบบ UAS Portal",
+      "timings": {
+        "retrieval_ms": 1109.0,
+        "kb_generation_ms": 4844.0,
+        "web_search_ms": 3219.0,
+        "final_generation_ms": 2266.0,
+        "total_ms": 11438.0
+      },
+      "evidence_trace": [
+        {
+          "text": "พัดส้มมีปริมาณน้ำ 500 มล. ต่อหัวฉีด ที่รอบการทำงาน 1600 รอบต่อนาที",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "พัดส้ม | 1600 | 500 | 1500",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": "5"
+            }
+          ]
+        },
+        {
+          "text": "หัวฉีดพัดส้มมีปริมาณน้ำต่อหัว 500 มิลลิลิตร ที่รอบการทำงาน 1600 รอบต่อนาที",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "พัดส้ม | 1600 | 500 | 1500",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+              "source_file": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf",
+              "page_number": "5"
+            }
+          ]
+        },
+        {
+          "text": "การขึ้นทะเบียนโดรนให้ผู้ขอขึ้นทะเบียนลงทะเบียนเข้าสู่ระบบ UAS Portal",
+          "evidence": [
+            {
+              "source_id": "W1",
+              "quote": "ผู้ขอขึ้นทะเบียน ลงทะเบียนเข้าสู่ ระบบ UAS Portal",
+              "citation": "แนวทางการปฏิบัติส าหรับผู้ขอรับบริการ\nhttps://uasportal.caat.or.th/images/infographic/guidelines/Guidelines_for_Service_Applicants.pdf",
+              "url": "https://uasportal.caat.or.th/images/infographic/guidelines/Guidelines_for_Service_Applicants.pdf"
+            }
+          ]
+        },
+        {
+          "text": "เลือกประเภทอากาศยานฯ ตามขนาดน้ำหนักที่ต้องการจดทะเบียน",
+          "evidence": [
+            {
+              "source_id": "W1",
+              "quote": "ผู้ขอขึ้นทะเบียน เลือกประเภทอากาศยานฯ ตามขนาดน ้าหนักที่ต้องการ จดทะเบียน",
+              "citation": "แนวทางการปฏิบัติส าหรับผู้ขอรับบริการ\nhttps://uasportal.caat.or.th/images/infographic/guidelines/Guidelines_for_Service_Applicants.pdf",
+              "url": "https://uasportal.caat.or.th/images/infographic/guidelines/Guidelines_for_Service_Applicants.pdf"
+            }
+          ]
+        },
+        {
+          "text": "กรอกข้อมูลการจดทะเบียนอากาศยานซึ่งไม่มีนักบินและวัตถุประสงค์การปฏิบัติการบิน พร้อมแนบเอกสารหลักฐานที่เกี่ยวข้อง พร้อมรับรองข้อมูลและกดยืนยันการขึ้นทะเบียนเพื่อรับผลการจดทะเบียน",
+          "evidence": [
+            {
+              "source_id": "W1",
+              "quote": "ผู้ขอขึ้นทะเบียน กรอกข้อมูลการจดทะเบียน อากาศยานซึ่งไม่มีนักบิน วัตถุประสงค์การปฏิบัติการบิน พร้อมแนบเอกสารหลักฐาน ที่เกี่ยวข้องให้ครบถ้วน พร้อมรับรองข้อมูล และกดยืนยันการขึ้นทะเบียน",
+              "citation": "แนวทางการปฏิบัติส าหรับผู้ขอรับบริการ\nhttps://uasportal.caat.or.th/images/infographic/guidelines/Guidelines_for_Service_Applicants.pdf",
+              "url": "https://uasportal.caat.or.th/images/infographic/guidelines/Guidelines_for_Service_Applicants.pdf"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "partial",
+          "reason": "หลักฐานมีข้อมูลปริมาณน้ำต่อหัวของพัดส้ม แต่ไม่มีข้อมูลเกี่ยวกับการขึ้นทะเบียนโดรน",
+          "llm_unavailable": false
+        },
+        {
+          "stage": "web",
+          "source_count": 4
+        },
+        {
+          "stage": "combined",
+          "status": "sufficient",
+          "reason": "หลักฐานครอบคลุมทั้งข้อมูลปริมาณน้ำต่อหัวของหัวฉีดพัดส้มและขั้นตอนการขึ้นทะเบียนโดรนผ่านระบบ UAS Portal",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 11.438,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    }
+  ]
+}

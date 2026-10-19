@@ -1,0 +1,76 @@
+{
+  "generated_at": "2026-10-17T10:50:00.707348+07:00",
+  "mode": "live",
+  "note": "Automatic evidence/routing/aspect checks; full semantic support requires manual source review. Provider timeouts are request budgets, not latency guarantees.",
+  "total": 1,
+  "contract_passed": 1,
+  "latency_passed": 1,
+  "mean_seconds": 7.25,
+  "p95_seconds": 7.25,
+  "results": [
+    {
+      "id": 3,
+      "query": "พัดส้มมีอัตราการไหลและหน้ากว้างพ่นที่ความสูง 1 เมตรเท่าไร",
+      "sources": [
+        "knowledge_base"
+      ],
+      "terms": [
+        "500",
+        "2.8"
+      ],
+      "citations": [],
+      "citation_groups": [
+        [
+          "UAV07"
+        ],
+        [
+          "UAV06"
+        ]
+      ],
+      "target_seconds": 8,
+      "answer": "• หัวฉีดพัดส้มที่รอบ 1600 rpm มีปริมาณน้ำ 500 ml ต่อหัวฉีด และ 1500 ml สำหรับ 3 หัวฉีด [1]\n• ที่ระดับความสูง 1.0 เมตร หัวฉีดพัดส้มมีระยะหน้ากว้างการฉีดพ่นต่อหัว 2.856 เมตร และหน้ากว้างรวม 4.556 เมตรสำหรับ 3 หัวฉีด [1]\n\nแหล่งอ้างอิง:\n[1] UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5",
+      "source_type": "knowledge_base",
+      "grade": "CORRECT",
+      "grade_reason": "หลักฐานมีข้อมูลอัตราการไหลและหน้ากว้างพ่นของหัวฉีดพัดส้มที่ความสูง 1 เมตรครบถ้วน",
+      "timings": {
+        "retrieval_ms": 3640.0,
+        "kb_generation_ms": 3610.0,
+        "total_ms": 7250.0
+      },
+      "evidence_trace": [
+        {
+          "text": "หัวฉีดพัดส้มที่รอบ 1600 rpm มีปริมาณน้ำ 500 ml ต่อหัวฉีด และ 1500 ml สำหรับ 3 หัวฉีด",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "1 | พัดส้ม | 1600 | 500 | 1500",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5"
+            }
+          ]
+        },
+        {
+          "text": "ที่ระดับความสูง 1.0 เมตร หัวฉีดพัดส้มมีระยะหน้ากว้างการฉีดพ่นต่อหัว 2.856 เมตร และหน้ากว้างรวม 4.556 เมตรสำหรับ 3 หัวฉีด",
+          "evidence": [
+            {
+              "source_id": "D1",
+              "quote": "1.0 | 2.856 | 4.556",
+              "citation": "UAV06 โดรนฉีดพ่นเพื่อการเกษตร.pdf, หน้า 5"
+            }
+          ]
+        }
+      ],
+      "diagnostics": [
+        {
+          "stage": "kb",
+          "status": "sufficient",
+          "reason": "หลักฐานมีข้อมูลอัตราการไหลและหน้ากว้างพ่นของหัวฉีดพัดส้มที่ความสูง 1 เมตรครบถ้วน",
+          "llm_unavailable": false
+        }
+      ],
+      "seconds": 7.25,
+      "contract_pass": true,
+      "latency_pass": true,
+      "reasons": []
+    }
+  ]
+}

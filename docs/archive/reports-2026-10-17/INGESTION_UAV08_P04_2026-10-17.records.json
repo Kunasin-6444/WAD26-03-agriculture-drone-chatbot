@@ -1,0 +1,116 @@
+{
+  "schema": "ingestion_records_v1",
+  "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+  "source_sha256": "ec7b3d1e85847e16ad9ad64666e106ac53111c64b614295af25f4bd17103ce63",
+  "units": [
+    {
+      "id": "UAV08-p4-text-native-1-0252f1",
+      "document_id": "UAV08",
+      "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+      "page_number": 4,
+      "source_type": "text",
+      "content": "ระยะวิกฤตของการแข่งขันกับวัชพืช\n(critical period of competition)\nวัชพืชและการควบคุม รศ.ดร.สันติไมตรี ก้อนคำดี\nผลผลิตของอ้อยฤดูฝนเมื่อมีการกำจัดวัชพืชในช่วงเวลาต่างๆ กัน\nดัดแปูงจาก เกูียวพันธุ์ (2525)\n7",
+      "extracted_text": "ระยะวิกฤตของการแข่งขันกับวัชพืช\n(critical period of competition)\nวัชพืชและการควบคุม รศ.ดร.สันติไมตรี ก้อนคำดี\nผลผลิตของอ้อยฤดูฝนเมื่อมีการกำจัดวัชพืชในช่วงเวลาต่างๆ กัน\nดัดแปูงจาก เกูียวพันธุ์ (2525)\n7",
+      "visual_description": null,
+      "title": null,
+      "metadata": {
+        "source": "pdf_text",
+        "source_sha256": "ec7b3d1e85847e16ad9ad64666e106ac53111c64b614295af25f4bd17103ce63",
+        "ingestion_version": "text_v3",
+        "extraction_complete": "true"
+      }
+    },
+    {
+      "id": "UAV08-p4-table-vision-1-c878d1",
+      "document_id": "UAV08",
+      "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+      "page_number": 4,
+      "source_type": "table",
+      "content": "ประเภท: ตารางแสดงผลผลิตของอ้อยฤดูฝนเมื่อมีการกำจัดวัชพืชในช่วงเวลาต่างๆ กัน\n\nข้อมูลจากภาพ:\nช่วงเวลา | ผลผลิต (ตัน/ไร่) \nควบคุมวัชพืช 1 เดือน | 1.6 \nควบคุมวัชพืช 2 เดือน | 3.7 \nควบคุมวัชพืช 3 เดือน | 9.7 \nควบคุมวัชพืช 4 เดือน | 9.9 \nควบคุมวัชพืช 5 เดือน | 10.0 \nควบคุมวัชพืชตลอดฤดูปลูก | 10.7\n\nคำอธิบายภาพ:\nตารางมี 2 คอลัมน์หลัก คือ ช่วงเวลา และ ผลผลิต (ตัน/ไร่) โดยมีหัวข้อหลักด้านบนระบุว่า ผลผลิตของอ้อยฤดูฝนเมื่อมีการกำจัดวัชพืชในช่วงเวลาต่างๆ กัน ข้อมูลภายในตารางแสดงระยะเวลาการควบคุมวัชพืชตั้งแต่ 1 เดือน, 2 เดือน, 3 เดือน, 4 เดือน, 5 เดือน จนถึงตลอดฤดูปลูก สอดคล้องกับค่าผลผลิตที่เพิ่มขึ้นตามระยะเวลาการควบคุมวัชพืชจาก 1.6 ถึง 10.7 ตันต่อไร่",
+      "extracted_text": "ช่วงเวลา | ผลผลิต (ตัน/ไร่) \nควบคุมวัชพืช 1 เดือน | 1.6 \nควบคุมวัชพืช 2 เดือน | 3.7 \nควบคุมวัชพืช 3 เดือน | 9.7 \nควบคุมวัชพืช 4 เดือน | 9.9 \nควบคุมวัชพืช 5 เดือน | 10.0 \nควบคุมวัชพืชตลอดฤดูปลูก | 10.7",
+      "visual_description": "ตารางมี 2 คอลัมน์หลัก คือ ช่วงเวลา และ ผลผลิต (ตัน/ไร่) โดยมีหัวข้อหลักด้านบนระบุว่า ผลผลิตของอ้อยฤดูฝนเมื่อมีการกำจัดวัชพืชในช่วงเวลาต่างๆ กัน ข้อมูลภายในตารางแสดงระยะเวลาการควบคุมวัชพืชตั้งแต่ 1 เดือน, 2 เดือน, 3 เดือน, 4 เดือน, 5 เดือน จนถึงตลอดฤดูปลูก สอดคล้องกับค่าผลผลิตที่เพิ่มขึ้นตามระยะเวลาการควบคุมวัชพืชจาก 1.6 ถึง 10.7 ตันต่อไร่",
+      "title": "ตารางแสดงผลผลิตของอ้อยฤดูฝนเมื่อมีการกำจัดวัชพืชในช่วงเวลาต่างๆ กัน",
+      "metadata": {
+        "source": "vision",
+        "vision_status": "clear",
+        "source_sha256": "ec7b3d1e85847e16ad9ad64666e106ac53111c64b614295af25f4bd17103ce63",
+        "ingestion_version": "text_v3",
+        "extraction_complete": "true"
+      }
+    },
+    {
+      "id": "UAV08-p4-mixed-vision_summary-1-719fde",
+      "document_id": "UAV08",
+      "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+      "page_number": 4,
+      "source_type": "mixed",
+      "content": "ตารางแสดงผลผลิตของอ้อยฤดูฝนเมื่อมีการกำจัดวัชพืชในช่วงเวลาต่างๆ กัน โดยแสดงช่วงเวลาการควบคุมวัชพืชและผลผลิตเป็นตันต่อไร่",
+      "extracted_text": null,
+      "visual_description": null,
+      "title": "Visual summary",
+      "metadata": {
+        "source": "vision_summary",
+        "source_sha256": "ec7b3d1e85847e16ad9ad64666e106ac53111c64b614295af25f4bd17103ce63",
+        "ingestion_version": "text_v3",
+        "extraction_complete": "true"
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "UAV08-p4-text-native-1-0252f1-chunk-1",
+      "content": "ระยะวิกฤตของการแข่งขันกับวัชพืช\n(critical period of competition)\nวัชพืชและการควบคุม รศ.ดร.สันติไมตรี ก้อนคำดี\nผลผลิตของอ้อยฤดูฝนเมื่อมีการกำจัดวัชพืชในช่วงเวลาต่างๆ กัน\nดัดแปูงจาก เกูียวพันธุ์ (2525)\n7",
+      "document_id": "UAV08",
+      "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+      "page_number": 4,
+      "source_type": "text",
+      "metadata": {
+        "source": "pdf_text",
+        "source_sha256": "ec7b3d1e85847e16ad9ad64666e106ac53111c64b614295af25f4bd17103ce63",
+        "ingestion_version": "text_v3",
+        "extraction_complete": "true",
+        "document_id": "UAV08",
+        "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+        "page_number": "4",
+        "source_type": "text"
+      }
+    },
+    {
+      "id": "UAV08-p4-table-vision-1-c878d1-chunk-1",
+      "content": "ประเภท: ตารางแสดงผลผลิตของอ้อยฤดูฝนเมื่อมีการกำจัดวัชพืชในช่วงเวลาต่างๆ กัน\n\nข้อมูลจากภาพ:\nช่วงเวลา | ผลผลิต (ตัน/ไร่) \nควบคุมวัชพืช 1 เดือน | 1.6 \nควบคุมวัชพืช 2 เดือน | 3.7 \nควบคุมวัชพืช 3 เดือน | 9.7 \nควบคุมวัชพืช 4 เดือน | 9.9 \nควบคุมวัชพืช 5 เดือน | 10.0 \nควบคุมวัชพืชตลอดฤดูปลูก | 10.7\n\nคำอธิบายภาพ:\nตารางมี 2 คอลัมน์หลัก คือ ช่วงเวลา และ ผลผลิต (ตัน/ไร่) โดยมีหัวข้อหลักด้านบนระบุว่า ผลผลิตของอ้อยฤดูฝนเมื่อมีการกำจัดวัชพืชในช่วงเวลาต่างๆ กัน ข้อมูลภายในตารางแสดงระยะเวลาการควบคุมวัชพืชตั้งแต่ 1 เดือน, 2 เดือน, 3 เดือน, 4 เดือน, 5 เดือน จนถึงตลอดฤดูปลูก สอดคล้องกับค่าผลผลิตที่เพิ่มขึ้นตามระยะเวลาการควบคุมวัชพืชจาก 1.6 ถึง 10.7 ตันต่อไร่",
+      "document_id": "UAV08",
+      "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+      "page_number": 4,
+      "source_type": "table",
+      "metadata": {
+        "source": "vision",
+        "vision_status": "clear",
+        "source_sha256": "ec7b3d1e85847e16ad9ad64666e106ac53111c64b614295af25f4bd17103ce63",
+        "ingestion_version": "text_v3",
+        "extraction_complete": "true",
+        "document_id": "UAV08",
+        "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+        "page_number": "4",
+        "source_type": "table"
+      }
+    },
+    {
+      "id": "UAV08-p4-mixed-vision_summary-1-719fde-chunk-1",
+      "content": "ตารางแสดงผลผลิตของอ้อยฤดูฝนเมื่อมีการกำจัดวัชพืชในช่วงเวลาต่างๆ กัน โดยแสดงช่วงเวลาการควบคุมวัชพืชและผลผลิตเป็นตันต่อไร่",
+      "document_id": "UAV08",
+      "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+      "page_number": 4,
+      "source_type": "mixed",
+      "metadata": {
+        "source": "vision_summary",
+        "source_sha256": "ec7b3d1e85847e16ad9ad64666e106ac53111c64b614295af25f4bd17103ce63",
+        "ingestion_version": "text_v3",
+        "extraction_complete": "true",
+        "document_id": "UAV08",
+        "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+        "page_number": "4",
+        "source_type": "mixed"
+      }
+    }
+  ]
+}

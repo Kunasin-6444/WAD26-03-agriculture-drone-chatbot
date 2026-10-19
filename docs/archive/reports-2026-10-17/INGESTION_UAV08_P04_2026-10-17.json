@@ -1,0 +1,20 @@
+{
+  "mode": "text",
+  "source_file": "UAV08 วัชพืชและการควบคุม application.pdf",
+  "document_id": "UAV08",
+  "source_sha256": "ec7b3d1e85847e16ad9ad64666e106ac53111c64b614295af25f4bd17103ce63",
+  "embedding_model": "gemini-embedding-2",
+  "requested_pages": [
+    4
+  ],
+  "processed_pages": [
+    4
+  ],
+  "failed_pages": {},
+  "degraded_pages": [],
+  "empty_pages": [],
+  "chunks": 3,
+  "complete": true,
+  "records_path": "docs\\INGESTION_UAV08_P04_2026-10-17.records.json",
+  "seconds": 1.454
+}
