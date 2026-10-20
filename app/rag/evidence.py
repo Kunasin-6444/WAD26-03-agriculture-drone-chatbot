@@ -230,11 +230,20 @@ def _parse_claim(item: dict, by_id: dict[str, Evidence]) -> Claim:
 _AVIATION_CONTEXT = re.compile(r"โดรน|อากาศยาน|บิน|น่านฟ้า|uas|uav|caat|กพท", re.IGNORECASE)
 
 
-def is_drone_insurance_topic(text: str) -> bool:
-    """Drone insurance is a CAAT requirement whatever the question asks (cover, cost, how to buy),
-    so the official page is fetched with the documents. Lines are still checked by the stricter
-    `_is_aviation_regulation`: a cost from a document is not a requirement."""
-    return "ประกัน" in text and bool(_AVIATION_CONTEXT.search(text))
+# Subjects CAAT rules govern, written the way pilots ask ("จดทะเบียน", "บินกลางคืนได้ไหม", "ใกล้สนามบิน").
+# The keyword list in crag_grader routes only exact legal wording; 14 of 20 everyday rule questions
+# went to the documents alone (2026-10-20). Operational limits ("ลมแรงเท่าไร", "ความสูงในการพ่น") are not here.
+_RULE_SUBJECT = re.compile(
+    r"ทะเบียน|ใบอนุญาต|อนุญาต|ใบรับรอง|สอบใบ|สนามบิน|เขตห้าม|พื้นที่ห้าม|น่านฟ้า|กลางคืน|ระยะสายตา"
+    r"|สูงสุดกี่|บินได้สูง|สูงเกิน|แจ้งก่อนบิน|กฎหมาย|โทษ|โดนปรับ|ถูกปรับ|ค่าปรับ|จำคุก|ประกัน"
+    r"|กฎ|ข้อบังคับ|ระเบียบ|เกิน\s*25\s*(?:กิโล|กก)|ชุมชน|บ้านคน|ฝูงชน")
+
+
+def is_drone_rule_topic(text: str) -> bool:
+    """A question about a subject CAAT rules govern (registration, permits, where/when/how high one may
+    fly, penalties, insurance). The official page is fetched with the documents, which may hold costs or
+    practice. Lines are still checked by the stricter `_is_aviation_regulation`."""
+    return bool(_AVIATION_CONTEXT.search(text) and _RULE_SUBJECT.search(text))
 
 
 def _is_aviation_regulation(text: str) -> bool:

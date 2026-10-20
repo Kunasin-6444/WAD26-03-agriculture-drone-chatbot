@@ -26,6 +26,14 @@ NOT_FOUND = "NOT_FOUND"
 GAP_LABEL = "ยังยืนยันไม่ได้: "
 DROPPED_GAP = "บางส่วนของคำตอบตรวจกับแหล่งอ้างอิงไม่ผ่าน จึงไม่แสดง"
 CAAT_PAGE_REQUIRED = "drone-law line without a CAAT page"
+# CAAT web results include dated announcements (a 2025 temporary night-flight ban read as a standing
+# rule, 2026-10-20); the system says so instead of trusting every model to name the announcement.
+CAAT_NOTE = "หมายเหตุ: ข้อกำหนดของ กพท. เปลี่ยนตามประกาศได้ ก่อนบินจริงควรตรวจประกาศล่าสุดที่ https://uasportal.caat.or.th"
+CAAT_NEWS_NOTE = ("หมายเหตุ: ข้อมูลบางส่วนมาจากข่าวของ กพท. ({title}) ซึ่งอาจเป็นเงื่อนไขเฉพาะช่วงเวลา "
+                  "ก่อนบินจริงควรตรวจประกาศล่าสุดที่ https://uasportal.caat.or.th")
+# A news or announcement page: the CAAT media section, or a title that names one ("CAAT NEWS 15/2568").
+_NEWS_URL = re.compile(r"/(?:caat-media|news)/", re.IGNORECASE)
+_NEWS_TITLE = re.compile(r"\bNEWS\b|ข่าว|ประกาศ\s*ฉบับ", re.IGNORECASE)
 _MARKER = re.compile(r"\[\s*([DW]\d+(?:\s*[,，]\s*[DW]\d+)*)\s*\]")
 _LIST_PREFIX = re.compile(r"^\s*(?:[-•*·]|\d{1,2}[.)])\s*")
 _MISSING = re.compile(r"^\s*(?:ยังไม่พบข้อมูล|ยังยืนยันไม่ได้)\s*[:：]\s*(.*)$")
@@ -83,6 +91,19 @@ def line_problem(line: str, ids: list[str], by_id: dict[str, Evidence]) -> str:
         if problem:
             return problem
     return ""
+
+
+def caat_note(sources: list[Evidence]) -> str:
+    """'' unless an answer line cites CAAT; names the news item when one is cited, so a dated
+    announcement is never read as a standing rule whatever the model wrote."""
+    caat = [item for item in sources if is_caat_url(item.url)]
+    if not caat:
+        return ""
+    news = [item for item in caat if _NEWS_URL.search(item.url) or _NEWS_TITLE.search(item.title or "")]
+    if not news:
+        return CAAT_NOTE
+    title = re.sub(r"\s+", " ", news[0].title or "ข่าว").strip()
+    return CAAT_NEWS_NOTE.format(title=title if len(title) <= 60 else title[:57].rstrip() + "...")
 
 
 def _plain_chat_text(text: str) -> str:
@@ -160,6 +181,9 @@ def render(raw: str, evidence: list[Evidence], service_note: str = "") -> Natura
     claims = [Claim(_MARKER.sub("", line), tuple(ids)) for line, ids in result.lines if ids]
     if needs_chemical_note(claims, [by_id[i] for i in result.used_ids]):
         body += f"\n\n{CHEMICAL_NOTE}"
+    note = caat_note([by_id[i] for i in result.used_ids])
+    if note:
+        body += f"\n\n{note}"
     reference_list = "\n".join(f"[{number}] {citation}" for number, citation in references.values())
     result.text = f"{body}\n\nแหล่งอ้างอิง:\n{reference_list}"
     if len(result.text) > MAX_ANSWER_CHARS:

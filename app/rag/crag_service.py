@@ -15,7 +15,7 @@ from app.rag.intent_router import route_intent
 from app.rag.page_reranker import split_query_aspects
 from app.rag.query_normalizer import normalize_query
 from app.rag import natural_answer
-from app.rag.evidence import ABSTAIN_MESSAGE, _is_aviation_regulation, is_drone_insurance_topic
+from app.rag.evidence import ABSTAIN_MESSAGE, _is_aviation_regulation, is_drone_rule_topic
 from app.rag.rag_service import call_llm, evaluate_evidence, llm_pool_error, retrieve_evidence
 from app.service_status import ERROR_MESSAGES, classify_service_error, common_error
 from app.rag.web_fallback import search_web_fallback, web_evidence
@@ -81,9 +81,9 @@ def run_natural_pipeline(query: str, n_results: int = 8, client: OpenAI | None =
     # Same test the line checker uses, so a question about required drone insurance cover is
     # answered from official CAAT pages like other drone rules.
     caat = is_caat_air_law_or_airspace_topic(clean_query) or _is_aviation_regulation(clean_query)
-    # Other insurance questions ("อยากทราบประกันของโดรน") keep the documents (they hold the cost) and
-    # fetch CAAT up front for the requirement (2026-10-20: KB-only answer abstained).
-    caat_web = caat or is_drone_insurance_topic(clean_query)
+    # Other questions on a subject CAAT rules govern ("อยากทราบประกันของโดรน", "จดทะเบียนโดรนยังไง") keep
+    # the documents (they may hold costs or practice) and fetch CAAT up front (2026-10-20: abstained).
+    caat_web = caat or is_drone_rule_topic(clean_query)
     parts = split_query_aspects(search_query) if caat else []
     technical = [part for part in parts if not is_caat_air_law_or_airspace_topic(part)]
     current = any(term in search_query for term in CURRENT_INFO_TERMS)

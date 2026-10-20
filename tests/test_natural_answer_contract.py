@@ -176,3 +176,40 @@ class InsuranceRouting(unittest.TestCase):
         self.assertTrue(self.search.call_args.kwargs["is_caat_topic"])
         self.assertEqual(client.chat.completions.create.call_count, 2)
         self.assertIn("uasportal.caat.or.th", response.answer)
+
+
+class RuleTopicRouting(unittest.TestCase):
+    def test_everyday_rule_wording_counts_and_operating_limits_do_not(self):
+        from app.rag.evidence import is_drone_rule_topic
+        for question in ("จดทะเบียนโดรนยังไง", "บินโดรนตอนกลางคืนได้ไหม", "บินใกล้สนามบินได้ไหม",
+                         "บินโดรนได้สูงสุดกี่เมตร", "โดรนเกิน 25 กิโลต้องทำอะไรเพิ่ม", "ประกันโดรน"):
+            self.assertTrue(is_drone_rule_topic(question), question)
+        for question in ("ลมแรงเท่าไรห้ามบินพ่นยา", "ความสูงในการบินพ่นยาข้าวกี่เมตร", "ใบอนุญาตขายวัตถุอันตราย",
+                         "ผสมไกลโฟเซตกับ 2,4-D ได้ไหม"):
+            self.assertFalse(is_drone_rule_topic(question), question)
+
+    def test_a_rule_question_reads_documents_and_caat_in_one_answer_call(self):
+        with patch.dict(os.environ, {"ANSWER_MODE": "natural"}), \
+             patch("app.rag.crag_service.retrieve_evidence", return_value=document_evidence(DOCUMENT_CONTEXT)) as kb, \
+             patch("app.rag.crag_service.search_web_fallback", return_value=[]) as web:
+            run_crag_pipeline("จดทะเบียนโดรนยังไง", client=llm_client("NOT_FOUND"))
+        kb.assert_called_once()
+        self.assertTrue(web.call_args.kwargs["is_caat_topic"])
+
+
+class CaatNote(unittest.TestCase):
+    def test_an_answer_citing_caat_says_rules_change_and_a_document_answer_does_not(self):
+        caat = Evidence("W1", "ทำการบินได้เฉพาะเวลา 06.00-18.00 น.", url="https://www.caat.or.th/laws-regulations/1", title="ข้อบังคับ")
+        self.assertIn(na.CAAT_NOTE, na.render("บินได้เฉพาะเวลา 06.00-18.00 น. [W1]", [caat]).text)
+        self.assertNotIn(na.CAAT_NOTE, na.render("หัวฉีดพัดส้มไหล 500 ml/หัวฉีด [D1]", [NOZZLE]).text)
+
+    def test_a_cited_news_item_is_named_as_possibly_temporary(self):
+        news = Evidence("W1", "ทำการบินได้เฉพาะเวลา 06.00-18.00 น.", url="https://www.caat.or.th/caat-media/167926",
+                        title="CAAT NEWS 15/2568 คลายล็อกบินโดรนทุกประเภททั่วประเทศ 16 ส.ค.นี้ ภายใต้เงื่อนไขพื้นที่ห้ามบิน")
+        text = na.render("บินได้เฉพาะเวลา 06.00-18.00 น. [W1]", [news]).text
+        self.assertIn("CAAT NEWS 15/2568", text)
+        self.assertIn("เฉพาะช่วงเวลา", text)
+        self.assertNotIn(na.CAAT_NOTE, text)
+        guide = Evidence("W1", "ทำการบินได้เฉพาะเวลา 06.00-18.00 น.", url="https://uasportal.caat.or.th/docs/guide.pdf",
+                         title="แนวปฏิบัติ")
+        self.assertIn(na.CAAT_NOTE, na.render("บินได้เฉพาะเวลา 06.00-18.00 น. [W1]", [guide]).text)
