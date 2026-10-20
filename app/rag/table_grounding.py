@@ -15,6 +15,7 @@ from app.rag.claim_consistency import _ALIAS_TO_UNIT, _ALTERNATION, _NOZZLE, _WE
 
 _NUMBER = r"\d+(?:,\d{3})*(?:\.\d+)?"
 _QUANTITY = re.compile(rf"(?P<value>{_NUMBER})\s*(?P<unit>{_ALTERNATION})(?![a-z])", re.IGNORECASE)
+_RANGE_JOINER = re.compile(r"\s*(?:-|–|~|ถึง|\+|/)\s*")
 
 
 def _flat(text: str) -> str:
@@ -175,8 +176,14 @@ def _check_columns(segment: str, table: Table, rows: list[TableRow]) -> str:
         if not any(value in _numbers(row.cells[index]) for row in rows for index in columns):
             return f"table value/unit/column mismatch in {table.id} ({','.join(row.id for row in rows)})"
     # Dimensionless measurements still need a column binding (MDR, RS, etc.).
+    # A column name labels the number right after it (or the rest of its range "320-640"), not every
+    # later number: in "อุณหภูมิ >=35°C ติดต่อกัน 3 วัน" the 3 is not a temperature (2026-10-20, dis11).
     typed_spans = [match.span("value") for match in _QUANTITY.finditer(segment)]
+    previous_end, previous_columns = 0, set()
     for match in re.finditer(_NUMBER, segment):
+        start, previous_end = previous_end, match.end()
+        joined = previous_columns if _RANGE_JOINER.fullmatch(segment[start:match.start()]) else set()
+        previous_columns = set()
         if match.span() in typed_spans or re.match(r"(?:หัวฉีด|หัว|nozzles?)", segment[match.end():]):
             continue
         value = Decimal(match[0].replace(",", ""))
@@ -185,14 +192,19 @@ def _check_columns(segment: str, table: Table, rows: list[TableRow]) -> str:
         bindings = []
         for column, header in enumerate(table.headers):
             for alias in _column_aliases(header):
-                found = segment.rfind(alias, 0, match.start())
+                found = segment.rfind(alias, start, match.start())
                 if found >= 0:
                     bindings.append((found, len(alias), column))
         if bindings:
             latest = max((position, size) for position, size, _ in bindings)
-            columns = {column for position, size, column in bindings if (position, size) == latest}
-            if not any(value in _numbers(row.cells[index]) for row in rows for index in columns):
-                return f"table dimensionless column mismatch in {table.id}"
+            joined = {column for position, size, column in bindings if (position, size) == latest}
+            # "ฝนทิ้งช่วง 1-2 สัปดาห์" copied from a text cell of the row is not the day-count column.
+            quoted = _flat(segment[latest[0]:match.end()])
+            if any(quoted in _flat(cell) for row in rows for cell in row.cells):
+                joined = set()
+        previous_columns = joined
+        if joined and not any(value in _numbers(row.cells[index]) for row in rows for index in joined):
+            return f"table dimensionless column mismatch in {table.id}"
     return ""
 
 
@@ -234,25 +246,28 @@ def _row_mentions(claim: str, keyed_rows: list[tuple[str, TableRow]]) -> list[tu
 def _without_component_explanations(claim: str, mentions: list[tuple[int, TableRow]],
                                     keys: dict[str, str]) -> list[tuple[int, TableRow]]:
     """'X+Y 120-160+12 หมายถึง X 120-160 ร่วมกับ Y 12' names X only to explain the mixture row:
-    a later mention of component X is that mixture row again, not the single-substance row X,
-    when the other components are named alongside it and every number belongs to the mixture.
+    a later run of component mentions (X, and Y when Y is a row of its own) is that mixture row
+    again, not the single-substance rows, when every component is named in the run's span and every
+    number there belongs to the mixture — "(X 120-160 และ Y 240)" included (2026-10-20 live answer).
     'X เดี่ยว 120-160' (no Y) stays a claim about row X and is checked as one."""
-    kept = []
-    for index, (position, row) in enumerate(mentions):
-        end = mentions[index + 1][0] if index + 1 < len(mentions) else len(claim)
-        segment = claim[position:end]
-        numbers = _numbers(segment)
-
-        def explains_mixture(earlier: TableRow) -> bool:
-            parts = [part for part in keys[earlier.id].split("+") if part]
-            others = [part for part in parts if part != keys[row.id]]
-            return (len(parts) > 1 and keys[row.id] in parts and others
-                    and all(part in segment for part in others)
-                    and bool(numbers) and numbers <= _numbers(" ".join(earlier.cells)))
-
-        explains = any(explains_mixture(earlier) for _, earlier in kept)
-        if not explains:
-            kept.append((position, row))
+    kept: list[tuple[int, TableRow]] = []
+    index = 0
+    while index < len(mentions):
+        position, row = mentions[index]
+        mixture = next((earlier for _, earlier in reversed(kept) if "+" in keys[earlier.id]), None)
+        parts = [part for part in keys[mixture.id].split("+") if part] if mixture else []
+        if len(parts) > 1 and keys[row.id] in parts:
+            last = index
+            while last + 1 < len(mentions) and keys[mentions[last + 1][1].id] in parts:
+                last += 1
+            end = mentions[last + 1][0] if last + 1 < len(mentions) else len(claim)
+            span = claim[position:end]
+            numbers = _numbers(span)
+            if all(part in span for part in parts) and numbers and numbers <= _numbers(" ".join(mixture.cells)):
+                index = last + 1
+                continue
+        kept.append((position, row))
+        index += 1
     return kept
 
 
@@ -277,19 +292,53 @@ def _row_class_problem(row: TableRow, position: int, end: int, labels: list[tupl
     return ""
 
 
+_VALUE_AFTER_LABEL = re.compile(rf"(?::|=|คือ|เท่ากับ|อยู่ที่|ประมาณ)?{_NUMBER}")
+
+
+def _mentions(claim: str, labels) -> list[bool]:
+    """For each label named in the claim: is it directly followed by a value (an attribute name
+    such as "MDR 1.2" / "อัตราส่วน 20") rather than used as the thing being described?"""
+    flags = []
+    for label in labels:
+        position = _label_position(claim, label)
+        if position >= 0:
+            flags.append(bool(_VALUE_AFTER_LABEL.match(claim, position + len(_flat(label)))))
+    return flags
+
+
+def _entities_are_columns(claim: str, table: Table) -> bool:
+    """Read the table column-wise only when the claim describes a column header ("พัดส้ม MDR 1.2")
+    and does not describe a row. Naming an attribute header of a row-wise table
+    ("หนอนกอลายจุด … อัตราส่วน 20 มล.") must not flip it (2026-10-20: a correct rate was rejected)."""
+    if any(_units(header) for header in table.headers[1:]):
+        return False
+    columns = _mentions(claim, table.headers[1:])
+    if not columns or all(columns):
+        return False
+    cells = Counter(_flat(cell) for row in table.rows for cell in row.cells)
+    # A label has letters; "1.20-1.40" is a value even though it is not a single number.
+    row_labels = {cell for row in table.rows for cell in row.cells
+                  if len(_flat(cell)) >= 3 and re.search(r"[A-Za-zก-๙]", cell) and cells[_flat(cell)] == 1}
+    rows = _mentions(claim, row_labels)
+    return not rows or any(rows)
+
+
 def table_inconsistency(claim: str, quotes: list[str], content: str) -> str:
     claim = _flat(claim)
     for table in parse_tables(content):
         # Some slides put entities in columns and measurements in rows. Use the
         # named entity axis, not the printed orientation, to preserve the same cells.
-        if (not any(_units(header) for header in table.headers[1:])
-                and any(_label_position(claim, header) >= 0 for header in table.headers[1:])):
+        if _entities_are_columns(claim, table):
             table = Table(table.id, (table.headers[0],) + tuple(row.cells[0] for row in table.rows),
                 tuple(TableRow(f"{table.id}:C{i + 1}", (header,) + tuple(row.cells[i] for row in table.rows), "")
                       for i, header in enumerate(table.headers) if i > 0))
-        # A stable text key identifies rows without a list of corpus-specific names.
-        text_keys = [next((cell for cell in row.cells if len(_flat(cell)) >= 3
-                           and not re.fullmatch(_NUMBER, _flat(cell))), "") for row in table.rows]
+        # A stable text key identifies rows without a list of corpus-specific names: the first
+        # text cell that no other row repeats in the same column, so a leading category column
+        # ("แมลง/สัตว์ศัตรูพืช" on every row) does not hide the pest/disease name after it.
+        column_counts = [Counter(_flat(row.cells[i]) for row in table.rows) for i in range(len(table.headers))]
+        text_keys = [next((cell for i, cell in enumerate(row.cells) if len(_flat(cell)) >= 3
+                           and not re.fullmatch(_NUMBER, _flat(cell)) and column_counts[i][_flat(cell)] == 1), "")
+                     for row in table.rows]
         counts = Counter(_flat(key) for key in text_keys if key)
         unique = [(key, row) for key, row in zip(text_keys, table.rows) if key and counts[_flat(key)] == 1]
         mentions = sorted(((position, row) for position, row in _row_mentions(claim, unique) if position >= 0),

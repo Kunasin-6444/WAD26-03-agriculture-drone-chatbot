@@ -95,6 +95,19 @@ class EvidenceContractTests(unittest.TestCase):
             self.skipTest("source PDFs not present")
         self.assertFalse(set(document_topics()) - pdfs, "document_topics.json names a document that is not in data/")
 
+    def test_only_drone_law_claims_need_a_fetched_caat_page(self):
+        pdf = document_evidence("[แหล่งข้อมูล 1]\nไฟล์: UAV97.pdf\nหน้า: 2\nประเภท: text\nเนื้อหา:\n"
+                                "สารเอเป็นวัตถุอันตรายควบคุมตามกฎหมาย ต้องขึ้นทะเบียนก่อนจำหน่าย "
+                                "และโดรนต้องขึ้นทะเบียนตามกฎหมายก่อนบิน")
+        chemical = result_json(claims=[("สารเอเป็นวัตถุอันตรายควบคุมตามกฎหมาย ต้องขึ้นทะเบียนก่อนจำหน่าย", "D1",
+                                        "สารเอเป็นวัตถุอันตรายควบคุมตามกฎหมาย ต้องขึ้นทะเบียนก่อนจำหน่าย")])
+        drone = result_json(claims=[("โดรนต้องขึ้นทะเบียนตามกฎหมายก่อนบิน", "D1", "โดรนต้องขึ้นทะเบียนตามกฎหมายก่อนบิน")])
+        self.assertEqual(parse_grounded_result(chemical, pdf).status, "sufficient")
+        self.assertEqual(parse_grounded_result(drone, pdf).status, "insufficient")
+        caat = [Evidence("W1", "โดรนต้องขึ้นทะเบียนตามกฎหมายก่อนบิน", url="https://www.caat.or.th/th/uas", title="CAAT")]
+        drone_web = result_json(claims=[("โดรนต้องขึ้นทะเบียนตามกฎหมายก่อนบิน", "W1", "โดรนต้องขึ้นทะเบียนตามกฎหมายก่อนบิน")])
+        self.assertEqual(parse_grounded_result(drone_web, caat).status, "sufficient")
+
     def test_unknown_source_id_rejected(self):
         raw = result_json(claims=[("คำตอบ", "invented.pdf", "อัตราการไหล")])
         self.assertEqual(parse_grounded_result(raw, self.sources).status, "insufficient")

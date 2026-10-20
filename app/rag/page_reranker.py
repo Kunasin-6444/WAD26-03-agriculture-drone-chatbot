@@ -52,3 +52,33 @@ def select_diverse_pages(query: str, pages: list[dict], top_k: int,
         selected.append(best)
         remaining.remove(best)
     return selected
+
+
+def table_rows(metadatas: list[dict] | None) -> set[tuple[str, int, int]]:
+    """(table_id, first row, last row) of each table chunk on a page."""
+    rows = set()
+    for metadata in metadatas or []:
+        metadata = metadata or {}
+        table, first, last = metadata.get("table_id"), str(metadata.get("row_start") or ""), str(metadata.get("row_end") or "")
+        if table and first.isdigit() and last.isdigit():
+            rows.add((str(table), int(first), int(last)))
+    return rows
+
+
+def add_table_continuations(selected: list[dict], pages: list[dict], limit: int) -> list[dict]:
+    """Append retrieved-but-unselected pages that continue a table already selected.
+
+    A table split over pages is ranked page by page, so a question that filters its rows ("อากาศร้อน
+    แห้งแล้งเสี่ยงโรคอะไร") got the first row's page but not the next row on the following page
+    (2026-10-20: rank 14 of the 50 candidates). Only adjacent row ranges of the same table count, the
+    page must already be a retrieval candidate, and at most `limit` pages are added after the top-k.
+    """
+    if limit < 1:
+        return selected
+    chosen = {id(page) for page in selected}
+    own = {(table, first, last) for page in selected for table, first, last in page.get("table_rows", ())}
+    continuing = [page for page in pages if id(page) not in chosen and any(
+        table == other and (first == other_last + 1 or last == other_first - 1)
+        for table, first, last in page.get("table_rows", ()) for other, other_first, other_last in own)]
+    continuing.sort(key=lambda page: page.get("rerank_score", page.get("rrf_score", 0)), reverse=True)
+    return selected + continuing[:limit]

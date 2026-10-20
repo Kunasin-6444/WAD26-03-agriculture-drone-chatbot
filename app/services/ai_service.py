@@ -5,7 +5,8 @@ import time
 from pathlib import Path
 from concurrent.futures import Future, TimeoutError as FutureTimeout
 
-from app.rag.crag_service import DEGRADED_MESSAGE, run_crag_pipeline
+from app.rag.crag_service import run_crag_pipeline
+from app.service_status import ERROR_MESSAGES
 
 # Verified answers are cached in memory so a repeated question (a demo, a popular FAQ) is
 # answered instantly and does not depend on the LLM provider being fast at that moment.
@@ -84,7 +85,7 @@ def ask_ai(user_message: str) -> str:
         try:
             return future.result(timeout=float(os.getenv("RAG_REQUEST_TIMEOUT_SECONDS", "22")) + 2)
         except FutureTimeout:
-            return DEGRADED_MESSAGE
+            return ERROR_MESSAGES["timeout"]
 
     try:
         response = run_crag_pipeline(user_message)

@@ -13,6 +13,7 @@ from openai import APIConnectionError, OpenAI
 from app.config import LLM_API_KEY, LLM_BASE_URL
 from app.rag.evidence import Claim, Evidence, GroundedResult, document_page_evidence, merge_verified_partial, parse_grounded_result
 from app.rag.page_reranker import split_query_aspects
+from app.service_status import classify_service_error, common_error
 
 logger = logging.getLogger(__name__)
 _llm_client: OpenAI | None = None
@@ -26,6 +27,7 @@ FALLBACK_MODELS = (
     else [m.strip() for m in _fallback_env.split(",") if m.strip()]
 )
 _EXHAUSTED_MODELS: dict[str, float] = {}
+_MODEL_FAILURES: dict[str, str] = {}
 # Optional second provider for quota/auth or transient transport/server failures.
 # Quota rejections are refunded; timeouts still consume the attempt/deadline budget.
 # Disabled unless both
@@ -63,13 +65,21 @@ _GROUNDED_RESPONSE_FORMAT = {"type": "json_schema", "json_schema": {"name": "gro
 # Per-attempt LLM timeout. Raise it (e.g. 11) for providers with spiky latency; the request
 # deadline in crag_service still bounds the total.
 ATTEMPT_TIMEOUT_SECONDS = float(os.getenv("LLM_ATTEMPT_TIMEOUT_SECONDS", "8"))
+# Output budget per call. Thinking models count their reasoning against it: gemini-3.8-flash spent
+# ~2,100 tokens thinking on a repair round and the JSON answer was cut off (finish_reason=length),
+# so raise it for such models (measured 2026-10-20); 2200 suits non-thinking models.
+MAX_OUTPUT_TOKENS = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "2200"))
 # A "daily limit" 401 won't clear until the quota resets; a transient 401/429 usually will.
 DAILY_LIMIT_COOLDOWN_SECONDS = 30 * 60
 TRANSIENT_COOLDOWN_SECONDS = 60
 
 
 class LLMUnavailableError(RuntimeError):
-    """Every LLM attempt failed outright (errors/quota), as opposed to a merely unusable response."""
+    """No usable LLM response, with a safe failure code for the caller."""
+
+    def __init__(self, message: str, error_code: str = "provider_unavailable"):
+        super().__init__(message)
+        self.error_code = error_code
 
 
 # RAG_PROMPT picks the answer prompt so variants can be measured on the same gold set before one
@@ -112,34 +122,52 @@ def get_secondary_client() -> OpenAI:
     return _secondary_client
 
 
-def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model: str | None = None,
-             temperature: float = 0.0, max_tokens: int | None = None, deadline: float | None = None,
-             max_attempts: int = 2) -> str:
-    ai_client = client or get_llm_client()
-    preferred = preferred_model or os.getenv("RAG_MODEL", "gemini-3.5-flash-lite")
-    # (cooldown key, model name, uses secondary provider). Primary keys stay the bare model
-    # name; the secondary gets a prefix so the same model name on two providers can't collide.
+def _model_candidates(preferred: str) -> list[tuple[str, str, bool]]:
     primary = [(m, m, False) for m in dict.fromkeys([preferred] + FALLBACK_MODELS)]
     secondary = []
     if secondary_enabled():
         secondary = [(_SECONDARY_PREFIX + m, m, True) for m in dict.fromkeys(SECONDARY_MODELS or [preferred])]
+    return primary[:1] + secondary + primary[1:]
+
+
+def _available_candidates(candidates: list[tuple[str, str, bool]], now: float) -> list[tuple[str, str, bool]]:
+    available = [c for c in candidates if _EXHAUSTED_MODELS.get(c[0], 0) <= now]
+    if available:
+        return available
+    # Retain the existing retry policy for short transient cooldowns. An explicit
+    # daily quota rejection remains blocked until its cooldown actually expires.
+    return [c for c in candidates if _EXHAUSTED_MODELS.get(c[0], 0) - now <= TRANSIENT_COOLDOWN_SECONDS
+            and _MODEL_FAILURES.get(c[0]) != "quota_exhausted"]
+
+
+def llm_pool_error(preferred_model: str | None = None) -> str:
+    """Read known local cooldowns only. Empty means an attempt remains possible."""
+    candidates = _model_candidates(preferred_model or os.getenv("RAG_MODEL", "gemini-3.5-flash-lite"))
+    if _available_candidates(candidates, time.monotonic()):
+        return ""
+    return common_error([_MODEL_FAILURES.get(key, "provider_unavailable") for key, _, _ in candidates])
+
+
+def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model: str | None = None,
+             temperature: float = 0.0, max_tokens: int | None = None, deadline: float | None = None,
+             max_attempts: int = 2, structured: bool = True) -> str:
+    """``structured=False`` never sends the grounded JSON response schema (plain-text answers)."""
+    preferred = preferred_model or os.getenv("RAG_MODEL", "gemini-3.5-flash-lite")
+    # (cooldown key, model name, uses secondary provider). Primary keys stay the bare model
+    # name; the secondary gets a prefix so the same model name on two providers can't collide.
     # After an explicit quota/auth rejection, try the configured alternate provider
     # before slow models on the same exhausted gateway consume the entire budget.
     # A timed-out model is cooled down too, so final generation does not call
     # the same stalled model again after KB generation already spent its budget.
-    candidates = primary[:1] + secondary + primary[1:]
+    candidates = _model_candidates(preferred)
     now = time.monotonic()
     allow_secondary = _EXHAUSTED_MODELS.get(preferred, 0) > now
-    available = [c for c in candidates if _EXHAUSTED_MODELS.get(c[0], 0) <= now]
-    if not available:
-        # Everything is cooling down. A short (transient) cooldown means the provider throttled a
-        # burst, not that quota is gone: keep trying instead of failing every request for a
-        # minute. Long (daily-limit) cooldowns still fail fast so they don't burn the budget.
-        available = [c for c in candidates if _EXHAUSTED_MODELS.get(c[0], 0) - now <= TRANSIENT_COOLDOWN_SECONDS]
-    candidates = available
+    candidates = _available_candidates(candidates, now)
     if not candidates:
-        raise LLMUnavailableError("All LLM models are in quota/rate-limit cooldown")
+        raise LLMUnavailableError("All LLM models are in quota/rate-limit cooldown", llm_pool_error(preferred))
+    ai_client = client or get_llm_client()
     attempted = failed = slow = 0
+    failure_codes: list[str] = []
     for key, model, on_secondary in candidates:
         if on_secondary and not allow_secondary:
             continue
@@ -159,11 +187,11 @@ def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model
             # that still hits this limit is discarded below rather than used truncated.
             effort = SECONDARY_REASONING_EFFORT if on_secondary else REASONING_EFFORT
             extra = {"extra_body": {"reasoning_effort": effort}} if effort else {}
-            if STRUCTURED_OUTPUT or (on_secondary and SECONDARY_STRUCTURED_OUTPUT):
+            if structured and (STRUCTURED_OUTPUT or (on_secondary and SECONDARY_STRUCTURED_OUTPUT)):
                 extra["response_format"] = _GROUNDED_RESPONSE_FORMAT
             response = (get_secondary_client() if on_secondary else ai_client).chat.completions.create(
                 model=model, messages=messages, temperature=temperature,
-                max_tokens=max_tokens or 2200, stream=False, timeout=min(ATTEMPT_TIMEOUT_SECONDS, remaining), **extra)
+                max_tokens=max_tokens or MAX_OUTPUT_TOKENS, stream=False, timeout=min(ATTEMPT_TIMEOUT_SECONDS, remaining), **extra)
             _log_model_quota(model, response)
             if not response or not response.choices:
                 continue
@@ -174,27 +202,34 @@ def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model
             content = choice.message.content
             if isinstance(content, str) and content.strip():
                 _EXHAUSTED_MODELS.pop(key, None)
+                _MODEL_FAILURES.pop(key, None)
                 if on_secondary:
                     logger.warning("LLM failover: answered by secondary provider model %s", model)
                 return content
         except Exception as exc:
             failed += 1
-            if getattr(exc, "status_code", None) in {401, 429}:
+            error_code = classify_service_error(exc)
+            failure_codes.append(error_code)
+            if getattr(exc, "status_code", None) in {401, 403, 429}:
                 cooldown = DAILY_LIMIT_COOLDOWN_SECONDS if _is_daily_limit(exc) else TRANSIENT_COOLDOWN_SECONDS
                 _EXHAUSTED_MODELS[key] = time.monotonic() + cooldown
+                _MODEL_FAILURES[key] = error_code
                 slow -= 1
                 if not on_secondary:
                     allow_secondary = True
             elif isinstance(exc, (TimeoutError, ConnectionError, APIConnectionError)) or (
                     isinstance(getattr(exc, "status_code", None), int) and exc.status_code >= 500):
                 _EXHAUSTED_MODELS[key] = time.monotonic() + TRANSIENT_COOLDOWN_SECONDS
+                _MODEL_FAILURES[key] = error_code
                 if not on_secondary:
                     allow_secondary = True
             logger.warning("LLM request failed for %s%s (%s)", model, " [secondary]" if on_secondary else "",
                            type(exc).__name__)
     if attempted and failed == attempted:
-        raise LLMUnavailableError("Every LLM attempt failed outright")
-    raise RuntimeError("No complete LLM response within request budget")
+        raise LLMUnavailableError("Every LLM attempt failed outright", common_error(failure_codes))
+    exhausted = deadline is not None and deadline - time.monotonic() <= 0.2
+    raise LLMUnavailableError("No complete LLM response within request budget",
+                              "timeout" if exhausted else "invalid_response")
 
 
 def _is_daily_limit(exc: Exception) -> bool:
@@ -273,7 +308,8 @@ def evaluate_evidence(query: str, evidence: list[Evidence], client: OpenAI | Non
         try:
             raw = call_llm(messages, client=client, deadline=deadline, max_attempts=max_attempts)
         except RuntimeError as exc:
-            failure = GroundedResult(reason=str(exc), llm_unavailable=isinstance(exc, LLMUnavailableError))
+            failure = GroundedResult(reason=str(exc), llm_unavailable=isinstance(exc, LLMUnavailableError),
+                                     error_code=getattr(exc, "error_code", "invalid_response"))
             return merge_verified_partial(best_partial, failure)
         result = parse_grounded_result(raw, evidence)
         invalid = result.reason.startswith(("Evidence validation failed", "Some claims rejected"))

@@ -114,3 +114,45 @@ class TableGroundingContractTests(unittest.TestCase):
         table = "ลำดับ | หัวฉีด | รอบ (rpm) | ปริมาณ (ml/หัวฉีด) | ปริมาณ 3 หัวฉีด (ml)\n1 | พัดส้ม | 1600 | 500 | 1500\n2 | พัดแดง | 1600 | 1150 | 3450"
         self.assertEqual(self.result("หัวฉีดพัดส้มมีปริมาณ 500 ml ต่อหัวฉีด ที่รอบ 1600 rpm", table).status, "sufficient")
         self.assertEqual(self.result("หัวฉีดพัดส้มมีปริมาณ 1150 ml ต่อหัวฉีด", table).claims, [])
+
+
+# Row-wise pest table whose first column repeats a category, as in the disease feature document.
+PESTS = ("โรคหรือแมลง | ชื่อศัตรูพืช | ชื่อสาร | รหัส | อัตราส่วน | คำแนะนำการใช้\n"
+         "แมลง | หนอนเอ | สารอัลฟา 5% | SC | 20 มล./น้ำ 20 ลิตร | พ่น 2-3 ครั้ง ห่างกัน 14 วัน\n"
+         "แมลง | หนอนบี | สารเบตา 10% | WP | 80 กรัม/น้ำ 20 ลิตร | พ่นทุก 7 วัน")
+
+
+class RowWiseAttributeHeaders(unittest.TestCase):
+    """2026-10-20 live screening: a correct rate claim naming the 'รหัส'/'อัตราส่วน' headers was rejected
+    because the table was read column-wise; and the repeated category column hid the pest names."""
+
+    def check(self, claim):
+        from app.rag.table_grounding import table_inconsistency
+        return table_inconsistency(claim, [], PESTS)
+
+    def test_naming_attribute_headers_keeps_a_row_wise_table_row_wise(self):
+        self.assertEqual(self.check("หนอนเอใช้สารอัลฟา 5% รหัส SC อัตราส่วน 20 มล./น้ำ 20 ลิตร"), "")
+
+    def test_a_value_from_another_pest_row_is_caught_behind_a_category_column(self):
+        self.assertIn("row", self.check("หนอนเอใช้สารอัลฟา 5% อัตราส่วน 80 กรัม/น้ำ 20 ลิตร"))
+
+
+WEATHER = ("ชื่อศัตรูพืช | อุณหภูมิ (°C ) | ร้อนติดต่อ (วัน ) | ฝนทิ้งช่วง (วัน ) | ระยะฟักตัว (วัน) | ข้อความแจ้งเตือน\n"
+           "แมลงซี | >= 38 | >= 4 | >= 9 | 2-5 | ร้อนจัดติดต่อกัน และฝนทิ้งช่วง 1-2 สัปดาห์")
+
+
+class ColumnNameLabelsTheNextNumber(unittest.TestCase):
+    def check(self, claim):
+        from app.rag.table_grounding import table_inconsistency
+        return table_inconsistency(claim, [], WEATHER)
+
+    def test_a_later_number_is_not_read_as_the_earlier_column(self):
+        self.assertEqual(self.check("แมลงซีระบาดเมื่ออุณหภูมิ >=38°C ติดต่อกัน 4 วัน และฝนทิ้งช่วง >=9 วัน"), "")
+        self.assertEqual(self.check("แมลงซีมีระยะฟักตัว 2-5 วัน"), "")
+        # words copied from a text cell of the row are not the day-count column of the same name
+        self.assertEqual(self.check("แมลงซีระบาดเมื่อร้อนจัด และฝนทิ้งช่วง 1-2 สัปดาห์"), "")
+
+    def test_a_value_put_under_the_wrong_named_column_is_still_caught(self):
+        self.assertTrue(self.check("แมลงซีร้อนติดต่อ >=9 วัน"))
+        self.assertTrue(self.check("แมลงซีฝนทิ้งช่วง 2 วัน"))
+        self.assertTrue(self.check("แมลงซีมีระยะฟักตัว 4-5 วัน"))

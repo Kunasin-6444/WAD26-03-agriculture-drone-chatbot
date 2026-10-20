@@ -41,6 +41,15 @@ class PerRowWeedClassTests(unittest.TestCase):
                                     "ควบคุมวัชพืชใบแคบและกว้าง"), "")
         self.assertIn("weed class", self.check("อัลฟาซีนผสมกับแกมมาซีน 50-60+5 กรัมสารออกฤทธิ์/ไร่ ใช้คุมวัชพืชใบแคบ"))
 
+    def test_a_parenthesised_per_component_explanation_is_the_mixture_row(self):
+        # Live answer 2026-10-20: "X+Y: rate (X a และ Y b)" where X and Y are also rows of their own.
+        table = MIXED_CLASS_TABLE + "\nแกมมาซีน | 700-800 | ใบกว้าง"
+        from app.rag.table_grounding import table_inconsistency
+        self.assertEqual(table_inconsistency("• อัลฟาซีน+แกมมาซีน: 50-60+5 (อัลฟาซีน 50-60 และแกมมาซีน 5) กรัมสารออกฤทธิ์/ไร่",
+                                             [], table), "")
+        self.assertIn("row", table_inconsistency("อัลฟาซีน+แกมมาซีน 50-60+5 และแกมมาซีนเดี่ยว 5 กรัมสารออกฤทธิ์/ไร่",
+                                                 [], table))
+
     def test_explaining_a_mixture_rate_per_component_is_accepted_but_a_wrong_single_rate_is_not(self):
         self.assertEqual(self.check("อัลฟาซีน+แกมมาซีน คุมได้ทั้งใบแคบและใบกว้าง อัตรา 50-60+5 กรัมสารออกฤทธิ์/ไร่ "
                                     "หมายถึงอัลฟาซีน 50-60 ร่วมกับแกมมาซีน 5 กรัมสารออกฤทธิ์/ไร่"), "")
@@ -141,3 +150,20 @@ class ParseIntegrationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ComparisonStrictness(unittest.TestCase):
+    COVER = "ประกันวงเงินไม่ต ่ากว่า 1 ล้านบาท (กรณีอากาศยานฯ ต ่ากว่า 25 กิโลกรัม) และ 2 ล้านบาท (กรณีเกิน 25 กิโลกรัม)"
+
+    def test_a_threshold_may_not_change_strictness(self):
+        from app.rag.claim_consistency import claim_inconsistency
+        self.assertTrue(claim_inconsistency("โดรนไม่เกิน 25 กิโลกรัม ต้องมีวงเงิน 1 ล้านบาท", [], self.COVER))
+        self.assertTrue(claim_inconsistency("วงเงินมากกว่า 1 ล้านบาท", [], self.COVER))
+        self.assertEqual(claim_inconsistency("โดรนต่ำกว่า 25 กิโลกรัม ต้องมีวงเงินไม่น้อยกว่า 1 ล้านบาท", [], self.COVER), "")
+        self.assertEqual(claim_inconsistency("โดรนเกิน 25 กิโลกรัม ใช้วงเงิน 2 ล้านบาท", [], self.COVER), "")
+
+    def test_a_negated_limit_and_a_bare_number_are_not_conflicts(self):
+        from app.rag.claim_consistency import claim_inconsistency
+        wind = "ห้ามบินเมื่อความเร็วลมเกิน 5 m/s ความสูงบิน 2 m"
+        self.assertEqual(claim_inconsistency("บินได้เมื่อความเร็วลมไม่เกิน 5 m/s", [], wind), "")
+        self.assertEqual(claim_inconsistency("ความสูงบินไม่เกิน 2 m", [], wind), "")

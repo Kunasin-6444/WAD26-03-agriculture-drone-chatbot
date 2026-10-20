@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from app.rag.crag_service import run_crag_pipeline
 from app.rag.evidence import document_evidence
@@ -105,7 +105,33 @@ class PipelineContractTests(unittest.TestCase):
         self.search.assert_not_called()
 
     def test_fabricated_answer_uses_fallback_instead_of_fake_citation(self):
-        response = run_crag_pipeline("พัดส้ม", client=llm_client(result_json(claims=[("อัตราการไหล 999", "D999", "อัตราการไหล 999")])))
+        # The model answers both times (first try and the repair round), both with a fake source:
+        # that is missing evidence, so the web fallback runs; it is not a model failure.
+        fake = result_json(claims=[("อัตราการไหล 999", "D999", "อัตราการไหล 999")])
+        response = run_crag_pipeline("พัดส้ม", client=llm_client(fake, fake))
         self.assertEqual(response.source_type, "abstain")
         self.assertNotIn("999", response.answer)
         self.search.assert_called_once()
+
+    def test_a_failed_document_generation_does_not_detour_to_the_web(self):
+        client = MagicMock()
+        client.chat.completions.create.side_effect = TimeoutError("slow model")
+        response = run_crag_pipeline("พัดส้มมีอัตราการไหลเท่าไร", client=client)
+        self.search.assert_not_called()
+        self.assertNotIn("ยังไม่พบหลักฐานเพียงพอ", response.answer)  # an outage is not "no evidence"
+        self.assertTrue(response.error_code)
+
+    def test_a_gap_left_only_by_rejected_claims_is_not_searched_on_the_web(self):
+        good = ("หัวฉีดพัดส้มมีอัตราการไหล 500 ml/หัวฉีด ที่ 1600 rpm", "D1", "หัวฉีดพัดส้ม อัตราการไหล 500 ml/หัวฉีด ที่รอบ 1600 rpm")
+        bad = ("หัวฉีดพัดส้มกว้าง 99 m", "D1", "หัวฉีดพัดส้ม อัตราการไหล 500 ml/หัวฉีด")
+        partial = result_json(claims=[good, bad])
+        response = run_crag_pipeline("พัดส้มมีอัตราการไหลเท่าไร", client=llm_client(partial, partial))
+        self.search.assert_not_called()
+        self.assertIn("500 ml/หัวฉีด", response.answer)
+        self.assertNotIn("99 m", response.answer)
+
+    def test_a_real_gap_still_gets_the_web_supplement(self):
+        response = run_crag_pipeline("พัดส้มอัตราการไหลและราคาเท่าไร",
+                                     client=llm_client(result_json("partial", missing=["ราคาหัวฉีดพัดส้ม"])))
+        self.search.assert_called_once()
+        self.assertIn("500 ml/หัวฉีด", response.answer)

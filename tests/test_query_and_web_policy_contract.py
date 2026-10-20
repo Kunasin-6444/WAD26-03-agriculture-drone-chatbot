@@ -30,6 +30,7 @@ class QueryAndWebPolicyContract(unittest.TestCase):
         self.assertEqual(kwargs["include_domains_mode"], "restrict")
         self.assertEqual(set(kwargs["include_domains"]), set(web_fallback.WEB_ALLOWED_DOMAINS))
         self.assertNotIn("it24hrs.com", kwargs["include_domains"])
+        self.assertEqual(kwargs["search_depth"], "basic")   # 1 credit; only CAAT needs passages
 
     def test_dead_fallback_model_removed(self):
         self.assertNotIn("llama-4-scout", rag_service.FALLBACK_MODELS)

@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from app.service_status import ERROR_MESSAGES, classify_service_error, service_error_code
 
 logger = logging.getLogger(__name__)
 ASSETS = Path(__file__).with_name("playground_assets")
@@ -53,10 +54,8 @@ def ask_live(question: str) -> tuple[str, bool]:
     # Lazy import is deliberate: loading a page or trying a demo must not load
     # credentials, open Chroma, start LINE workers or instantiate providers.
     from app.services.ai_service import ask_ai
-    from app.rag.crag_service import DEGRADED_MESSAGE
-
     answer = ask_ai(question)
-    return answer, answer == DEGRADED_MESSAGE
+    return answer, bool(service_error_code(answer))
 
 
 def result(answer: str, started: float, mode: str, status: str = "ok", code: str | None = None) -> dict:
@@ -79,26 +78,21 @@ def live_response(question: str, started: float) -> JSONResponse:
     try:
         answer, unavailable = ask_live(question)
         if unavailable:
+            code = service_error_code(answer) or "provider_unavailable"
             return JSONResponse(result(
-                "บริการ AI ยังไม่พร้อม อาจเกิดจาก quota หรือการเชื่อมต่อ จึงยังตอบคำถามนี้ไม่ได้ "
-                "ไม่ได้หมายความว่าเอกสารไม่มีข้อมูล คุณยังลองหน้าจอด้วยโหมดจำลองได้ครับ",
-                started, "live", "unavailable", "provider_unavailable"), status_code=503)
+                ERROR_MESSAGES[code], started, "live", "unavailable", code), status_code=503)
         return JSONResponse(result(answer, started, "live"))
     except Exception as exc:
         # Never return raw provider messages: they can include credentials,
         # request content or internal URLs. Log only the exception type.
         logger.warning("Playground request failed (%s)", type(exc).__name__)
-        status_code = getattr(exc, "status_code", None)
-        if status_code == 429:
-            code, message = "quota_exhausted", DEMO_ANSWERS["quota"]
-        elif status_code in {401, 403}:
-            code, message = "provider_auth", "บริการปฏิเสธสิทธิ์ กรุณาตรวจ API key และสิทธิ์บัญชีใน .env ครับ"
-        elif isinstance(exc, (ImportError, RuntimeError)) and (
+        code = classify_service_error(exc)
+        if isinstance(exc, (ImportError, RuntimeError)) and (
             isinstance(exc, ImportError) or "is not set" in str(exc)
         ):
             code, message = "configuration", "การตั้งค่าระบบยังไม่ครบ กรุณาตรวจ dependencies และ .env ตาม README ครับ"
-        elif isinstance(exc, TimeoutError) or "timeout" in type(exc).__name__.lower():
-            code, message = "timeout", "บริการตอบช้าจนหมดเวลารอ ระบบไม่ได้ส่งคำถามซ้ำอัตโนมัติครับ"
+        elif code != "provider_unavailable":
+            message = ERROR_MESSAGES[code]
         else:
             code, message = "request_failed", "ตอบคำถามไม่สำเร็จ กรุณาตรวจ log ของบริการ หรือใช้โหมดจำลองต่อได้ครับ"
         return JSONResponse(result(message, started, "live", "unavailable", code), status_code=503)

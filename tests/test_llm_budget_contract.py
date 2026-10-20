@@ -19,6 +19,9 @@ class LlmBudgetContractTests(unittest.TestCase):
         timeout = patch("app.rag.rag_service.ATTEMPT_TIMEOUT_SECONDS", 8.0)
         timeout.start()
         self.addCleanup(timeout.stop)
+        output = patch("app.rag.rag_service.MAX_OUTPUT_TOKENS", 2200)  # LLM_MAX_OUTPUT_TOKENS in .env
+        output.start()
+        self.addCleanup(output.stop)
 
     def test_shared_evidence_once_and_concise_instructions(self):
         client = llm_client(result_json())
@@ -26,6 +29,11 @@ class LlmBudgetContractTests(unittest.TestCase):
         self.assertEqual(result.status, "sufficient")
         kwargs = client.chat.completions.create.call_args.kwargs
         self.assertLessEqual(kwargs["timeout"], 8)
+        self.assertEqual(kwargs["max_tokens"], 2200)
+        with patch("app.rag.rag_service.MAX_OUTPUT_TOKENS", 6000):
+            client = llm_client(result_json())
+            evaluate_evidence("พัดส้ม", document_evidence(DOCUMENT_CONTEXT), client)
+            self.assertEqual(client.chat.completions.create.call_args.kwargs["max_tokens"], 6000)
         self.assertEqual(kwargs["temperature"], 0)
         self.assertIn("1,800", kwargs["messages"][0]["content"])
         self.assertIn("1600 rpm", kwargs["messages"][1]["content"])

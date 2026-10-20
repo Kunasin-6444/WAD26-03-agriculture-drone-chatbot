@@ -77,7 +77,7 @@ def test_provider_errors_are_actionable_do_not_leak_secrets_and_do_not_retry():
         status_code = 401
 
     cases = [
-        (QuotaError("private-api-key"), "quota_exhausted"),
+        (QuotaError("private-api-key"), "rate_limited"),
         (AuthError("private-api-key"), "provider_auth"),
         (TimeoutError("private-api-key"), "timeout"),
         (RuntimeError("LLM_API_KEY is not set."), "configuration"),

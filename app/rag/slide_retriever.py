@@ -25,7 +25,7 @@ from app.rag.embedding import embed_text
 from app.rag.query_normalizer import normalize_query
 from app.rag.vector_store import collection
 from app.rag.source_policy import SUPPORTED_CROPS, canonical_document_id, is_excluded_document, requested_document_ids
-from app.rag.page_reranker import select_diverse_pages, split_query_aspects
+from app.rag.page_reranker import add_table_continuations, select_diverse_pages, split_query_aspects, table_rows
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,8 @@ logger = logging.getLogger(__name__)
 #                    diverse = bounded domain/crop alignment, aspect coverage and MMR
 RETRIEVER_BM25 = os.getenv("RETRIEVER_BM25", "global").strip().lower()
 RETRIEVER_RERANK = os.getenv("RETRIEVER_RERANK", "diverse").strip().lower()
+# Pages appended after the top-k when they continue a selected table (0 disables).
+RETRIEVER_TABLE_CONTINUATION = int(os.getenv("RETRIEVER_TABLE_CONTINUATION", "2"))
 
 
 def tokenize_thai_terms(text: str) -> list[str]:
@@ -442,6 +444,7 @@ def search_slides_pipeline(
                 "topic": classify_slide_topic(combined_content),
                 "best_meta": cand["meta"],
                 "aspect_ranks": dict(cand.get("aspect_ranks", {})),
+                "table_rows": table_rows(page_chunks.get("metadatas")),
             }
         else:
             pages_map[page_key]["rrf_score"] += rrf_score * 0.5
@@ -573,6 +576,8 @@ def search_slides_pipeline(
                 if len(selected) >= top_k:
                     break
 
+
+    selected = add_table_continuations(selected, deduped_pages, RETRIEVER_TABLE_CONTINUATION)
 
     # -----------------------------------------------------------------
     # Step 6: Context Assembly

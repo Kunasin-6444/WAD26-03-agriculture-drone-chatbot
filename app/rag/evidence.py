@@ -20,6 +20,9 @@ MAX_BODY_CHARS = 1800
 MAX_ANSWER_CHARS = 4200
 MAX_CLAIMS = 8
 MAX_INTRO_CHARS = 200
+# Added to missing_aspects when the verifier dropped claims. It names no topic, so it is not
+# something a web search can find (crag_service must not search the web for it).
+REJECTED_CLAIMS_ASPECT = "บางประเด็นของคำถามยังตรวจสอบหลักฐานไม่ได้"
 # The owner's review (2026-10-19): chemical-rate and diagnosis answers must tell the reader to
 # check with an expert. Appended by the server, so it never depends on the model remembering.
 CHEMICAL_NOTE = ("หมายเหตุ: ข้อมูลนี้สรุปจากเอกสารอ้างอิงเพื่อประกอบการตัดสินใจเท่านั้น "
@@ -72,6 +75,7 @@ class GroundedResult:
     is_caat_topic: bool = False
     llm_unavailable: bool = False
     intro: str = ""
+    error_code: str = ""
 
 
 def document_evidence(context: str) -> list[Evidence]:
@@ -207,7 +211,7 @@ def _parse_claim(item: dict, by_id: dict[str, Evidence]) -> Claim:
     cited_documents = {canonical_document_id(by_id[i].source_file) for i in ids if by_id[i].source_file}
     if requested_document_ids(text) - cited_documents:
         raise ValueError("Claim names a different document from its citation")
-    if is_caat_air_law_or_airspace_topic(text) and any(not is_caat_url(by_id[i].url) for i in ids):
+    if _is_aviation_regulation(text) and any(not is_caat_url(by_id[i].url) for i in ids):
         raise ValueError("Regulatory claims require fetched CAAT sources")
     if not _numbers(without_document_ids(text)).issubset(_numbers(" ".join(quotes) + " " + cited_content)):
         raise ValueError("Unsupported numeric claim")
@@ -221,6 +225,22 @@ def _parse_claim(item: dict, by_id: dict[str, Evidence]) -> Claim:
         if problem:
             raise ValueError(f"Claim inconsistent with cited table ({problem})")
     return Claim(text.strip(), tuple(dict.fromkeys(ids)), tuple(zip(ids, quotes)))
+
+
+_AVIATION_CONTEXT = re.compile(r"โดรน|อากาศยาน|บิน|น่านฟ้า|uas|uav|caat|กพท", re.IGNORECASE)
+
+
+def _is_aviation_regulation(text: str) -> bool:
+    """CAAT governs flying. Generic legal words ("กฎหมาย", "พ.ร.บ.", "ขึ้นทะเบียน") also describe
+    pesticide law, so a claim needs aviation context before only CAAT pages may support it
+    (2026-10-20: a glyphosate "ควบคุมการใช้" claim from the KB table was rejected as drone law)."""
+    if not _AVIATION_CONTEXT.search(text):
+        return False
+    if is_caat_air_law_or_airspace_topic(text):
+        return True
+    # Required third-party cover is a CAAT rule; a premium in a cost table is not (2026-10-20: a
+    # news site's "ไม่น้อยกว่า 1 ล้านบาท" without the weight condition passed as an answer).
+    return "ประกัน" in text and bool(re.search(r"วงเงิน|คุ้มครอง", text))
 
 
 def parse_grounded_result(raw: str, evidence: list[Evidence]) -> GroundedResult:
@@ -261,7 +281,7 @@ def parse_grounded_result(raw: str, evidence: list[Evidence]) -> GroundedResult:
         reason = str(data.get("reason", ""))[:300]
         if rejected:
             status = "partial"
-            missing = list(missing) + ["บางประเด็นของคำถามยังตรวจสอบหลักฐานไม่ได้"]
+            missing = list(missing) + [REJECTED_CLAIMS_ASPECT]
             reason = "Some claims rejected: " + "; ".join(rejected)[:250]
         return GroundedResult(status, claims, [x.strip() for x in missing], reason, data.get("is_caat_topic", False),
                               intro=_intro(data.get("intro", "")))
@@ -290,8 +310,9 @@ def needs_chemical_note(claims: list[Claim], evidence: list[Evidence]) -> bool:
     if any(_CHEMICAL_RATE.search(claim.text) for claim in claims):
         return True
     # The cited source counts too: a claim naming only the substance still points at a table whose
-    # header carries the dose unit ("อัตราสารที่ใช้ (กรัมสารออกฤทธิ์/ไร่)").
-    if any(_CHEMICAL_RATE.search(item.content) for item in evidence):
+    # header carries the dose unit ("อัตราสารที่ใช้ (กรัมสารออกฤทธิ์/ไร่)"). Only documents: a long
+    # web page mentions anything (a CAAT guide on insurance names "วัตถุอันตราย" cargo, 2026-10-20).
+    if any(_CHEMICAL_RATE.search(item.content) for item in evidence if not item.url):
         return True
     topics = document_topics()
     return any(topics.get(canonical_document_id(item.source_file), frozenset()) & ADVISORY_TOPICS
@@ -304,7 +325,8 @@ def merge_verified_partial(initial: GroundedResult, final: GroundedResult) -> Gr
         return final
     if not final.claims:
         return GroundedResult(initial.status, list(initial.claims), list(initial.missing_aspects), initial.reason,
-                              initial.is_caat_topic, initial.llm_unavailable or final.llm_unavailable, initial.intro)
+                              initial.is_caat_topic, initial.llm_unavailable or final.llm_unavailable, initial.intro,
+                              final.error_code or initial.error_code)
     claims = list(initial.claims)
     for claim in final.claims:
         compact = "".join(claim.text.split())
@@ -313,10 +335,11 @@ def merge_verified_partial(initial: GroundedResult, final: GroundedResult) -> Gr
     if len(claims) > MAX_CLAIMS or sum(len(c.text) + 4 for c in claims) > MAX_BODY_CHARS:
         return initial
     return GroundedResult(final.status, claims, list(final.missing_aspects), final.reason,
-                          final.is_caat_topic, final.llm_unavailable, initial.intro or final.intro)
+                          final.is_caat_topic, final.llm_unavailable, initial.intro or final.intro, final.error_code)
 
 
-def render_grounded_answer(result: GroundedResult, evidence: list[Evidence]) -> str:
+def render_grounded_answer(result: GroundedResult, evidence: list[Evidence], service_note: str = "") -> str:
+    """``service_note`` explains a service failure (timeout, quota…) behind the missing part."""
     if not result.claims:
         return ABSTAIN_MESSAGE
     by_id = {e.id: e for e in evidence}
@@ -337,6 +360,10 @@ def render_grounded_answer(result: GroundedResult, evidence: list[Evidence]) -> 
         body = f"{result.intro}\n{body}"
     if result.status == "partial":
         body += "\n\nยังยืนยันไม่ได้: " + "; ".join(result.missing_aspects)
+    if service_note:
+        # Directly under the gap it explains, and says the shown part is verified, so the
+        # reader does not take the whole answer as unreliable.
+        body += f"\n({service_note} ส่วนที่แสดงด้านบนตรวจกับแหล่งอ้างอิงแล้ว)"
     if needs_chemical_note(result.claims, [by_id[source_id] for source_id in used]):
         body += f"\n\n{CHEMICAL_NOTE}"
     references = "\n".join(f"[{number}] {citation}" for number, citation in references_by_key.values())

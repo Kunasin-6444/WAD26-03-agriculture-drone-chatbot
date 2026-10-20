@@ -37,3 +37,26 @@ class PageRerankerTests(unittest.TestCase):
     def test_splitting_keeps_short_followup_with_its_subject(self):
         self.assertEqual(split_query_aspects("หัวฉีดอุดตันเกิดจากอะไรและแก้อย่างไร"), [])
         self.assertEqual(len(split_query_aspects("พัดส้มมีปริมาณต่อหัวเท่าไร และ GCP ช่วยในการสำรวจแปลงอ้อยอย่างไร")), 2)
+
+
+class TableContinuation(unittest.TestCase):
+    def page(self, number, rows, score):
+        return {"source_file": "a.pdf", "page_number": str(number), "table_rows": set(rows), "rerank_score": score}
+
+    def test_the_next_rows_of_a_selected_table_are_appended_after_the_top_k(self):
+        from app.rag.page_reranker import add_table_continuations
+        first, nxt = self.page(30, {("t6", 1, 1)}, 0.9), self.page(31, {("t6", 2, 3)}, 0.2)
+        other_table, far_rows = self.page(40, {("t7", 2, 3)}, 0.8), self.page(33, {("t6", 6, 6)}, 0.7)
+        self.assertEqual(add_table_continuations([first], [first, other_table, far_rows, nxt], 2), [first, nxt])
+
+    def test_the_limit_keeps_the_best_scored_continuations(self):
+        from app.rag.page_reranker import add_table_continuations
+        first = self.page(31, {("t6", 2, 3)}, 0.9)
+        before, after = self.page(30, {("t6", 1, 1)}, 0.3), self.page(32, {("t6", 4, 5)}, 0.5)
+        self.assertEqual(add_table_continuations([first], [first, before, after], 1), [first, after])
+        self.assertEqual(add_table_continuations([first], [first, before, after], 0), [first])
+
+    def test_page_metadata_gives_the_row_ranges(self):
+        from app.rag.page_reranker import table_rows
+        self.assertEqual(table_rows([{"table_id": "t6", "row_start": 2, "row_end": "3"}, {"source_type": "text"}, None]),
+                         {("t6", 2, 3)})

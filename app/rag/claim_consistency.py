@@ -128,6 +128,35 @@ def _weed_groups(flat: str) -> set[frozenset[str]]:
     return {frozenset(re.findall(r"แคบ|กว้าง", m.group(0))) for m in _WEED_CLASS.finditer(flat)}
 
 
+# A comparison word bound to a number. "ต่ำกว่า 25" (<) and "ไม่เกิน 25" (≤) differ exactly at 25, so a
+# claim may not change the strictness the source uses in the same direction (2026-10-20: a CAAT page says
+# "ต่ำกว่า 25 กิโลกรัม", the answer said "ไม่เกิน 25"). The other direction is a negation, not a change:
+# "ห้ามบินเมื่อลมเกิน 5" may be written "บินได้เมื่อลมไม่เกิน 5". Damaged PDF text writes ต่ำ as "ต ่า".
+_LOW = r"ต\s*่\s*(?:ำ|ํ?า)\s*กว่า"
+_BOUND = re.compile(
+    rf"(?:(?P<ge>ไม่\s*{_LOW}|ไม่\s*น้อย\s*กว่า|อย่าง\s*น้อย|>=|=>|≥)|(?P<le>ไม่\s*เกิน|ไม่\s*มาก\s*กว่า|ไม่\s*สูง\s*กว่า|<=|=<|≤)"
+    rf"|(?P<gt>เกิน\s*(?:กว่า)?|มาก\s*กว่า|สูง\s*กว่า|>)|(?P<lt>{_LOW}|น้อย\s*กว่า|<))\s*(?P<number>\d+(?:,\d{{3}})*(?:\.\d+)?)")
+_SAME_DIRECTION = {"lt": "le", "le": "lt", "gt": "ge", "ge": "gt"}
+
+
+def _bounds(text: str) -> dict[str, set[str]]:
+    found: dict[str, set[str]] = {}
+    for match in _BOUND.finditer(text):
+        kind = next(name for name in ("ge", "le", "gt", "lt") if match.group(name))
+        found.setdefault(match["number"].replace(",", ""), set()).add(kind)
+    return found
+
+
+def comparison_conflict(claim_text: str, evidence_text: str) -> str:
+    stated, supported = _bounds(claim_text), _bounds(evidence_text)
+    for number, kinds in stated.items():
+        have = supported.get(number, set())
+        for kind in sorted(kinds):
+            if kind not in have and _SAME_DIRECTION[kind] in have:
+                return f"comparison strictness differs from evidence: {kind} {number}"
+    return ""
+
+
 def claim_inconsistency(claim_text: str, quotes: list[str] | tuple[str, ...], cited_content: str) -> str:
     """Return a short reason when the claim states a label its evidence contradicts, else ''."""
     quote_text = " ".join(quotes)
@@ -139,6 +168,9 @@ def claim_inconsistency(claim_text: str, quotes: list[str] | tuple[str, ...], ci
         return "emergence timing or subject conflicts with evidence"
     if rate_units(claim_text) - rate_units(evidence_text):
         return "rate unit not declared in evidence"
+    problem = comparison_conflict(claim_text, evidence_text)
+    if problem:
+        return problem
 
     evidence_units = _units(evidence_text)
     for dimension in _DIMENSIONS:

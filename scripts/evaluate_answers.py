@@ -27,7 +27,7 @@ OUT_DIR = ROOT / "cache" / "eval"
 ABSTAIN_PREFIX = "ยังไม่พบหลักฐานเพียงพอ"
 DEGRADED_PREFIX = "ขณะนี้ระบบกำลังปรับปรุงชั่วคราว"
 REQUIREMENT_TEXT = {
-    "lead_in": "ขึ้นต้นด้วยประโยคเกริ่นที่ทวนคำถาม แล้วตอบเป็นประโยคเต็ม ไม่ห้วนเป็นวลี",
+    "lead_in": "ประโยคแรกเป็นประโยคเต็มที่ทวนหัวข้อคำถามและตอบตรงคำถาม ไม่ขึ้นต้นห้วนเป็นคำหรือวลี (รายการย่อยใต้ประโยคนั้นเขียนเป็นวลีสั้นได้)",
     "complete_list": "ลิสต์ครบทุกรายการที่ตรงเงื่อนไขพร้อมค่า ไม่เขียนว่าอื่นๆ",
     "explain_mixture_rate": "อธิบายอัตราสารผสมที่เขียนด้วย + ว่าแต่ละสารใช้เท่าไร",
     "state_the_risk": "บอกว่าเสี่ยงโรคหรือแมลงอะไร ไม่ใช่แค่เกณฑ์",
@@ -40,6 +40,8 @@ JUDGE_PROMPT = """คุณเป็นผู้ตรวจคำตอบข�
 - complete: มีข้อเท็จจริงสำคัญครบตาม reference_answer ถ้า reference เป็นรายการต้องครบทุกรายการ ถ้า reference บอกว่าต้องตอบว่ายืนยันไม่ได้หรือเอกสารไม่มี bot ต้องไม่ให้ค่าที่เดาเอง
 - harmful: มีข้อมูลผิดที่อาจทำให้นักบินทำผิด เช่น อัตราสาร ประเภทวัชพืช หรือข้อบังคับผิด หรือให้ค่าทั้งที่ควรบอกว่ายืนยันไม่ได้
 - style_ok: ทำตาม requirements ครบ (ถ้าไม่มี requirements ให้ true)
+ถ้า reference_answer บอกว่าบอตต้องตอบว่ายืนยันไม่ได้หรือเอกสารไม่มีข้อมูล: คำตอบที่ปฏิเสธหรือบอกว่ายืนยันไม่ได้โดยไม่ให้ค่าที่เดาเอง
+ถือว่า correct และ complete แม้ถ้อยคำไม่ตรง reference และให้ style_ok เป็น true
 ไม่ต้องตรวจรูปแบบอ้างอิงท้ายคำตอบ และไม่ต้องสนใจหมายเหตุให้ปรึกษาผู้เชี่ยวชาญที่ระบบเติมเอง
 คืน JSON เท่านั้น: {"correct":true,"complete":true,"harmful":false,"style_ok":true,"critique":"เหตุผลสั้นๆ ภาษาไทย"}"""
 
@@ -68,8 +70,10 @@ def cited_pages(answer: str) -> set[tuple[str, str]]:
 
 
 def outcome(answer: str) -> str:
+    from app.service_status import service_error_code
+
     text = (answer or "").strip()
-    if text.startswith(DEGRADED_PREFIX) or text.startswith("[EXCEPTION"):
+    if service_error_code(text) or text.startswith(DEGRADED_PREFIX) or text.startswith("[EXCEPTION"):
         return "unavailable"
     if text.startswith(ABSTAIN_PREFIX):
         return "abstain"
@@ -141,7 +145,9 @@ def load_cases(path: Path, split: str, include_answer_only: bool) -> list[dict]:
 # Live run
 # --------------------------------------------------
 
-def pin_model(model: str, prompt: str, attempt: float | None, kb: float | None, request: float | None) -> None:
+def pin_model(model: str, prompt: str, attempt: float | None, kb: float | None, request: float | None,
+              reasoning_effort: str | None = None, max_output_tokens: int | None = None,
+              answer_mode: str | None = None) -> None:
     """Must run before any app module is imported: those read the environment at import time."""
     os.environ.update({"RAG_MODEL": model, "RAG_PROMPT": prompt,
                        "LLM_FALLBACK_MODELS": "", "LLM_SECONDARY_BASE_URL": ""})
@@ -149,10 +155,19 @@ def pin_model(model: str, prompt: str, attempt: float | None, kb: float | None, 
                         ("RAG_REQUEST_TIMEOUT_SECONDS", request)):
         if value is not None:
             os.environ[name] = str(value)
+    # Thinking models (e.g. gemini-3.8-flash) spend the 2,200-token output budget on reasoning and the
+    # JSON answer is cut off (finish_reason=length) unless the effort is lowered.
+    if reasoning_effort is not None:
+        os.environ["LLM_REASONING_EFFORT"] = reasoning_effort
+    if max_output_tokens is not None:
+        os.environ["LLM_MAX_OUTPUT_TOKENS"] = str(max_output_tokens)
+    if answer_mode is not None:
+        os.environ["ANSWER_MODE"] = answer_mode
 
 
 def run(args) -> int:
-    pin_model(args.model, args.prompt, args.attempt_timeout, args.kb_budget, args.request_timeout)
+    pin_model(args.model, args.prompt, args.attempt_timeout, args.kb_budget, args.request_timeout, args.reasoning_effort,
+              getattr(args, "max_output_tokens", None), getattr(args, "answer_mode", None))
     from openai import OpenAI
     from app.config import LLM_API_KEY, LLM_BASE_URL
     from app.rag import rag_service
@@ -183,19 +198,26 @@ def run(args) -> int:
         if stopped:
             continue
         started = time.monotonic()
+        diagnostics, grade_reason, error_code = [], "", ""
         try:
             response = run_crag_pipeline(case["query"])
             answer, source_type = response.answer, response.source_type
+            # Why a claim was rejected or a stage abstained: the raw material for error analysis.
+            diagnostics, grade_reason = getattr(response, "diagnostics", []), getattr(response, "grade_reason", "")
+            error_code = getattr(response, "error_code", "")
         except Exception as exc:  # recorded, never retried with another model
             answer, source_type = f"[EXCEPTION {type(exc).__name__}: {exc}]", "error"
         row.update(seconds=round(time.monotonic() - started, 1), answer=answer, source_type=source_type,
+                   grade_reason=grade_reason, diagnostics=diagnostics, error_code=error_code,
                    outcome=outcome(answer), missing_terms=missing_terms(answer, row["must_contain"]),
                    cited_gold_pages=sorted(cited_pages(answer) & gold))
-        if row["outcome"] == "unavailable":
+        # A partial answer that ran out of quota still gets judged, but counts toward stopping.
+        if row["outcome"] == "unavailable" or error_code == "quota_exhausted":
             unavailable_streak += 1
             stopped = unavailable_streak >= 2
         else:
             unavailable_streak = 0
+        if row["outcome"] != "unavailable":
             if judge is not None:
                 try:
                     reply = judge.chat.completions.create(model=args.judge_model, messages=judge_messages(case, answer),
@@ -212,6 +234,9 @@ def run(args) -> int:
     summary = summarize(rows)
     config = {"model": args.model, "prompt": args.prompt, "judge_model": None if args.skip_judge else args.judge_model,
               "split": args.split, "gold": str(args.gold.relative_to(ROOT)), "limit": args.limit,
+              "answer_mode": os.environ.get("ANSWER_MODE", "grounded"),
+              "reasoning_effort": os.environ.get("LLM_REASONING_EFFORT", ""),
+              "max_output_tokens": os.environ.get("LLM_MAX_OUTPUT_TOKENS", "2200"),
               "timeouts": {k: os.environ.get(k) for k in ("LLM_ATTEMPT_TIMEOUT_SECONDS", "KB_GENERATION_BUDGET_SECONDS",
                                                          "RAG_REQUEST_TIMEOUT_SECONDS")},
               "started": datetime.now().isoformat(timespec="seconds")}
@@ -222,13 +247,14 @@ def run(args) -> int:
     with (OUT_DIR / f"{stem}.csv").open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerow(["id", "คำถาม", "ผล", "ผ่าน", "ถูก", "ครบ", "อันตราย", "รูปแบบ", "วินาที",
-                         "คำที่ขาด", "เหตุผลผู้ตรวจ", "คำตอบบอต", "คำตอบอ้างอิง", "คนตรวจเห็นด้วย (ใช่/ไม่)"])
+                         "คำที่ขาด", "เหตุผลผู้ตรวจ", "เหตุผลระบบ", "คำตอบบอต", "คำตอบอ้างอิง", "คนตรวจเห็นด้วย (ใช่/ไม่)"])
         for row in rows:
             verdict = row.get("judge", {})
             writer.writerow([row["id"], row["query"], row["outcome"], verdict.get("passed", ""), verdict.get("correct", ""),
                              verdict.get("complete", ""), verdict.get("harmful", ""), verdict.get("style_ok", ""),
                              row.get("seconds", ""), " | ".join(row.get("missing_terms", [])),
-                             verdict.get("critique", row.get("judge_error", "")), row.get("answer", ""), row["expected"], ""])
+                             verdict.get("critique", row.get("judge_error", "")), row.get("grade_reason", ""),
+                             row.get("answer", ""), row["expected"], ""])
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     print(f"report: {OUT_DIR / (stem + '.json')}\nreview sheet: {OUT_DIR / (stem + '.csv')}")
     return 1 if stopped else 0
@@ -250,6 +276,9 @@ def main() -> int:
     parser.add_argument("--attempt-timeout", type=float)
     parser.add_argument("--kb-budget", type=float)
     parser.add_argument("--request-timeout", type=float)
+    parser.add_argument("--answer-mode", choices=["grounded", "natural"], help="sets ANSWER_MODE for the run")
+    parser.add_argument("--max-output-tokens", type=int, help="sets LLM_MAX_OUTPUT_TOKENS (thinking models need more than 2200)")
+    parser.add_argument("--reasoning-effort", help="sets LLM_REASONING_EFFORT for the run, e.g. low for thinking models")
     parser.add_argument("--output", help="file stem under cache/eval/")
     args = parser.parse_args()
     if not args.skip_judge and args.judge_model == args.model:

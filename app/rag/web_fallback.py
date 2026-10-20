@@ -12,6 +12,7 @@ from tavily import TavilyClient
 from app.config import TAVILY_API_KEY
 from app.rag.evidence import Evidence
 from app.rag.source_policy import CAAT_PORTAL_INFOGRAPHIC_URL, valid_web_url
+from app.service_status import classify_service_error
 
 logger = logging.getLogger(__name__)
 TRUSTED_DOMAINS = ["caat.or.th", "nstda.or.th", "thaipbs.or.th", "pttor.com", "bangchak.co.th", "dji.com"]
@@ -100,7 +101,8 @@ def search_web_fallback(query: str, is_caat_topic: bool = False, max_results: in
         if diagnostics is not None:
             kind = ("not_configured" if exc is None else "budget_exhausted" if str(exc) == "Web search budget exhausted"
                     else "provider_timeout" if "timeout" in type(exc).__name__.lower() else "provider_error")
-            diagnostics.append({"stage": stage, "error": kind})
+            diagnostics.append({"stage": stage, "error": kind,
+                                "error_code": "configuration" if exc is None else classify_service_error(exc)})
     if max_results < 1:
         return []
     client = tavily_client or get_tavily_client()
@@ -120,6 +122,11 @@ def search_web_fallback(query: str, is_caat_topic: bool = False, max_results: in
         kwargs = dict(query=query, search_depth="basic", max_results=max_results, timeout=_timeout(deadline),
                       include_domains=["uasportal.caat.or.th", "caat.or.th"] if is_caat_topic else allowed_domains(),
                       include_domains_mode="restrict")
+        if is_caat_topic:
+            # A basic result is a ~140-character page summary; the requirement itself sits deep in a
+            # CAAT PDF (2026-10-20: insurance cover by drone weight). Advanced search returns the
+            # passages that match the question (2 credits instead of 1).
+            kwargs.update(search_depth="advanced", chunks_per_source=3)
         response = client.search(**kwargs)
         found = _results(response.get("results", []), is_caat_topic)
     except Exception as exc:

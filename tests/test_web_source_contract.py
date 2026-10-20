@@ -48,6 +48,9 @@ class WebSourceContractTests(unittest.TestCase):
         self.assertEqual(results[0].content, "ข้อกำหนดที่อ่านได้จริง")
         self.assertEqual(client.extract.call_args.kwargs["urls"], [CAAT_PORTAL_INFOGRAPHIC_URL])
         self.assertEqual(client.search.call_args.kwargs["include_domains_mode"], "restrict")
+        # the passages that match the question, not a short page summary
+        self.assertEqual((client.search.call_args.kwargs["search_depth"], client.search.call_args.kwargs["chunks_per_source"]),
+                         ("advanced", 3))
 
     def test_caat_extraction_error_can_use_official_search(self):
         client = MagicMock()

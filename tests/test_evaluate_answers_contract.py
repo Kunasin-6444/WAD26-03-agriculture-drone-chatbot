@@ -57,7 +57,8 @@ class ScoringHelpers(unittest.TestCase):
 
 class PinnedRun(unittest.TestCase):
     def test_one_pinned_model_answers_and_a_different_model_judges(self):
-        answers = iter([SimpleNamespace(answer=ANSWER, source_type="knowledge_base"),
+        answers = iter([SimpleNamespace(answer=ANSWER, source_type="knowledge_base", grade_reason="Some claims rejected: x",
+                                        diagnostics=[{"stage": "kb", "status": "partial"}]),
                         SimpleNamespace(answer="ขณะนี้ระบบกำลังปรับปรุงชั่วคราว", source_type="degraded"),
                         SimpleNamespace(answer="ขณะนี้ระบบกำลังปรับปรุงชั่วคราว", source_type="degraded")])
         judge = MagicMock()
@@ -65,11 +66,12 @@ class PinnedRun(unittest.TestCase):
             content='{"correct":true,"complete":true,"harmful":false,"style_ok":true,"critique":"ok"}'))])
         args = SimpleNamespace(model="model-a", prompt="concise", judge_model="model-b", skip_judge=False, split="dev",
                                no_answer_only=True, limit=4, ids=None, gold=ev.GOLD, attempt_timeout=25,
-                               kb_budget=None, request_timeout=None, output="unit")
+                               kb_budget=None, request_timeout=None, output="unit", reasoning_effort="low")
         seen_env = []
 
         def fake_pipeline(query):
-            seen_env.append((os.environ["RAG_MODEL"], os.environ["RAG_PROMPT"], os.environ["LLM_FALLBACK_MODELS"]))
+            seen_env.append((os.environ["RAG_MODEL"], os.environ["RAG_PROMPT"], os.environ["LLM_FALLBACK_MODELS"],
+                             os.environ.get("LLM_REASONING_EFFORT")))
             return next(answers)
 
         with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"API_KEY": "test"}), \
@@ -81,15 +83,17 @@ class PinnedRun(unittest.TestCase):
             report = json.loads((Path(folder) / "unit.json").read_text(encoding="utf-8"))
             self.assertTrue((Path(folder) / "unit.csv").exists())
         self.assertEqual(status, 1)  # stopped after two unavailable answers in a row
-        self.assertEqual(seen_env[0], ("model-a", "concise", ""))
+        self.assertEqual(seen_env[0], ("model-a", "concise", "", "low"))
         self.assertEqual([row["outcome"] for row in report["rows"]], ["answered", "unavailable", "unavailable", "not_run"])
+        self.assertEqual(report["rows"][0]["grade_reason"], "Some claims rejected: x")
+        self.assertEqual(report["rows"][0]["diagnostics"], [{"stage": "kb", "status": "partial"}])
         self.assertEqual(judge.chat.completions.create.call_args.kwargs["model"], "model-b")
         self.assertEqual(report["summary"]["pass_rate"], 1.0)
 
     def test_a_run_whose_fallbacks_are_still_active_is_refused(self):
         args = SimpleNamespace(model="model-a", prompt="full", judge_model="model-b", skip_judge=True, split="dev",
                                no_answer_only=True, limit=1, ids=None, gold=ev.GOLD, attempt_timeout=None,
-                               kb_budget=None, request_timeout=None, output="unit")
+                               kb_budget=None, request_timeout=None, output="unit", reasoning_effort=None)
         with patch.dict(os.environ, {"API_KEY": "test"}), patch("app.rag.rag_service.FALLBACK_MODELS", ["other"]), \
                 self.assertRaises(SystemExit):
             ev.run(args)
