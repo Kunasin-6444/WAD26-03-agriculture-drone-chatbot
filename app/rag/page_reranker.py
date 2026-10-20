@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import os
 import re
 
 from app.rag.source_policy import SUPPORTED_CROPS
@@ -16,6 +17,30 @@ def split_query_aspects(query: str) -> list[str]:
     return parts if all(len(re.sub(filler, "", p)) >= 8 for p in parts) else []
 
 
+# Question words and fillers; what is left of the question is its subject ("เพลี้ยแป้งมันสำปะหลัง", "AR-30L/6").
+_QUESTION_WORDS = re.compile(r"อะไร|เท่าไร|เท่าไหร่|อย่างไร|ยังไง|ได้ไหม|ไหม|มั้ย|หรือไม่|บ้าง|ควร|ต้อง|ใช้|กี่"
+                             r"|เมื่อไร|เมื่อไหร่|ที่ไหน|ทำไม|คือ|ช่วย|หน่อย|ครับ|ค่ะ|คะ|ในตาราง|ตาราง")
+# Added to the rerank score of a page holding a rare verbatim piece of the question (0 disables).
+# Dev 2026-10-20: pages complete 40 -> 43 of 45 at 0.2 and 0.35, no case worse.
+PHRASE_WEIGHT = float(os.getenv("RETRIEVER_PHRASE_WEIGHT", "0.2"))
+
+
+def _flat(text: str) -> str:
+    return re.sub(r"\s+", "", (text or "").replace("ํา", "ำ")).casefold()
+
+
+def rare_phrase_scores(query: str, pages: list[dict], min_length: int = 5, max_pages: int = 3) -> list[float]:
+    """Per page, 0..1: the longest verbatim piece of the question it holds that at most `max_pages`
+    candidates hold (12+ characters = 1). A pest, disease or model name is rare among the candidates;
+    "สาร" or "อัตรา" is not. The 2026-10-20 misses: the only page naming "เพลี้ยแป้งมันสำปะหลัง" ranked 10th
+    behind pages about "สาร" that never named it."""
+    parts = [part for part in _QUESTION_WORDS.split(_flat(query)) if len(part) >= min_length]
+    spans = {part[i:j] for part in parts for i in range(len(part)) for j in range(i + min_length, len(part) + 1)}
+    contents = [_flat(page.get("content", "")) for page in pages]
+    rare = [span for span in spans if sum(span in content for content in contents) <= max_pages]
+    return [min(1.0, max((len(span) for span in rare if span in content), default=0) / 12) for content in contents]
+
+
 def select_diverse_pages(query: str, pages: list[dict], top_k: int,
                          tokenize: Callable[[str], list[str]], query_topic: str) -> list[dict]:
     if not pages or top_k < 1:
@@ -23,12 +48,13 @@ def select_diverse_pages(query: str, pages: list[dict], top_k: int,
     crops = [c for c in SUPPORTED_CROPS if c in query and not any(c in other and other in query for other in SUPPORTED_CROPS if c != other)]
     maximum = max(p["rrf_score"] for p in pages) or 1
     tokens = {id(p): set(tokenize(p["content"])) for p in pages}
-    for page in pages:
+    phrases = rare_phrase_scores(query, pages) if PHRASE_WEIGHT else [0.0] * len(pages)
+    for page, phrase in zip(pages, phrases):
         content = page["content"]
         crop_match = sum(c in content for c in crops) / len(crops) if crops else 0
         topic_match = int(query_topic != "general" and page["topic"] == query_topic)
         # Preserve the measured RRF ranking as the dominant relevance signal.
-        page["rerank_score"] = page["rrf_score"] / maximum + .05 * (crop_match + topic_match)
+        page["rerank_score"] = page["rrf_score"] / maximum + .05 * (crop_match + topic_match) + PHRASE_WEIGHT * phrase
     selected, remaining = [], list(pages)
     # Preserve one strong lexical page for each substantive subquestion before
     # filling by MMR. This adds no embedding/model request and prevents a long

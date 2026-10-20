@@ -60,3 +60,21 @@ class TableContinuation(unittest.TestCase):
         from app.rag.page_reranker import table_rows
         self.assertEqual(table_rows([{"table_id": "t6", "row_start": 2, "row_end": "3"}, {"source_type": "text"}, None]),
                          {("t6", 2, 3)})
+
+
+class RarePhrase(unittest.TestCase):
+    def page(self, content, score):
+        return {"content": content, "rrf_score": score, "topic": "general", "source_file": "a.pdf", "page_number": "1"}
+
+    def test_the_only_page_naming_the_subject_outranks_pages_about_the_generic_part(self):
+        from app.rag.page_reranker import select_diverse_pages
+        generic = [self.page(f"สารกำจัดแมลง สารผสม อัตราการใช้สาร ชุดที่ {n}", 0.020 - n * 0.0001) for n in range(8)]
+        named = self.page("แมลงซีลายจุด | สารอัลฟา 5% | 20 มล./น้ำ 20 ลิตร", 0.0165)
+        selected = select_diverse_pages("แมลงซีลายจุดใช้สารอะไร", generic + [named], 3, str.split, "general")
+        self.assertIn(named, selected)
+
+    def test_a_piece_many_candidates_share_earns_nothing(self):
+        from app.rag.page_reranker import rare_phrase_scores
+        pages = [self.page("ข้าวนาปรังพ่นสารกำจัดวัชพืช", 0.01) for _ in range(5)] + [self.page("หนอนกอข้าว", 0.01)]
+        self.assertEqual(rare_phrase_scores("ข้าวนาปรังพ่นสารอะไร", pages), [0.0] * 6)
+        self.assertEqual(rare_phrase_scores("หนอนกอข้าวใช้สารอะไร", pages)[-1], len("หนอนกอข้าว") / 12)
