@@ -25,6 +25,7 @@ PROMPT = (Path(__file__).parent / "prompts" / "natural_answer.txt").read_text(en
 NOT_FOUND = "NOT_FOUND"
 GAP_LABEL = "ยังยืนยันไม่ได้: "
 DROPPED_GAP = "บางส่วนของคำตอบตรวจกับแหล่งอ้างอิงไม่ผ่าน จึงไม่แสดง"
+CAAT_PAGE_REQUIRED = "drone-law line without a CAAT page"
 _MARKER = re.compile(r"\[\s*([DW]\d+(?:\s*[,，]\s*[DW]\d+)*)\s*\]")
 _LIST_PREFIX = re.compile(r"^\s*(?:[-•*·]|\d{1,2}[.)])\s*")
 _MISSING = re.compile(r"^\s*(?:ยังไม่พบข้อมูล|ยังยืนยันไม่ได้)\s*[:：]\s*(.*)$")
@@ -67,11 +68,13 @@ def line_problem(line: str, ids: list[str], by_id: dict[str, Evidence]) -> str:
         return "number without a source" if numbers else ""
     if any(i not in by_id for i in ids):
         return "unknown source id"
+    # The source type first: a drone rule cited to a document needs the CAAT page whatever its
+    # numbers, and the pipeline fetches that page when it sees this reason.
+    if _is_aviation_regulation(plain) and any(not is_caat_url(by_id[i].url) for i in ids):
+        return CAAT_PAGE_REQUIRED
     cited = " ".join(f"{by_id[i].content} {by_id[i].title}" for i in ids)
     if not numbers <= _numbers(cited):
         return "number not in the cited sources"
-    if _is_aviation_regulation(plain) and any(not is_caat_url(by_id[i].url) for i in ids):
-        return "drone-law line without a CAAT page"
     problem = claim_inconsistency(plain, [], cited)
     if problem:
         return problem

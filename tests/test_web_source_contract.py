@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from app.rag.source_policy import CAAT_PORTAL_INFOGRAPHIC_URL
+from app.rag.source_policy import CAAT_DESIGNATED_URLS
 from app.rag.web_fallback import MAX_WEB_TIMEOUT_SECONDS, WebSearchResult, get_tavily_client, is_trusted_domain, search_web_fallback, web_evidence
 import threading
 
@@ -41,12 +41,12 @@ class WebSourceContractTests(unittest.TestCase):
 
     def test_caat_fetches_actual_designated_page_and_restricts_search(self):
         client = MagicMock()
-        client.extract.return_value = {"results": [{"url": CAAT_PORTAL_INFOGRAPHIC_URL, "raw_content": "ข้อกำหนดที่อ่านได้จริง"}]}
+        client.extract.return_value = {"results": [{"url": CAAT_DESIGNATED_URLS[0], "raw_content": "ข้อกำหนดที่อ่านได้จริง"}]}
         client.search.return_value = {"results": [{"url": "https://attacker.example/caat.or.th", "content": "ข้อมูลปลอม"}]}
         results = search_web_fallback("ขึ้นทะเบียนโดรน", True, tavily_client=client)
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].content, "ข้อกำหนดที่อ่านได้จริง")
-        self.assertEqual(client.extract.call_args.kwargs["urls"], [CAAT_PORTAL_INFOGRAPHIC_URL])
+        self.assertEqual(client.extract.call_args.kwargs["urls"], CAAT_DESIGNATED_URLS)
         self.assertEqual(client.search.call_args.kwargs["include_domains_mode"], "restrict")
         # the passages that match the question, not a short page summary
         self.assertEqual((client.search.call_args.kwargs["search_depth"], client.search.call_args.kwargs["chunks_per_source"]),
@@ -92,3 +92,20 @@ class WebSourceContractTests(unittest.TestCase):
             self.assertIsNot(first, get_tavily_client(api_key="test-key-b"))
             first.close.assert_called_once()
             self.assertEqual(create.call_count, 2)
+
+
+class DesignatedCaatDocument(unittest.TestCase):
+    def test_the_designated_document_survives_a_full_page_of_search_results(self):
+        client = MagicMock()
+        client.extract.return_value = {"results": [{"url": CAAT_DESIGNATED_URLS[0], "raw_content": "คู่มือผู้ขอรับบริการ"}]}
+        client.search.return_value = {"results": [{"url": f"https://www.caat.or.th/{n}", "content": f"หน้า {n}", "score": 1}
+                                                  for n in range(4)]}
+        results = search_web_fallback("ประกันโดรน", True, tavily_client=client, max_results=4)
+        self.assertEqual(results[0].url, CAAT_DESIGNATED_URLS[0])
+        self.assertEqual(len(results), 4)
+        self.assertEqual(results[0].title, "เอกสารทางการ CAAT")   # extract results carry no title
+
+    def test_only_caat_urls_may_be_configured(self):
+        from app.rag.web_fallback import designated_caat_urls
+        with patch.dict("os.environ", {"CAAT_DESIGNATED_URLS": "https://evil.example/a.pdf, https://www.caat.or.th/b.pdf"}):
+            self.assertEqual(designated_caat_urls(), ["https://www.caat.or.th/b.pdf"])

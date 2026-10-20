@@ -230,6 +230,13 @@ def _parse_claim(item: dict, by_id: dict[str, Evidence]) -> Claim:
 _AVIATION_CONTEXT = re.compile(r"โดรน|อากาศยาน|บิน|น่านฟ้า|uas|uav|caat|กพท", re.IGNORECASE)
 
 
+def is_drone_insurance_topic(text: str) -> bool:
+    """Drone insurance is a CAAT requirement whatever the question asks (cover, cost, how to buy),
+    so the official page is fetched with the documents. Lines are still checked by the stricter
+    `_is_aviation_regulation`: a cost from a document is not a requirement."""
+    return "ประกัน" in text and bool(_AVIATION_CONTEXT.search(text))
+
+
 def _is_aviation_regulation(text: str) -> bool:
     """CAAT governs flying. Generic legal words ("กฎหมาย", "พ.ร.บ.", "ขึ้นทะเบียน") also describe
     pesticide law, so a claim needs aviation context before only CAAT pages may support it

@@ -15,7 +15,7 @@ from app.rag.intent_router import route_intent
 from app.rag.page_reranker import split_query_aspects
 from app.rag.query_normalizer import normalize_query
 from app.rag import natural_answer
-from app.rag.evidence import ABSTAIN_MESSAGE, _is_aviation_regulation
+from app.rag.evidence import ABSTAIN_MESSAGE, _is_aviation_regulation, is_drone_insurance_topic
 from app.rag.rag_service import call_llm, evaluate_evidence, llm_pool_error, retrieve_evidence
 from app.service_status import ERROR_MESSAGES, classify_service_error, common_error
 from app.rag.web_fallback import search_web_fallback, web_evidence
@@ -81,6 +81,9 @@ def run_natural_pipeline(query: str, n_results: int = 8, client: OpenAI | None =
     # Same test the line checker uses, so a question about required drone insurance cover is
     # answered from official CAAT pages like other drone rules.
     caat = is_caat_air_law_or_airspace_topic(clean_query) or _is_aviation_regulation(clean_query)
+    # Other insurance questions ("อยากทราบประกันของโดรน") keep the documents (they hold the cost) and
+    # fetch CAAT up front for the requirement (2026-10-20: KB-only answer abstained).
+    caat_web = caat or is_drone_insurance_topic(clean_query)
     parts = split_query_aspects(search_query) if caat else []
     technical = [part for part in parts if not is_caat_air_law_or_airspace_topic(part)]
     current = any(term in search_query for term in CURRENT_INFO_TERMS)
@@ -96,10 +99,10 @@ def run_natural_pipeline(query: str, n_results: int = 8, client: OpenAI | None =
             diagnostics.append({"stage": "retrieval", "error_code": failures[-1]})
         timings["retrieval_ms"] = round((time.monotonic() - before) * 1000, 2)
 
-    def search_web() -> list[Evidence]:
+    def search_web(is_caat: bool) -> list[Evidence]:
         before = time.monotonic()
         try:
-            results = search_web_fallback(search_query, is_caat_topic=caat, deadline=deadline, diagnostics=diagnostics)
+            results = search_web_fallback(search_query, is_caat_topic=is_caat, deadline=deadline, diagnostics=diagnostics)
         except Exception as exc:
             logger.warning("Web search unavailable (%s)", type(exc).__name__)
             diagnostics.append({"stage": "web_search", "error_code": classify_service_error(exc)})
@@ -126,12 +129,14 @@ def run_natural_pipeline(query: str, n_results: int = 8, client: OpenAI | None =
                             "dropped": answer.dropped})
         return answer
 
-    web: list[Evidence] = search_web() if (caat or current) else []
+    searched = caat_web or current
+    web: list[Evidence] = search_web(caat_web) if searched else []
     evidence = pack_evidence(kb + web, required_ids={e.id for e in web}) if (kb or web) else []
     if not evidence:
         if failures:
             return failure(common_error(failures), "Document retrieval unavailable")
-        web = [] if (caat or current) else search_web()
+        web = [] if searched else search_web(False)
+        searched = True
         evidence = pack_evidence(web) if web else []
     if not evidence:
         timings["total_ms"] = round((time.monotonic() - started) * 1000, 2)
@@ -142,11 +147,14 @@ def run_natural_pipeline(query: str, n_results: int = 8, client: OpenAI | None =
     result = generate(evidence, "answer")
     if isinstance(result, str):
         return failure(result, "LLM generation failed")
-    if result.not_found and not web and not (caat or current):
-        # The documents have nothing on this: the one case the web is for (R4/R5).
-        web = search_web()
+    needs_caat = any(item.startswith(natural_answer.CAAT_PAGE_REQUIRED) for item in result.dropped)
+    if not searched and (result.not_found or not result.text or needs_caat):
+        # The documents have nothing on this (R4/R5), or a drone rule was stated without the CAAT
+        # page it needs: search once. Document facts stay in the evidence unless there were none.
+        web = search_web(caat_web or needs_caat)
         if web:
-            evidence = pack_evidence(web)
+            evidence = (pack_evidence(kb + web, required_ids={e.id for e in web})
+                        if kb and not result.not_found else pack_evidence(web))
             result = generate(evidence, "web_answer")
             if isinstance(result, str):
                 return failure(result, "LLM generation failed")
@@ -159,7 +167,7 @@ def run_natural_pipeline(query: str, n_results: int = 8, client: OpenAI | None =
         return CragResponse(message, "abstain", "INCORRECT", reason, dict(timings), [], list(diagnostics))
     by_id = {e.id: e for e in evidence}
     kinds = {bool(by_id[i].url) for i in result.used_ids}
-    source: SourceType = ("hybrid" if len(kinds) > 1 else ("caat_portal" if caat else "web_fallback")
+    source: SourceType = ("hybrid" if len(kinds) > 1 else ("caat_portal" if caat_web else "web_fallback")
                           if True in kinds else "knowledge_base")
     grade = "AMBIGUOUS" if (result.gap or result.dropped) else "CORRECT"
     trace = [{"text": line, "evidence": [{"source_id": i, "citation": by_id[i].citation} for i in ids]}

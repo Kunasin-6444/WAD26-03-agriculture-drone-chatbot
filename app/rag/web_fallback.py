@@ -11,7 +11,7 @@ from tavily import TavilyClient
 
 from app.config import TAVILY_API_KEY
 from app.rag.evidence import Evidence
-from app.rag.source_policy import CAAT_PORTAL_INFOGRAPHIC_URL, valid_web_url
+from app.rag.source_policy import CAAT_DESIGNATED_URLS, is_caat_url, valid_web_url
 from app.service_status import classify_service_error
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,11 @@ def allowed_domains() -> list[str]:
     extras = [d.strip().lower().rstrip(".") for d in os.getenv("WEB_ALLOWED_DOMAINS_EXTRA", "").split(",") if d.strip()]
     extras = [d for d in extras if "." in d and valid_web_url("https://" + d) and get_domain("https://" + d) == d]
     return list(dict.fromkeys(WEB_ALLOWED_DOMAINS + extras))
+
+
+def designated_caat_urls() -> list[str]:
+    configured = [u.strip() for u in os.getenv("CAAT_DESIGNATED_URLS", "").split(",") if u.strip()]
+    return [u for u in (configured or CAAT_DESIGNATED_URLS) if is_caat_url(u)]
 
 
 def get_domain(url: str) -> str:
@@ -89,7 +94,9 @@ def _results(items: list[dict], is_caat: bool) -> list[WebSearchResult]:
         if is_caat and not (host == "caat.or.th" or host.endswith(".caat.or.th")):
             continue
         seen.add(url.rstrip("/"))
-        results.append(WebSearchResult(str(item.get("title", "แหล่งข้อมูลเว็บไซต์")), url, content,
+        # An extracted document has no title ("None" reached a reference list, 2026-10-20).
+        title = str(item.get("title") or "").strip() or ("เอกสารทางการ CAAT" if is_caat_url(url) else "แหล่งข้อมูลเว็บไซต์")
+        results.append(WebSearchResult(title, url, content,
             float(item.get("score") or 0), is_trusted_domain(url)))
     return sorted(results, key=lambda r: (r.is_trusted, r.score), reverse=True)
 
@@ -112,7 +119,7 @@ def search_web_fallback(query: str, is_caat_topic: bool = False, max_results: in
     extracted = []
     if is_caat_topic:
         try:
-            response = client.extract(urls=[CAAT_PORTAL_INFOGRAPHIC_URL], query=query,
+            response = client.extract(urls=designated_caat_urls(), query=query,
                 chunks_per_source=3, extract_depth="basic", format="text", timeout=_timeout(deadline))
             extracted = _results(response.get("results", []), True)
         except Exception as exc:
@@ -133,9 +140,9 @@ def search_web_fallback(query: str, is_caat_topic: bool = False, max_results: in
         failed("web_search", exc)
         logger.warning("Web search unavailable (%s)", type(exc).__name__)
         found = []
-    # Query-specific pages first; the infographic is still a real fetched source.
+    # The designated official document first: a short question ("ประกันโดรน") ranks it below the cut.
     seen, combined = set(), []
-    for result in found + extracted:
+    for result in extracted + found:
         if result.url not in seen:
             seen.add(result.url)
             combined.append(result)

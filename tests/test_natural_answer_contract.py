@@ -145,3 +145,34 @@ class IdLeak(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InsuranceRouting(unittest.TestCase):
+    def setUp(self):
+        patches = [patch.dict(os.environ, {"ANSWER_MODE": "natural"}),
+                   patch("app.rag.crag_service.retrieve_evidence", return_value=document_evidence(DOCUMENT_CONTEXT)),
+                   patch("app.rag.crag_service.search_web_fallback", return_value=[
+                       WebSearchResult("คู่มือ", "https://uasportal.caat.or.th/guide.pdf",
+                                       "ประกันภัยโดรนต้องมีวงเงินคุ้มครองไม่ต่ำกว่า 1 ล้านบาท", 0.9)])]
+        for item in patches:
+            item.start()
+            self.addCleanup(item.stop)
+        from app.rag import crag_service
+        self.search, self.retrieve = crag_service.search_web_fallback, crag_service.retrieve_evidence
+
+    def test_a_general_insurance_question_reads_documents_and_the_caat_page_up_front(self):
+        client = llm_client("ประกันภัยโดรนต้องมีวงเงินคุ้มครองไม่ต่ำกว่า 1 ล้านบาท [W1]")
+        response = run_crag_pipeline("อยากทราบประกันของโดรน", client=client)
+        self.retrieve.assert_called_once()
+        self.assertTrue(self.search.call_args.kwargs["is_caat_topic"])
+        self.assertEqual(client.chat.completions.create.call_count, 1)
+        self.assertIn("1 ล้านบาท", response.answer)
+
+    def test_a_rule_stated_from_a_document_fetches_the_caat_page_and_answers_again(self):
+        client = llm_client("หัวฉีดพัดส้มต้องบินโดรนสูงไม่เกิน 90 เมตรตามกฎ กพท. [D1]",
+                            "ประกันภัยโดรนต้องมีวงเงินคุ้มครองไม่ต่ำกว่า 1 ล้านบาท [W1]")
+        response = run_crag_pipeline("พัดส้มมีอัตราการไหลเท่าไร", client=client)
+        self.search.assert_called_once()
+        self.assertTrue(self.search.call_args.kwargs["is_caat_topic"])
+        self.assertEqual(client.chat.completions.create.call_count, 2)
+        self.assertIn("uasportal.caat.or.th", response.answer)

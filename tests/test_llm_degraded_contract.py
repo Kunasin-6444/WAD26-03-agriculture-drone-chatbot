@@ -39,8 +39,10 @@ class DegradedModeContract(unittest.TestCase):
     def test_daily_limit_gets_long_cooldown_and_unavailable_error(self):
         with self.assertRaises(rag_service.LLMUnavailableError):
             rag_service.call_llm([{"role": "user", "content": "x"}], client=_Client(), max_attempts=1)
-        wait = rag_service._EXHAUSTED_MODELS["gemini-3.5-flash-lite"] - time.monotonic()
-        self.assertGreater(wait, 600)
+        # Every model that answered "daily limit" rests long, whichever models the .env names.
+        self.assertTrue(rag_service._EXHAUSTED_MODELS)
+        for model, until in rag_service._EXHAUSTED_MODELS.items():
+            self.assertGreater(until - time.monotonic(), 600, model)
 
     def test_pipeline_reports_degraded_not_insufficient_evidence(self):
         with patch("app.rag.crag_service.retrieve_evidence", return_value=document_evidence(KB_CONTEXT)), \

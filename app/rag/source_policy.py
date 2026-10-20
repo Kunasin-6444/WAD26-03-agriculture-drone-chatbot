@@ -4,6 +4,11 @@ import re
 from urllib.parse import urlparse
 
 CAAT_PORTAL_INFOGRAPHIC_URL = "https://uasportal.caat.or.th/infographic"
+# Official CAAT documents read with the question for every CAAT question (CAAT_DESIGNATED_URLS overrides).
+# The infographic page above is for people: the search provider cannot fetch it (2026-10-20, "Failed to
+# fetch url"), so the applicant guide it links to is read instead; it covers registration, permits,
+# required documents and insurance cover whatever the wording of the question.
+CAAT_DESIGNATED_URLS = ["https://uasportal.caat.or.th/images/infographic/guidelines/Guidelines_for_Service_Applicants.pdf"]
 
 # Crops known in the knowledge base (shared by retrieval and claim/evidence consistency checks).
 SUPPORTED_CROPS = ["อ้อย", "ข้าว", "ข้าวโพด", "ถั่วเหลือง", "ถั่วลิสง", "มันสำปะหลัง"]
