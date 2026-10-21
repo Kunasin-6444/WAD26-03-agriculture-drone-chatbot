@@ -1,6 +1,7 @@
 # เอกสารโปรเจกต์
 
 อัปเดต 2026-10-17: รวมข้อกำหนด สถานะ และแผนให้มีเจ้าของข้อมูลเพียงไฟล์เดียวต่อเรื่อง
+อัปเดต 2026-10-21: ส่งต่อจาก Claude Code ให้ Codex — เริ่มที่ NEXT_STEPS_PLAN หัวข้อ "เริ่มตรงนี้" และ CURRENT_STATE หัวข้อ "สรุปสถานะ"
 
 | ต้องการดูอะไร | เอกสารหลัก |
 | --- | --- |
@@ -9,7 +10,7 @@
 | สิ่งที่ทำแล้วและข้อจำกัดที่ยังเปิด | [CURRENT_STATE](CURRENT_STATE.md) |
 | สิ่งที่จะลงมือต่อ | [NEXT_STEPS_PLAN](NEXT_STEPS_PLAN.md) |
 | เลือกการตรวจให้เหมาะกับงาน | [TEST_PLAN](TEST_PLAN.md) |
-| โครงสร้างโค้ดที่มีอยู่ | [ARCHITECTURE](ARCHITECTURE.md) |
+| โครงสร้างโค้ดที่มีอยู่ | [ARCHITECTURE](ARCHITECTURE.md) (ของ 2026-10-17 — ฉบับล่าสุดดูแผนผังใน CURRENT_STATE) |
 | จัดเตรียมข้อมูล PDF | [INGESTION](INGESTION.md) |
 | เตรียม host, volumes และ backup | [DEPLOYMENT](DEPLOYMENT.md) |
 | การทดลองเสริมที่ยังไม่จำเป็น | [DIRECT_PDF](DIRECT_PDF.md) |
