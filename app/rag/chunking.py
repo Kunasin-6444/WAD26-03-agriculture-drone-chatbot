@@ -46,7 +46,7 @@ def split_text(
     if not text.strip():
         return []
 
-    if chunk_overlap >= chunk_size:
+    if chunk_size < 1 or chunk_overlap < 0 or chunk_overlap >= chunk_size:
         raise ValueError(
             "chunk_overlap must be smaller than chunk_size"
         )

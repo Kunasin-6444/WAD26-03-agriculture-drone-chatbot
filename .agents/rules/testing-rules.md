@@ -26,3 +26,15 @@ alwaysOn: true
 10. Integration tests must verify source/page metadata.
 
 11. Never claim "all tests pass" unless the tests were actually run.
+
+12. Retrieval quality is measured, not eyeballed: run `python -m scripts.eval_retrieval`
+    and report dev and holdout results (hit@k, MRR). The holdout questions in
+    `tests/data/retrieval_gold.json` must never be used for tuning.
+
+13. Mocked tests do not prove latency or answer quality. After touching the request
+    budget, retrieval or the prompt, run `python -m scripts.evaluate_acceptance` against
+    the live provider at a quiet time and report timeouts separately from wrong answers.
+
+14. Live provider bursts are expensive and can slow the provider itself: use small
+    batches, and attribute failures (timeout vs. evidence validation vs. judged
+    insufficient) before changing code.

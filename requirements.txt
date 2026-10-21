@@ -8,3 +8,5 @@ tavily-python
 google-genai
 pypdf
 PyMuPDF
+Pillow
+pytest

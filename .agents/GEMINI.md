@@ -67,22 +67,47 @@ abstain clearly
     ->
 do not hallucinate
 
+Answer quality (minimum bar of the project):
+
+- Answer exactly what was asked: direct, concise and precise according to
+  the documents. Keep numbers, units and conditions; do not pad.
+- Every factual claim carries a verified citation (file + page, or URL).
+- The web may supplement a partial knowledge-base answer, or answer alone
+  when the documents do not cover the question, but only from trusted /
+  official domains and always with the URL.
+- When nothing reliable exists, say so explicitly instead of guessing.
+
 ---
 
 # 3. Current Technology Stack
 
 ## LLM
 
-KKU GenAI OpenAI-compatible API.
+Google AI Studio (Gemini) through its OpenAI-compatible endpoint
+(`https://generativelanguage.googleapis.com/v1beta/openai`), default model
+`gemini-3.5-flash-lite`.
 
-Do not replace this with another provider unless explicitly requested.
+The provider is configured only through environment variables so it can be
+switched without code changes:
 
-## Embedding
+- `LLM_API_KEY`, `LLM_BASE_URL`, `RAG_MODEL`
+- `LLM_FALLBACK_MODELS` (comma-separated; empty = none; the names must exist
+  on the configured provider)
+- optional tuning: `LLM_REASONING_EFFORT`, `LLM_STRUCTURED_OUTPUT`,
+  `LLM_ATTEMPT_TIMEOUT_SECONDS`, `KB_GENERATION_BUDGET_SECONDS`
 
-Google Gemini Embedding 2.
+The KKU GenAI gateway (`https://gen.ai.kku.ac.th/api/v1`, `API_KEY`) is kept
+as an alternative provider through the same variables (it is also the default
+when `LLM_BASE_URL` is unset). Never hardcode a provider, base URL or model
+name in Python code.
+
+## Embedding and Vision
+
+Google Gemini Embedding 2 (AI Studio, `GOOGLE_API_KEY`).
+Vision extraction also uses Gemini through AI Studio.
 
 Current vector dimension:
-3072
+3072 (changing the embedding model requires re-ingesting everything)
 
 ## Vector database
 
@@ -125,8 +150,10 @@ Must have:
 - chunking
 - embeddings
 - Chroma retrieval
+- hybrid retrieval (dense + BM25 over the whole collection, fused by RRF)
+  and reranking, both measured with `scripts/eval_retrieval.py`
 - grounded LLM answering
-- source/page citation
+- source/page citation (verified server-side against the evidence)
 - CRAG relevance grading
 - web fallback
 - abstain behavior
@@ -141,8 +168,6 @@ Not required for current MVP:
 - image hosting
 - PostgreSQL
 - Redis
-- reranker
-- hybrid search
 - LangChain
 - LangGraph
 - conversation memory
@@ -201,6 +226,16 @@ Vision output contains:
 Vision interpretation may be used as semantic information,
 but extracted source evidence must not be discarded.
 
+Clean data must be produced at ingest time (not repaired afterwards):
+
+- the PDFs' own text layer has damaged Thai (lost SARA AM, SARA AA mapped to
+  SARA AM); `app/ingestion/thai_text.py` repairs it before chunking
+- native text/table units that the page's vision units already cover (>= 85%
+  and all numbers present) are dropped by `app/ingestion/dedupe.py`; native
+  content that vision lacks is kept
+- `scripts/repair_kb.py` is a one-time migration for a database ingested
+  before these steps; `scripts/verify_ingestion.py` checks integrity
+
 ---
 
 # 7. Current Code Structure
@@ -208,24 +243,25 @@ but extracted source evidence must not be discarded.
 Important modules currently include:
 
 app/
-  ingestion/
-    models.py
-    vision_extractor.py
-    knowledge_builder.py
-
-  rag/
-    chunking.py
-    embedding.py
-    vector_store.py
+  api/            webhook.py (LINE)
+  services/       ai_service.py (answer cache), line_service.py
+  ingestion/      models.py, vision_extractor.py, knowledge_builder.py,
+                  thai_text.py, dedupe.py
+  rag/            crag_service.py (pipeline + request budget),
+                  slide_retriever.py (hybrid retrieval),
+                  rag_service.py (LLM call, provider config),
+                  evidence.py (grounding gate + answer rendering),
+                  web_fallback.py, source_policy.py, query_normalizer.py,
+                  intent_router.py, chunking.py, embedding.py, vector_store.py
 
 scripts/
-  test_vision_page.py
-  test_knowledge_builder.py
-  test_chunking.py
-  test_embedding.py
-  test_vector_store.py
-  test_real_retrieval.py
-  ingest_pdf.py
+  ingest_pdf.py, ingest_all_data.py      ingestion
+  repair_kb.py, verify_ingestion.py      KB migration / integrity
+  eval_retrieval.py                      retrieval metrics (dev + holdout)
+  evaluate_acceptance.py                 live end-to-end harness
+
+tests/            contract tests; tests/data/retrieval_gold.json is the
+                  retrieval gold set
 
 Do not duplicate modules unnecessarily.
 
@@ -291,6 +327,11 @@ A feature is complete only when:
 - integration behavior is verified
 - documentation is updated when needed
 
+A change to retrieval (query handling, fusion, reranking, top-k) is not
+complete until `python -m scripts.eval_retrieval` shows it does not lower
+the dev or holdout result. A change to ingestion is not complete until
+`python -m scripts.verify_ingestion` passes.
+
 Before reporting the project as complete,
 run the project's test suite and report:
 
@@ -336,6 +377,12 @@ When debugging ingestion, prefer:
 
 Do not redesign the entire ingestion pipeline solely because
 Vision quota was exhausted.
+
+Provider latency is the other known issue: the AI Studio endpoint can
+take 6-30 s per call at times (independent of prompt size), which causes
+timeouts and the "temporarily unavailable" reply. Do not "fix" it by
+changing prompts or retrieval; measure first (`scripts/evaluate_acceptance.py`
+at a quiet time) and keep live test bursts small so they do not worsen it.
 
 ---
 

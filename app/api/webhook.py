@@ -1,14 +1,15 @@
 import logging
-import time
+import asyncio
 
 from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from linebot.v3 import WebhookParser
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 from app.config import LINE_CHANNEL_SECRET
 from app.services.ai_service import ask_ai
-from app.services.line_service import reply_text
+from app.services.line_service import DUMMY_REPLY_TOKENS, push_text, reply_text, show_loading_animation
 
 logger = logging.getLogger(__name__)
 
@@ -53,11 +54,18 @@ async def webhook(
         ):
             user_message = event.message.text
             reply_token = event.reply_token
+            user_id = getattr(event.source, "user_id", None)
+
+            if not reply_token or reply_token in DUMMY_REPLY_TOKENS:
+                continue
+
+            # Trigger native LINE Loading Animation (bouncing dots) immediately
+            loading = asyncio.create_task(run_in_threadpool(show_loading_animation, user_id, loading_seconds=20))
 
             # ── STEP 3: CRAG pipeline (ask_ai) ───────────────────────────────
             t0 = time.perf_counter()
             try:
-                answer = ask_ai(user_message)
+                answer = await run_in_threadpool(ask_ai, user_message)
             except Exception as e:
                 logger.error(f"Error processing user query in ask_ai: {e}")
                 answer = (
@@ -66,30 +74,13 @@ async def webhook(
                 )
             t_ask_ai = time.perf_counter() - t0
 
-            # ── STEP 4: Send reply back to LINE ──────────────────────────────
-            t0 = time.perf_counter()
-            reply_text(
-                reply_token,
-                answer,
-            )
-            t_reply = time.perf_counter() - t0
-
-            # ── TIMING SUMMARY ────────────────────────────────────────────────
-            t_total = time.perf_counter() - t_request_start
-            print(
-                "\n"
-                "═══════════════════════════════════════════════════════════\n"
-                f"[TIMING] User: {user_message[:60]!r}\n"
-                "───────────────────────────────────────────────────────────\n"
-                f"  LINE → FastAPI (body read)    : {t_body * 1000:7.1f} ms\n"
-                f"  LINE signature verify + parse : {t_parse * 1000:7.1f} ms\n"
-                f"  CRAG pipeline (ask_ai)        : {t_ask_ai * 1000:7.1f} ms\n"
-                f"  LINE reply API call           : {t_reply * 1000:7.1f} ms\n"
-                "───────────────────────────────────────────────────────────\n"
-                f"  TOTAL response time           : {t_total * 1000:7.1f} ms\n"
-                "═══════════════════════════════════════════════════════════\n",
-                flush=True,
-            )
+            sent = await run_in_threadpool(reply_text, reply_token, answer)
+            if not sent:
+                # Reply token may have expired on a slow answer: fall back to push
+                # so the user still gets a reply instead of silence.
+                await run_in_threadpool(push_text, user_id, answer)
+            if not loading.done():
+                loading.cancel()
 
     return {
         "status": "OK"

@@ -1,192 +1,171 @@
 from __future__ import annotations
 
+import json
+import logging
+import os
+import time
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from threading import Lock
+
 from openai import OpenAI
 
-from app.config import API_KEY
-from app.rag.vector_store import search
+from app.config import LLM_API_KEY, LLM_BASE_URL
+from app.rag.evidence import Evidence, GroundedResult, parse_grounded_result
 
-
+logger = logging.getLogger(__name__)
 _llm_client: OpenAI | None = None
+_client_lock = Lock()
+_DEFAULT_FALLBACK_MODELS = ["gemini-3.5-flash-lite", "gpt-5.6-luna", "nova-2-lite-v1"]
+# LLM_FALLBACK_MODELS (comma-separated) overrides this; set it empty to disable fallbacks.
+# Needed when LLM_BASE_URL is not the KKU gateway, since those model names don't exist elsewhere.
+_fallback_env = os.getenv("LLM_FALLBACK_MODELS")
+FALLBACK_MODELS = (
+    _DEFAULT_FALLBACK_MODELS if _fallback_env is None
+    else [m.strip() for m in _fallback_env.split(",") if m.strip()]
+)
+_EXHAUSTED_MODELS: dict[str, float] = {}
+# Optional thinking-budget hint (e.g. none/minimal/low/medium/high) for reasoning-capable models
+# such as Gemini 3.x; unset sends nothing so providers that reject the field are unaffected.
+REASONING_EFFORT = (os.getenv("LLM_REASONING_EFFORT") or "").strip().lower()
+# Enforce the grounded-answer JSON schema server-side (response_format json_schema). Off by
+# default because not every OpenAI-compatible provider supports it; parse_grounded_result stays
+# the real gate either way.
+STRUCTURED_OUTPUT = (os.getenv("LLM_STRUCTURED_OUTPUT") or "").strip().lower() in {"1", "true", "yes", "on"}
+_GROUNDED_RESPONSE_FORMAT = {"type": "json_schema", "json_schema": {"name": "grounded_answer", "strict": True, "schema": {
+    "type": "object",
+    "properties": {
+        "status": {"type": "string", "enum": ["sufficient", "partial", "insufficient"]},
+        "reason": {"type": "string"},
+        "is_caat_topic": {"type": "boolean"},
+        "missing_aspects": {"type": "array", "items": {"type": "string"}},
+        "claims": {"type": "array", "items": {"type": "object", "properties": {
+            "text": {"type": "string"},
+            "evidence": {"type": "array", "items": {"type": "object", "properties": {
+                "source_id": {"type": "string"}, "quote": {"type": "string"}},
+                "required": ["source_id", "quote"]}}},
+            "required": ["text", "evidence"]}},
+    },
+    "required": ["status", "reason", "is_caat_topic", "missing_aspects", "claims"]}}}
+# Per-attempt LLM timeout. Raise it (e.g. 11) for providers with spiky latency; the request
+# deadline in crag_service still bounds the total.
+ATTEMPT_TIMEOUT_SECONDS = float(os.getenv("LLM_ATTEMPT_TIMEOUT_SECONDS", "8"))
+# A "daily limit" 401 won't clear until the quota resets; a transient 401/429 usually will.
+DAILY_LIMIT_COOLDOWN_SECONDS = 30 * 60
+TRANSIENT_COOLDOWN_SECONDS = 60
+
+
+class LLMUnavailableError(RuntimeError):
+    """Every LLM attempt failed outright (errors/quota), as opposed to a merely unusable response."""
+
+
+SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "grounded_answer.txt").read_text(encoding="utf-8")
 
 
 def get_llm_client() -> OpenAI:
     global _llm_client
-    if _llm_client is None:
-        _llm_client = OpenAI(
-            api_key=API_KEY,
-            base_url="https://gen.ai.kku.ac.th/api/v1",
-        )
+    with _client_lock:
+        if _llm_client is None:
+            _llm_client = OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL, timeout=ATTEMPT_TIMEOUT_SECONDS, max_retries=0)
     return _llm_client
 
 
-def retrieve_context(
-    query: str,
-    n_results: int = 15,
-) -> str:
-    """
-    Retrieve relevant chunks from Chroma
-    and format them as context for the LLM.
-    """
-
-    results = search(
-        query=query,
-        n_results=n_results,
-    )
-
-    documents = results.get(
-        "documents",
-        [[]],
-    )[0]
-
-    metadatas = results.get(
-        "metadatas",
-        [[]],
-    )[0]
-
-    distances = results.get(
-        "distances",
-        [[]],
-    )[0]
-
-    context_parts: list[str] = []
-
-    for index, document in enumerate(
-        documents
-    ):
-        raw_meta = metadatas[index] if index < len(metadatas) else None
-        metadata = raw_meta if isinstance(raw_meta, dict) else {}
-
-        source_file = metadata.get(
-            "source_file",
-            "unknown",
-        )
-
-        page_number = metadata.get(
-            "page_number",
-            "unknown",
-        )
-
-        source_type = metadata.get(
-            "source_type",
-            "text",
-        )
-
-        context_parts.append(
-            "\n".join(
-                [
-                    f"[แหล่งข้อมูล {index + 1}]",
-                    f"ไฟล์: {source_file}",
-                    f"หน้า: {page_number}",
-                    f"ประเภท: {source_type}",
-                    f"เนื้อหา:",
-                    document,
-                ]
-            )
-        )
-
-    return "\n\n".join(
-        context_parts
-    )
-
-
-FALLBACK_MODELS = [
-    "gpt-5.6-luna",
-    "nova-2-lite-v1",
-    "llama-4-scout",
-    "gemini-3.5-flash-lite",
-    "deepseek-v4-flash",
-]
-
-_EXHAUSTED_MODELS: set[str] = set()
-
-
-def call_llm(
-    messages: list[dict],
-    client: OpenAI | None = None,
-    preferred_model: str = "gpt-5.6-luna",
-    temperature: float = 0.0,
-) -> str:
-    """
-    Call KKU GenAI OpenAI-compatible API with automatic fallback across models.
-    Caches models that hit daily limit (401) to eliminate cascading retry delay.
-    """
+def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model: str | None = None,
+             temperature: float = 0.0, max_tokens: int | None = None, deadline: float | None = None,
+             max_attempts: int = 2) -> str:
     ai_client = client or get_llm_client()
-    candidates = [preferred_model] + [m for m in FALLBACK_MODELS if m != preferred_model]
-    available = [m for m in candidates if m not in _EXHAUSTED_MODELS]
-    models_to_try = available if available else candidates
-
-    last_error: Exception | None = None
-    for model_name in models_to_try:
+    preferred = preferred_model or os.getenv("RAG_MODEL", "gemini-3.5-flash-lite")
+    candidates = list(dict.fromkeys([preferred] + FALLBACK_MODELS))
+    now = time.monotonic()
+    available = [m for m in candidates if _EXHAUSTED_MODELS.get(m, 0) <= now]
+    if not available:
+        # Everything is cooling down. A short (transient) cooldown means the provider throttled a
+        # burst, not that quota is gone: keep trying instead of failing every request for a
+        # minute. Long (daily-limit) cooldowns still fail fast so they don't burn the budget.
+        available = [m for m in candidates if _EXHAUSTED_MODELS.get(m, 0) - now <= TRANSIENT_COOLDOWN_SECONDS]
+    candidates = available
+    if not candidates:
+        raise LLMUnavailableError("All LLM models are in quota/rate-limit cooldown")
+    attempted = failed = 0
+    for model in candidates[:max_attempts]:
+        remaining = (deadline - time.monotonic()) if deadline is not None else ATTEMPT_TIMEOUT_SECONDS
+        if remaining <= 0.2:
+            break
+        attempted += 1
         try:
-            response = ai_client.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                temperature=temperature,
-                stream=False,
-            )
-            return response.choices[0].message.content or ""
-        except Exception as e:
-            last_error = e
-            err_msg = str(e).lower()
-            if "daily limit" in err_msg or "401" in err_msg or "rate limit" in err_msg:
-                _EXHAUSTED_MODELS.add(model_name)
-                logger.warning(
-                    f"Model '{model_name}' hit daily limit. Bypassing and falling back to next available model."
-                )
+            # Generous headroom for the structured JSON (claims + citation quotes): a
+            # real production chat log showed truncated answers at a lower limit. Output
+            # that still hits this limit is discarded below rather than used truncated.
+            extra = {"extra_body": {"reasoning_effort": REASONING_EFFORT}} if REASONING_EFFORT else {}
+            if STRUCTURED_OUTPUT:
+                extra["response_format"] = _GROUNDED_RESPONSE_FORMAT
+            response = ai_client.chat.completions.create(model=model, messages=messages, temperature=temperature,
+                max_tokens=max_tokens or 2200, stream=False, timeout=min(ATTEMPT_TIMEOUT_SECONDS, remaining), **extra)
+            _log_model_quota(model, response)
+            if not response or not response.choices:
                 continue
-            raise
+            choice = response.choices[0]
+            # Reasoning and truncated output are never treated as a final answer.
+            if choice.finish_reason not in {"stop", None}:
+                continue
+            content = choice.message.content
+            if isinstance(content, str) and content.strip():
+                _EXHAUSTED_MODELS.pop(model, None)
+                return content
+        except Exception as exc:
+            failed += 1
+            if getattr(exc, "status_code", None) in {401, 429}:
+                cooldown = DAILY_LIMIT_COOLDOWN_SECONDS if _is_daily_limit(exc) else TRANSIENT_COOLDOWN_SECONDS
+                _EXHAUSTED_MODELS[model] = time.monotonic() + cooldown
+            logger.warning("LLM request failed for %s (%s)", model, type(exc).__name__)
+    if attempted and failed == attempted:
+        raise LLMUnavailableError("Every LLM attempt failed outright")
+    raise RuntimeError("No complete LLM response within request budget")
 
-    raise RuntimeError(f"All LLM models failed or reached limit: {last_error}")
+
+def _is_daily_limit(exc: Exception) -> bool:
+    body = getattr(exc, "body", None) or getattr(exc, "message", "") or str(exc)
+    return "daily limit" in str(body).lower()
 
 
-def generate_grounded_answer(
-    query: str,
-    context: str,
-    client: OpenAI | None = None,
-    model: str = "gpt-5.6-luna",
-) -> str:
-    """
-    Generate an answer strictly grounded in the retrieved context,
-    with explicit file and page citations.
-    """
+def _log_model_quota(model: str, response) -> None:
+    """Surface the gateway's quota info (e.g. daily_remaining_tokens) so exhaustion is visible early."""
+    try:
+        quota = getattr(response, "model_quota", None)
+        if quota is None:
+            quota = (getattr(response, "model_extra", None) or {}).get("model_quota")
+        if quota:
+            logger.info("LLM quota for %s: %s", model, quota)
+    except Exception:
+        pass
 
-    if not context.strip():
-        return "ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้"
 
-    system_prompt = (
-        "คุณคือผู้เชี่ยวชาญด้านโดรนเกษตร หน้าที่ของคุณคือตอบคำถามผู้ใช้ที่เป็นเกษตรกรหรือนักบินโดรนให้ กระชับ สั้น ตรงประเด็น และเข้าใจง่ายที่สุด สำหรับอ่านใน LINE\n\n"
-        "กฎการตอบ:\n"
-        "1. ห้ามใช้เครื่องหมาย Markdown ทุกชนิด โดยเด็ดขาด (ห้ามใช้ ** ตัวหนา, * ตัวเอียง หรือ # หัวข้อ)\n"
-        "2. หากต้องการทำรายการหัวข้อ ให้ใช้สัญลักษณ์วงกลม '•' แทนเครื่องหมายดอกจัน '*'\n"
-        "3. รูปแบบ: ตอบตรงประเด็นทันที ไม่ต้องกล่าวทักทายหรืออ้อมค้อม ใช้ข้อความสั้นหรือหัวข้อย่อย (Bullet points)\n"
-        "4. ความน่าเชื่อถือ (Strict Grounding): ตอบเฉพาะข้อมูลที่ปรากฏใน 'บริบทที่กำหนดให้' เท่านั้น ห้ามเดา ห้ามใช้ความรู้ภายนอก หรือคิดขึ้นเองโดยเด็ดขาด\n"
-        "5. กฎการใส่แหล่งอ้างอิง (Consolidated Citation Rule):\n"
-        "   - ห้ามแทรกการอ้างอิงไว้กลางประโยค หรือท้ายบรรทัดของแต่ละหัวข้อย่อยเด็ดขาด\n"
-        "   - ให้รวบรวมแหล่งอ้างอิงทั้งหมดไว้ที่ 'บรรทัดสุดท้ายเพียงที่เดียว' หลังจากตอบเนื้อหาเสร็จสิ้น\n"
-        "   - สรุปชื่อไฟล์และเลขหน้าไม่ให้ซ้ำซ้อน ในรูปแบบ: (อ้างอิง: [ชื่อไฟล์], หน้า [เลขหน้า])\n"
-        "6. กรณีนอกเหนือบริบท: หากไม่มีข้อมูลในบริบท ให้ตอบเพียงว่า 'ไม่พบข้อมูลดังกล่าวในเอกสารฐานความรู้'"
-    )
+def retrieve_context(query: str, n_results: int = 8) -> str:
+    from app.rag.slide_retriever import search_slides_pipeline
+    return search_slides_pipeline(query, top_k=max(1, n_results))["context"]
 
-    user_prompt = (
-        f"บริบทที่กำหนดให้:\n"
-        f"{context}\n\n"
-        f"คำถาม:\n"
-        f"{query}\n\n"
-        f"คำตอบกระชับ:"
-    )
 
-    return call_llm(
-        messages=[
-            {
-                "role": "system",
-                "content": system_prompt,
-            },
-            {
-                "role": "user",
-                "content": user_prompt,
-            },
-        ],
-        client=client,
-        preferred_model=model,
-        temperature=0.0,
-    )
+def evaluate_evidence(query: str, evidence: list[Evidence], client: OpenAI | None = None,
+                      deadline: float | None = None, max_attempts: int = 2) -> GroundedResult:
+    if not evidence:
+        return GroundedResult(reason="No evidence")
+    payload = {"question": query, "today": datetime.now(timezone(timedelta(hours=7))).date().isoformat(),
+               "sources": [e.__dict__ for e in evidence]}
+    messages = [{"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
+    result = GroundedResult(reason="No LLM response")
+    # A syntactically-fine response that fails strict evidence verification (e.g. the model
+    # paraphrased a quote instead of copying it verbatim) is retried once within the same
+    # deadline rather than treated as final: the model is not perfectly deterministic even
+    # at temperature=0, and a second attempt often produces a verbatim, verifiable quote.
+    for _ in range(2):
+        try:
+            raw = call_llm(messages, client=client, deadline=deadline, max_attempts=max_attempts)
+        except RuntimeError as exc:
+            return GroundedResult(reason=str(exc), llm_unavailable=isinstance(exc, LLMUnavailableError))
+        result = parse_grounded_result(raw, evidence)
+        if not result.reason.startswith("Evidence validation failed"):
+            return result
+        if deadline is not None and deadline - time.monotonic() <= 0.5:
+            break
+    return result

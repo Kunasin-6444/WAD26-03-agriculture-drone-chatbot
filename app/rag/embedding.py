@@ -6,7 +6,6 @@ import time
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from google.genai.errors import ServerError
 
 
 load_dotenv()
@@ -42,6 +41,7 @@ EMBEDDING_MODEL = "gemini-embedding-2"
 def embed_text(
     text: str,
     max_retries: int = 5,
+    timeout_seconds: float = 30.0,
 ) -> list[float]:
     """
     Create one embedding vector for one text.
@@ -54,12 +54,19 @@ def embed_text(
             "Cannot embed empty text"
         )
 
+    if max_retries < 1 or timeout_seconds <= 0:
+        raise ValueError("Retry count and timeout must be positive")
+
     last_exc: Exception | None = None
 
     for attempt in range(max_retries):
         try:
             result = client.models.embed_content(
                 model=EMBEDDING_MODEL,
+                config=types.EmbedContentConfig(http_options=types.HttpOptions(
+                    timeout=int(timeout_seconds * 1000),
+                    retry_options=types.HttpRetryOptions(attempts=1),
+                )),
                 contents=[
                     types.Content(
                         parts=[

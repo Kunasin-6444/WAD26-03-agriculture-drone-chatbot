@@ -2,6 +2,7 @@ from pathlib import Path
 import sys
 import time
 
+from app.ingestion.dedupe import drop_covered_native_units
 from app.ingestion.knowledge_builder import (
     build_page_knowledge_units,
 )
@@ -14,6 +15,7 @@ from app.rag.chunking import (
 from app.rag.vector_store import (
     add_chunks,
 )
+from app.rag.source_policy import is_excluded_document
 
 
 def ingest_pdf(
@@ -37,6 +39,9 @@ def ingest_pdf(
     """
 
     pdf = Path(pdf_path)
+
+    if is_excluded_document(pdf.name):
+        raise ValueError("UAV01/UA03 are excluded; use CAAT UAS Portal")
 
     if not pdf.exists():
         raise FileNotFoundError(pdf)
@@ -111,11 +116,16 @@ def ingest_pdf(
             vision_result=vision_result,
         )
 
+        # Native text-layer units that vision already covers only add noisy duplicates.
+        before_dedupe = len(page_units)
+        page_units = drop_covered_native_units(page_units, page_number)
+
         all_units.extend(page_units)
 
         print(
             f"    Knowledge Units: "
             f"{len(page_units)}"
+            + (f" (dropped {before_dedupe - len(page_units)} native duplicates)" if before_dedupe != len(page_units) else "")
         )
 
     # --------------------------------------------------
@@ -149,8 +159,12 @@ def ingest_pdf(
     print()
     print("Embedding + Chroma...")
 
+    # Existing chunks for these pages are replaced only after every embedding
+    # succeeded, so a mid-run quota failure cannot leave the KB with holes.
     add_chunks(
-        chunks=chunks
+        chunks=chunks,
+        replace_source_file=pdf.name,
+        replace_pages=range(actual_start, actual_end + 1),
     )
 
     print()
