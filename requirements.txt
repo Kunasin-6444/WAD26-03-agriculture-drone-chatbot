@@ -7,6 +7,7 @@ python-dotenv
 openai
 chromadb
 tavily-python
+huggingface_hub
 google-genai
 pypdf
 PyMuPDF

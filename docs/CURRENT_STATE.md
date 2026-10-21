@@ -45,6 +45,7 @@ secondary Google `gemini-3.5-flash-lite` ใช้เป็นลำดับส
 | คำตอบสำเร็จรูป rich menu 6 ปุ่ม | ผ่าน `natural_answer.render` 96 บรรทัด ไม่มีบรรทัดถูกตัด |
 | ถามคนละถ้อยคำ (7 ข้อจาก gold × ภาษาพูด 2 แบบ, เฉพาะขั้นค้น) | ค้นเจอหน้าคำตอบครบ 14/14 เท่ากับคำถามเดิม |
 | การ์ดเมนู Flex | เทสต์ offline ผ่าน (ส่งเป็น FlexMessage, ทุกปุ่มไปถึงคู่มือที่มีอ้างอิง) ยังไม่ได้ลองบน LINE จริง |
+| image Docker สำหรับ Hugging Face (ลองในเครื่อง 2026-10-21) | build ผ่าน `pip check` ขนาด 1 GB; mount index แล้ว `/health/ready` 200 ใน ~12 วิ; ไม่มี index และไม่ตั้ง `HF_INDEX_REPO` → ไม่ยอมเริ่ม; "เมนู" ได้ FlexMessage; ยังไม่ได้ขึ้น HF จริง |
 | holdout | ยังไม่ได้รัน |
 
 ### ข้อจำกัดที่รู้แล้ว

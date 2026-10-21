@@ -79,3 +79,53 @@ docker compose start chatbot
 เป็นผลรอบก่อน ไม่ใช่การตรวจรอบ MD นี้ และไม่ยืนยันคุณภาพคำตอบหรือการส่ง LINE จริง
 ยังไม่มี host จริง การเตรียม production ไม่เป็น gate ก่อนให้เจ้าของทดลองถามในเครื่อง
 หากจะเปิด production ให้ตกลงขอบเขตคุณภาพและปิดข้อเสี่ยงสำคัญของรุ่นก่อน โดยไม่ขยาย live batch เอง
+
+## Hugging Face Spaces (Docker ฟรี) — เตรียม 2026-10-21
+
+เจ้าของเลือก Hugging Face เพราะฟรี ไม่ต้องใช้บัตร และรันโค้ดเดิมทั้งก้อนผ่าน Docker (RAM ของบริการ ~260–300 MB หลังเริ่มทำงาน)
+ไฟล์ที่ใช้: `deploy/huggingface/Dockerfile` (พอร์ต 7860, user id 1000), `deploy/huggingface/README.md` (ค่าตั้งของ Space)
+และ `scripts/fetch_index.py` (ดาวน์โหลด index ตอนเริ่ม)
+
+**ข้อจำกัดที่ต้องรู้ก่อน**
+- Space แบบ **private** เข้าถึงได้เฉพาะคนที่ล็อกอิน Hugging Face → LINE ส่ง webhook เข้าไม่ได้ จึงต้องเป็น **public**
+  ใครก็เปิดดูโค้ดใน `app/` ของ Space ได้ (ไม่มีกุญแจอยู่ในนั้น) แต่ **index (`chroma_db` ซึ่งมีเนื้อหาเอกสาร) ไม่อยู่ใน Space**
+  เก็บแยกใน **dataset แบบ private** แล้ว Space ดาวน์โหลดตอนเริ่มด้วย `HF_TOKEN` (`scripts/fetch_index.py`)
+  ถ้าเจ้าของไม่ยอมให้โค้ดเปิดเผยด้วย ให้ใช้เครื่องตัวเองแทน: รัน uvicorn พอร์ต 8000 แล้ว `ngrok http --url=<ชื่อ>.ngrok-free.app 8000`
+  (โดเมนถาวรฟรี 1 อันจาก ngrok dashboard → Domains) และตั้ง Webhook URL = `https://<ชื่อ>.ngrok-free.app/webhook`
+- เมื่อไม่มี index และไม่ได้ตั้ง `HF_INDEX_REPO` บริการจะไม่ยอมเริ่ม (ดีกว่าตอบ "ไม่พบข้อมูล" ทุกคำถาม) — ดูข้อความใน Logs
+- server ของ Hugging Face อยู่ต่างประเทศ ต้องลองว่าเรียก KKU Gen AI (`https://gen.ai.kku.ac.th/api/v1`) ได้หรือไม่ เป็นสิ่งแรกที่ต้องเช็กหลัง deploy
+- Space ฟรีหลับเมื่อไม่มีคนใช้ 48 ชม. (ข้อความแรกหลังหลับรอราว 1 นาที) และคิว LINE ใน `/app/cache` หายเมื่อ restart
+
+**ขั้นตอน (เจ้าของทำ ยกเว้นข้อ 3)** — ใน Git Bash ใช้ `/` ในพาธ, `<owner>` คือชื่อบัญชี Hugging Face
+1. สมัคร https://huggingface.co → Settings → Access Tokens → สร้าง token 2 อัน:
+   **write** (ใช้ในเครื่องตอนอัปโหลด) และ **read** (ใส่เป็น secret ของ Space เพื่ออ่าน dataset private)
+   แล้วล็อกอินในเครื่อง: `.venv/Scripts/hf.exe auth login` (วาง token write)
+   สร้าง repo 2 อัน:
+   `.venv/Scripts/hf.exe repos create <owner>/agri-drone-index --type dataset --private`
+   `.venv/Scripts/hf.exe repos create <owner>/agri-drone-bot --type space --sdk docker --public`
+2. หน้า Space → Settings → **Variables and secrets**:
+   - Secrets: `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `API_KEY` (KKU), `GOOGLE_API_KEY` (embedding), `TAVILY_API_KEY`,
+     `HF_TOKEN` (token แบบ read จากข้อ 1) และถ้าใช้ Google เป็นตัวสำรอง `LLM_SECONDARY_BASE_URL`, `LLM_SECONDARY_API_KEY`
+   - Variables: `HF_INDEX_REPO=<owner>/agri-drone-index`, `ANSWER_MODE=natural`, `RAG_MODEL=gpt-5.6-luna`, `LLM_FALLBACK_MODELS=claude-sonnet-5.5,gemini-3.7-flash,deepseek-v4-pro`,
+     `LLM_SECONDARY_ORDER=last`, `LLM_SECONDARY_MODELS=gemini-3.5-flash-lite`, `LLM_REASONING_EFFORT=low`, `LLM_MAX_OUTPUT_TOKENS=6000`,
+     `LLM_ATTEMPT_TIMEOUT_SECONDS=35`, `RAG_REQUEST_TIMEOUT_SECONDS=50`
+3. สร้างโฟลเดอร์: `.venv/Scripts/python.exe -m scripts.build_hf_space` ได้ 2 โฟลเดอร์ข้าง repo
+   - `../agriculture-drone-chatbot-hf-space` (public): `app/`, คู่มือ rich menu, `scripts/fetch_index.py`, Dockerfile — ราว 0.5 MB
+   - `../agriculture-drone-chatbot-hf-index` (private): ไฟล์ index อย่างเดียว ไม่รวม embedding cache — ราว 38 MB
+   ทั้งคู่ไม่มี PDF, เทสต์, เอกสาร และไม่มี `.env` (สคริปต์ปฏิเสธถ้าเจอ)
+4. อัปโหลด index ก่อน แล้วค่อย Space:
+   `.venv/Scripts/hf.exe upload <owner>/agri-drone-index ../agriculture-drone-chatbot-hf-index . --repo-type dataset`
+   `.venv/Scripts/hf.exe upload <owner>/agri-drone-bot ../agriculture-drone-chatbot-hf-space . --repo-type space`
+5. รอ build เสร็จ (แท็บ Logs ต้องเห็น `index downloaded from ...`) แล้วเปิด `https://<owner>-agri-drone-bot.hf.space/health/ready` ต้องได้ 200
+6. LINE Developers Console → Webhook URL = `https://<owner>-agri-drone-bot.hf.space/webhook` → Verify → ลองพิมพ์ "เมนู" และถามคำถามจริง 1 ข้อ
+   ถ้าคำถามจริงตอบว่าบริการขัดข้อง ให้ดู Logs ว่าเรียก KKU ได้หรือไม่
+7. อัปเดตครั้งต่อไป: ทำข้อ 3 แล้วอัปโหลดเฉพาะส่วนที่เปลี่ยน (โค้ด → Space, index ใหม่ → dataset แล้วกด Restart Space) — Webhook URL ไม่เปลี่ยน
+
+ลองในเครื่องก่อน (เปิด Docker Desktop, รันจากโฟลเดอร์ `project` ที่อยู่เหนือ repo):
+`docker build -t agri-hf agriculture-drone-chatbot-hf-space`
+`docker run --rm -p 7860:7860 --env-file agriculture-drone-chatbot/.env -v "$(pwd)/agriculture-drone-chatbot-hf-index:/app/chroma_db" agri-hf`
+แล้วเปิด http://127.0.0.1:7860/health/ready — mount สำเนา index จากข้อ 3 ไม่ใช่ `chroma_db` ตัวจริงของ repo
+ระวัง: `--env-file` ของ docker และช่อง Variables ของ Space **ไม่ตัด comment ท้ายบรรทัดและเครื่องหมายคำพูด** แบบที่ python-dotenv ทำ
+(เช่น `RAG_MODEL=gpt-5.6-luna  # ...` จะได้ชื่อรุ่นที่มี comment ติดไป) — ใส่เฉพาะค่าเปล่าๆ
+ค่าอื่นใน `.env` ที่ไม่ได้อยู่ในรายการข้อ 2 (เช่น `KB_GENERATION_BUDGET_SECONDS`, `LLM_SECONDARY_REASONING_EFFORT`,
+`LLM_SECONDARY_STRUCTURED_OUTPUT`) ใส่เป็น Variables ค่าเดียวกับ `.env`
