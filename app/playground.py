@@ -56,6 +56,9 @@ def ask_live(question: str) -> tuple[str, bool]:
     from app.services.ai_service import ask_ai
     # One local tester: follow-ups ("สูงแค่ไหน") are read with the previous full question, as on LINE.
     answer = ask_ai(question, user_id="playground")
+    from app.services.rich_menu_service import MENU_ANSWER, menu_as_text
+    if answer == MENU_ANSWER:
+        answer = menu_as_text()
     return answer, bool(service_error_code(answer))
 
 

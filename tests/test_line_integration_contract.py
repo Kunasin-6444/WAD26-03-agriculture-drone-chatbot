@@ -96,3 +96,46 @@ class LineIntegrationContractTests(InboxAppCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def follow_payload(token="mock-reply", event_id="event-follow-1"):
+    return {"destination": "Ubot", "events": [{
+        "type": "follow", "timestamp": 1727150000000, "source": {"type": "user", "userId": "Utest"},
+        "replyToken": token, "webhookEventId": event_id, "deliveryContext": {"isRedelivery": False},
+        "mode": "active", "follow": {"isUnblocked": False}}]}
+
+
+class MenuCardForLinePC(InboxAppCase):
+    """LINE for PC shows neither the rich menu nor quick replies; the Flex card works on every client."""
+
+    def test_typing_menu_answers_with_the_card_without_the_pipeline(self):
+        from app.services.rich_menu_service import MENU_ANSWER
+        self.ask.side_effect = ai_service.ask_ai
+        with patch("app.services.ai_service.run_crag_pipeline") as pipeline:
+            self.assertEqual(self.post(event_payload(text="เมนู")).status_code, 200)
+            self.assertEqual(self.wait_terminal()["state"], "done")
+        pipeline.assert_not_called()
+        self.assertEqual(self.reply.call_args.args[1], MENU_ANSWER)
+
+    def test_a_new_friend_gets_the_card(self):
+        from app.services.rich_menu_service import MENU_ANSWER
+        self.ask.side_effect = ai_service.ask_ai
+        self.assertEqual(self.post(follow_payload()).status_code, 200)
+        self.assertEqual(self.wait_terminal("event-follow-1")["state"], "done")
+        self.assertEqual(self.reply.call_args.args[1], MENU_ANSWER)
+
+    def test_the_card_is_sent_as_flex_and_every_button_reaches_a_cited_guide(self):
+        from linebot.v3.messaging import FlexMessage
+        from app.services.rich_menu_service import (MENU_ANSWER, get_rich_menu_preanswer, menu_card,
+                                                    RICH_MENU_ITEMS)
+        api = MagicMock()
+        with patch("app.services.line_service.ApiClient"), patch("app.services.line_service.MessagingApi", return_value=api):
+            self.assertTrue(reply_text("mock-token", MENU_ANSWER))
+        message = api.reply_message.call_args.args[0].messages[0]
+        self.assertIsInstance(message, FlexMessage)
+        self.assertLessEqual(len(message.alt_text), 400)
+        buttons = [c for c in menu_card()["body"]["contents"] if c["type"] == "button"]
+        self.assertEqual(len(buttons), len(RICH_MENU_ITEMS))
+        for button in buttons:
+            self.assertLessEqual(len(button["action"]["label"]), 40)
+            self.assertIn("แหล่งอ้างอิง", get_rich_menu_preanswer(button["action"]["text"]))

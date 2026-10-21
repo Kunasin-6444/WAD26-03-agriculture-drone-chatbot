@@ -344,3 +344,41 @@ def setup_rich_menu(
         print(f"[RichMenu] Successfully set {rich_menu_id} as default Rich Menu!")
 
         return rich_menu_id
+
+
+# ── Menu card for LINE PC ─────────────────────────────────────────────────────
+# LINE for PC (Windows/macOS) shows neither the rich menu nor quick replies; a Flex message shows on
+# every client (LINE developer docs, checked 2026-10-21). Typing "เมนู", or adding the bot as a friend,
+# sends a card whose buttons send the same texts as the rich menu, so they reach the same cited guides.
+MENU_ANSWER = "[[FLEX_MENU]]"   # what ask_ai returns; line_service turns it into the Flex message
+_MENU_TRIGGERS = {"เมนู", "เมนูหลัก", "ดูเมนู", "เปิดเมนู", "หัวข้อ", "menu"}
+HELP_TEXT = "วิธีใช้งานบอท"      # a BOT_USAGE_KEYWORDS phrase: the help text with example questions
+
+
+def is_menu_request(text: str | None) -> bool:
+    return re.sub(r"\s+", " ", text or "").strip().casefold() in _MENU_TRIGGERS
+
+
+def menu_card() -> dict[str, Any]:
+    """Flex bubble: one button per rich menu item plus a help button."""
+    buttons = [{"type": "button", "style": "primary", "height": "sm", "margin": "sm",
+                "color": "#{:02x}{:02x}{:02x}".format(*item["color"]),
+                "action": {"type": "message", "label": item["label"], "text": item["text"]}}
+               for item in RICH_MENU_ITEMS]
+    return {
+        "type": "bubble",
+        "body": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": [
+            {"type": "text", "text": "เมนูผู้ช่วยโดรนเกษตร", "weight": "bold", "size": "lg"},
+            {"type": "text", "text": "เลือกหัวข้อ หรือพิมพ์คำถามได้เลย", "size": "sm", "color": "#666666", "wrap": True},
+            *buttons]},
+        "footer": {"type": "box", "layout": "vertical", "contents": [
+            {"type": "button", "style": "secondary", "height": "sm",
+             "action": {"type": "message", "label": "วิธีใช้งานและตัวอย่างคำถาม", "text": HELP_TEXT}}]},
+    }
+
+
+def menu_as_text() -> str:
+    """The same menu as plain text: Flex alt text and the local playground."""
+    lines = ["เมนูผู้ช่วยโดรนเกษตร (พิมพ์ชื่อหัวข้อเพื่อดูคู่มือ):"]
+    lines += [f"{index}. {item['label']}" for index, item in enumerate(RICH_MENU_ITEMS, 1)]
+    return "\n".join(lines)

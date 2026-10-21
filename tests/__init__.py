@@ -16,6 +16,7 @@ if not LIVE:
     os.environ["LLM_SECONDARY_STRUCTURED_OUTPUT"] = "false"
     # A developer's .env picks the answer mode for the app; tests of either mode set it themselves.
     os.environ["ANSWER_MODE"] = "grounded"
+    os.environ["LLM_SECONDARY_ORDER"] = ""   # default order; the failover tests set "last" themselves
     _test_db = tempfile.mkdtemp(prefix="drone-tests-")
     os.environ["CHROMA_PATH"] = _test_db
     atexit.register(shutil.rmtree, _test_db, ignore_errors=True)

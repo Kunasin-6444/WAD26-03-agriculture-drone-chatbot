@@ -8,11 +8,14 @@ from linebot.v3.messaging import (
     MessagingApi,
     PushMessageRequest,
     ReplyMessageRequest,
+    FlexContainer,
+    FlexMessage,
     ShowLoadingAnimationRequest,
     TextMessage,
 )
 
 from app.config import LINE_CHANNEL_ACCESS_TOKEN
+from app.services.rich_menu_service import MENU_ANSWER, menu_as_text, menu_card
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +63,13 @@ class SendResult:
 def _safe_text(text: str) -> str:
     # Never silently remove a citation at the end of a long answer.
     return text if len(text) <= 4950 else "คำตอบยาวเกินขอบเขต กรุณาระบุประเด็นให้เฉพาะเจาะจงขึ้นครับ"
+
+
+def _messages(text: str) -> list:
+    """The stored answer as LINE messages: the menu answer becomes the Flex card (shown on LINE PC too)."""
+    if text == MENU_ANSWER:
+        return [FlexMessage(alt_text=menu_as_text()[:400], contents=FlexContainer.from_dict(menu_card()))]
+    return [TextMessage(text=_safe_text(text))]
 
 
 def _never_reached_line(exc: BaseException) -> bool:
@@ -112,7 +122,7 @@ def send_reply(reply_token: str, text: str) -> SendResult:
     try:
         with ApiClient(configuration) as api_client:
             MessagingApi(api_client).reply_message(
-                ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=_safe_text(text))]),
+                ReplyMessageRequest(reply_token=reply_token, messages=_messages(text)),
                 _request_timeout=SEND_TIMEOUT,
             )
         return SendResult(DELIVERED)
@@ -132,7 +142,7 @@ def send_push(user_id: str | None, text: str, retry_key: str | None = None) -> S
     try:
         with ApiClient(configuration) as api_client:
             MessagingApi(api_client).push_message(
-                PushMessageRequest(to=user_id, messages=[TextMessage(text=_safe_text(text))]),
+                PushMessageRequest(to=user_id, messages=_messages(text)),
                 x_line_retry_key=retry_key,
                 _request_timeout=SEND_TIMEOUT,
             )

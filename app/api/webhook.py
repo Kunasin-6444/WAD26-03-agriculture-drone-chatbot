@@ -4,7 +4,7 @@ import logging
 from fastapi import APIRouter, Header, HTTPException, Request
 from linebot.v3 import WebhookParser
 from linebot.v3.exceptions import InvalidSignatureError
-from linebot.v3.webhooks import MessageEvent, PostbackEvent, TextMessageContent
+from linebot.v3.webhooks import FollowEvent, MessageEvent, PostbackEvent, TextMessageContent
 
 from app.config import LINE_CHANNEL_SECRET
 from app.services.line_service import DUMMY_REPLY_TOKENS
@@ -41,6 +41,8 @@ async def webhook(
     for event in events:
         if isinstance(event, MessageEvent) and isinstance(event.message, TextMessageContent):
             text = event.message.text
+        elif isinstance(event, FollowEvent):
+            text = "เมนู"   # a new friend gets the menu card (LINE PC has no rich menu)
         elif isinstance(event, PostbackEvent):
             # A rich menu button sends postback data ("richmenu_1"); it goes through the same inbox
             # (dedupe, retry, reply/push) and ask_ai answers it from the pre-answer files.

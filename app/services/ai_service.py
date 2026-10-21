@@ -7,7 +7,7 @@ from concurrent.futures import Future, TimeoutError as FutureTimeout
 
 from app.rag.crag_service import run_crag_pipeline
 from app.service_status import ERROR_MESSAGES
-from app.services.rich_menu_service import get_rich_menu_preanswer
+from app.services.rich_menu_service import MENU_ANSWER, get_rich_menu_preanswer, is_menu_request
 
 # Verified answers are cached in memory so a repeated question (a demo, a popular FAQ) is
 # answered instantly and does not depend on the LLM provider being fast at that moment.
@@ -101,6 +101,8 @@ def ask_ai(user_message: str, user_id: str | None = None) -> str:
     pre_answer = get_rich_menu_preanswer(user_message)
     if pre_answer:
         return pre_answer
+    if is_menu_request(user_message):
+        return MENU_ANSWER
 
     previous = previous_question(user_id, user_message)
     if previous:
