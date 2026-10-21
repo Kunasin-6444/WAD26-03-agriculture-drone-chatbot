@@ -25,6 +25,12 @@
 - พิจารณา **A07**, **A09** เรื่อง freshness และ lexical fallback เมื่อ embedding ล่มตามปัญหาที่พบจริง; **A08** เรื่องคิว/งบต่อผู้ใช้ค่อยพิจารณาเมื่อขยายการใช้งาน
 - งานคงเหลือเป็นข้อเสนอจาก review ไม่ใช่คำสั่งให้เปลี่ยน prompt/model หรือรัน live เอง การเปลี่ยน prompt/รูปแบบคำตอบปกติยังต้องวัดก่อนและหลังตาม AGENTS; งานแก้ A05–A06 เปลี่ยนเฉพาะการแจ้ง/จัดการข้อขัดข้องตามที่อนุมัติ ไม่ใช้ quota หรือเปลี่ยนค่าเริ่มต้นโมเดล
 
+### ล่าสุด 2026-10-21
+ตัวหลัก gpt-5.6-luna ผ่าน 16/17 คัดกรอง (ดู CURRENT_STATE) — `.env` ที่เสนอ: `RAG_MODEL=gpt-5.6-luna`,
+`LLM_FALLBACK_MODELS=claude-sonnet-5.5,gemini-3.7-flash,deepseek-v4-pro`, `LLM_ATTEMPT_TIMEOUT_SECONDS=35`, `RAG_REQUEST_TIMEOUT_SECONDS=50`
+งานค้าง: เจ้าของสุ่มตรวจ CSV `cache/eval/screen_luna_natural_20261021.csv`; holdout ครั้งเดียว (ต้องใช้ quota luna ทั้งวัน — ทำวันที่ไม่ใช้ทดลอง);
+dis04 / inv07 การค้นยังพลาด (ดู CURRENT_STATE)
+
 ### ล่าสุด 2026-10-20 (เย็น)
 โหมด `natural` ชนะ (ผ่าน 69%, อ้างหน้าถูก 100%; grounded ทำไม่ทันเวลา) — ดูตารางใน CURRENT_STATE ลำดับต่อไป:
 1. เจ้าของตั้ง `.env`: `ANSWER_MODE=natural`, `RAG_MODEL=gemini-3.8-flash`, `LLM_FALLBACK_MODELS=gpt-5.6-luna,deepseek-v4-pro`,

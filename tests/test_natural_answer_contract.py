@@ -213,3 +213,9 @@ class CaatNote(unittest.TestCase):
         guide = Evidence("W1", "ทำการบินได้เฉพาะเวลา 06.00-18.00 น.", url="https://uasportal.caat.or.th/docs/guide.pdf",
                          title="แนวปฏิบัติ")
         self.assertIn(na.CAAT_NOTE, na.render("บินได้เฉพาะเวลา 06.00-18.00 น. [W1]", [guide]).text)
+
+
+class RangeDash(unittest.TestCase):
+    def test_an_en_dash_range_is_written_as_the_documents_write_it(self):
+        answer = na.render("หัวฉีดพัดส้มที่รอบ 1600 rpm ไหล 500 ml/หัวฉีด สูง 1.0–2.8 m [D1]", [NOZZLE])
+        self.assertIn("1.0-2.8 m", answer.text)

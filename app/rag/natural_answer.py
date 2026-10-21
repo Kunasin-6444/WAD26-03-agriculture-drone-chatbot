@@ -110,6 +110,8 @@ def _plain_chat_text(text: str) -> str:
     """LINE shows markdown literally: drop **bold**/__bold__, heading hashes and code fences."""
     text = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda m: m.group(1) or m.group(2), text)
     text = re.sub(r"^\s{0,3}#{1,6}\s*", "", text, flags=re.MULTILINE)
+    # The documents write ranges with a hyphen ("320-480"); models often print an en dash.
+    text = re.sub(r"(?<=\d)\s*[–—]\s*(?=\d)", "-", text)
     return re.sub(r"^\s*```\w*\s*$", "", text, flags=re.MULTILINE)
 
 

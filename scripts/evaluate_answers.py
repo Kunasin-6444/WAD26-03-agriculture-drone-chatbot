@@ -51,7 +51,8 @@ JUDGE_PROMPT = """คุณเป็นผู้ตรวจคำตอบข�
 # --------------------------------------------------
 
 def compact(text: str) -> str:
-    return re.sub(r"\s+", "", text or "")
+    # "320–480" (en dash) states the same range as "320-480".
+    return re.sub(r"\s+", "", re.sub(r"[–—]", "-", text or ""))
 
 
 def missing_terms(answer: str, terms: list[str]) -> list[str]:
