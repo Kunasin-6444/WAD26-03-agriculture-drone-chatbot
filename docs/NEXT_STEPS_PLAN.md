@@ -13,8 +13,8 @@
 2. **ตรวจว่าเครื่องพร้อม (offline ไม่เสีย quota):** `.venv/Scripts/python.exe -B -m pytest -q -p no:cacheprovider tests` → 498 passed (2026-10-21)
 3. **ลองระบบ:**
    - หน้าเว็บในเครื่อง: `.venv/Scripts/python.exe -m scripts.playground` → http://127.0.0.1:8080 (จำคำถามก่อนหน้าแบบเดียวกับ LINE)
-   - LINE จริง: `.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1` + `ngrok http 8000`
-     แล้วเจ้าของใส่ `https://<ngrok>/webhook` ใน LINE Developers Console; ติดตั้ง rich menu ด้วย `.venv/Scripts/python.exe -m scripts.setup_rich_menu`
+   - LINE จริง: `.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1` + `ngrok http --url=<โดเมนถาวรฟรี>.ngrok-free.app 8000`
+     แล้วเจ้าของใส่ `https://<โดเมน>/webhook` ใน LINE Developers Console ครั้งเดียว (ดู DEPLOYMENT หัวข้อ ngrok); ติดตั้ง rich menu ด้วย `.venv/Scripts/python.exe -m scripts.setup_rich_menu`
      (สคริปต์นี้ตั้งเมนูหลักของบัญชี LINE จริง — รันเมื่อเจ้าของบอกเท่านั้น)
    - แก้โค้ดหรือ `.env` แล้วต้องปิด-เปิดบริการใหม่ทุกครั้ง
    - terminal ของเจ้าของเป็น Git Bash: ใช้ `/` ในพาธเสมอ (`.venv/Scripts/python.exe`) — `\` ใช้ได้เฉพาะ PowerShell (เคยทำให้เจ้าของรันไม่ได้)
@@ -35,7 +35,7 @@
 | 3 | เจ้าของสุ่มตรวจ CSV `cache/eval/screen_luna_natural_20261021.csv` (~10 แถว) | เจ้าของทำ | ผู้ตรวจรอบนี้เป็น claude-sonnet-5.5 (terra ใช้ quota ก้อนเดียวกับ luna) |
 | 4 | Holdout 17 ข้อ **ครั้งเดียว** ด้วยค่าสุดท้าย บน luna ในวันที่ไม่ใช้ทดลอง (เช่น 24–25 ต.ค.) | ใช่ | `--model gpt-5.6-luna --judge-model claude-sonnet-5.5 --answer-mode natural --split holdout --no-answer-only` + ค่าเวลาเดียวกับคัดกรอง; ห้ามปรับระบบจากผล holdout |
 | 5 | อัปเดต `.env.example` ให้มีค่าใหม่ทุกตัว | ไม่ (ไม่ใช่ `.env` จริง) | `ANSWER_MODE`, `LLM_FALLBACK_MODELS`, `LLM_SECONDARY_ORDER`, `LLM_REASONING_EFFORT`, `LLM_MAX_OUTPUT_TOKENS`, `RETRIEVER_TABLE_CONTINUATION`, `RETRIEVER_PHRASE_WEIGHT`, `CAAT_DESIGNATED_URLS`, `CONVERSATION_TTL_SECONDS`, `FOLLOW_UP_MAX_CHARS` |
-| 6 | host บน **Render ฟรี** (เจ้าของเลือก 2026-10-21 หลัง HF Docker ต้องจ่าย) — ไฟล์พร้อม: `render.yaml`, `deploy/render/Dockerfile`, `scripts/fetch_index.py`, `scripts/build_index_bundle.py`; index อัปเข้า dataset private `Kunasin/agri-drone-index` แล้ว; ขั้นตอนใน [DEPLOYMENT](DEPLOYMENT.md) | ใช่ (สมัคร Render, token อ่าน index, secret, cron-job.org, webhook) | CPU 0.1 ทำให้ช้ากว่าเครื่องเจ้าของ ~15–20 วิต่อคำตอบ — วัดจริงหลัง deploy; ต้องเช็กว่า Render เรียก KKU Gen AI ได้; ต้องมีตัวปลุกทุก 10 นาที; วันที่ 26 ถ้า HF ยังไม่พร้อมใช้เครื่องเจ้าของ + ngrok โดเมนถาวรฟรี |
+| 6 | host ด้วย**เครื่องเจ้าของ + ngrok โดเมนถาวรฟรี** (เจ้าของเลือก 2026-10-21) — ขั้นตอนใน [DEPLOYMENT](DEPLOYMENT.md) หัวข้อ ngrok | เจ้าของทำ (โดเมน ngrok, ตั้ง Webhook URL ครั้งเดียว) | เครื่องต้องเปิดและไม่หลับช่วงที่มีคนใช้; อย่าเสนอ HF Spaces (Docker ต้อง PRO) หรือ Render ฟรี (CPU 0.1 ช้า) ซ้ำ — ลองแล้ว |
 | 7 | การ์ดเมนู Flex สำหรับ LINE PC **ทำแล้ว 2026-10-21** (`rich_menu_service.menu_card`, พิมพ์ "เมนู"/แอดเพื่อน) — **ยังไม่ได้ลองบน LINE จริง** รอเจ้าของส่งภาพ | ลองเอง | ถ้าเพื่อน (Surawit) push งานแบบเดียวกันมา ให้เลือกแบบเดียว ไม่ใช้สองระบบซ้อน; quick reply ไม่ขึ้นบน PC; ตอน merge ต้องคงระบบคิว (กับดักข้อ 6) |
 | 8 | เปลี่ยน GitHub repo เป็น **private** (เจ้าของตัดสิน 2026-10-21 เพื่อซ่อนสไลด์) แล้วเพิ่มเพื่อน/อาจารย์เป็น collaborator | เจ้าของทำ | สไลด์ PDF 12 ไฟล์ใน `data/` อยู่ใน git ทุก branch ตั้งแต่ commit แรก 2026-09-23 ขณะ repo เป็น public; ถ้ามี fork แบบ public อยู่ fork นั้นไม่ถูกซ่อนตาม; ห้ามทำ repo/Space/dataset ที่มีสไลด์หรือ index ให้เป็น public |
 | 9 | freeze 25 ต.ค.: รันเทสต์ทั้งชุดครั้งเดียว แล้วไม่เปลี่ยนโค้ดจนจบวันทดสอบ | – | |
