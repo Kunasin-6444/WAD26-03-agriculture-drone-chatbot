@@ -114,6 +114,12 @@ def _crops(flat: str) -> set[str]:
     return found
 
 
+def _canonical_nozzle(label: str) -> str:
+    """Pilots call the blue nozzle "พัดฟ้า"; the documents print "พัดน้ำเงิน". query_normalizer treats
+    them as one nozzle, so the checks must too (2026-10-21: every line naming พัดฟ้า was dropped)."""
+    return label.replace("ฟ้า", "น้ำเงิน")
+
+
 def _nozzles(raw: str) -> set[str]:
     """Nozzle colour labels stated in Thai ("พัดส้ม") or by their English colour word."""
     found = set(_NOZZLE.findall(_flat(raw)))
@@ -121,7 +127,7 @@ def _nozzles(raw: str) -> set[str]:
     for thai, pattern in _NOZZLE_ENGLISH_RE.items():
         if pattern.search(lowered):
             found |= {f"พัด{thai}", f"พัดอัด{thai}"}
-    return found
+    return {_canonical_nozzle(label) for label in found}
 
 
 def _weed_groups(flat: str) -> set[frozenset[str]]:
@@ -184,7 +190,7 @@ def claim_inconsistency(claim_text: str, quotes: list[str] | tuple[str, ...], ci
         if word.lower() not in evidence_words and word.lower() not in _ALIAS_TO_UNIT:
             return f"term not in evidence: {word}"
 
-    claimed_nozzles = set(_NOZZLE.findall(claim_flat))
+    claimed_nozzles = {_canonical_nozzle(label) for label in _NOZZLE.findall(claim_flat)}
     in_quote, in_evidence = _nozzles(quote_text), _nozzles(evidence_text)
     if claimed_nozzles - in_evidence:
         return f"nozzle not in evidence: {sorted(claimed_nozzles - in_evidence)}"

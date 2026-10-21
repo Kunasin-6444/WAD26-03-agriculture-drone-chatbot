@@ -167,3 +167,20 @@ class ComparisonStrictness(unittest.TestCase):
         wind = "ห้ามบินเมื่อความเร็วลมเกิน 5 m/s ความสูงบิน 2 m"
         self.assertEqual(claim_inconsistency("บินได้เมื่อความเร็วลมไม่เกิน 5 m/s", [], wind), "")
         self.assertEqual(claim_inconsistency("ความสูงบินไม่เกิน 2 m", [], wind), "")
+
+
+class NozzleAlias(unittest.TestCase):
+    TABLE = "หัวฉีด | รอบ (rpm) | ปริมาณ (ml/หัวฉีด)\nพัดส้ม | 1600 | 500\nพัดน้ำเงิน | 1600 | 950"
+
+    def test_the_users_name_for_the_blue_nozzle_is_the_documents_blue_nozzle(self):
+        from app.rag.claim_consistency import claim_inconsistency
+        from app.rag.table_grounding import table_inconsistency
+        claim = "พัดฟ้า (พัดน้ำเงิน) ไหล 950 ml/หัวฉีด ที่ 1600 rpm"
+        self.assertEqual(claim_inconsistency(claim, [], self.TABLE), "")
+        self.assertEqual(table_inconsistency("พัดฟ้าไหล 950 ml/หัวฉีด", [], self.TABLE), "")
+
+    def test_a_value_under_the_wrong_colour_is_still_caught(self):
+        from app.rag.claim_consistency import claim_inconsistency
+        from app.rag.table_grounding import table_inconsistency
+        self.assertTrue(claim_inconsistency("พัดแดงไหล 950 ml/หัวฉีด", [], self.TABLE))
+        self.assertTrue(table_inconsistency("พัดฟ้าไหล 500 ml/หัวฉีด", [], self.TABLE))

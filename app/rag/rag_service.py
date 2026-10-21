@@ -127,6 +127,12 @@ def _model_candidates(preferred: str) -> list[tuple[str, str, bool]]:
     secondary = []
     if secondary_enabled():
         secondary = [(_SECONDARY_PREFIX + m, m, True) for m in dict.fromkeys(SECONDARY_MODELS or [preferred])]
+    # Default: the other provider right after the preferred model, for when every gateway fallback
+    # shares the preferred model's quota. LLM_SECONDARY_ORDER=last keeps it as the last resort when
+    # the gateway fallbacks are other model families and stronger (2026-10-21: luna's quota ran out
+    # and a weak secondary answered before claude-sonnet-5.5 was tried).
+    if os.getenv("LLM_SECONDARY_ORDER", "").strip().lower() == "last":
+        return primary + secondary
     return primary[:1] + secondary + primary[1:]
 
 

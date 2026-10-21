@@ -1,4 +1,5 @@
 import time
+import os
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -43,6 +44,13 @@ class CrossProviderFailoverContract(unittest.TestCase):
         self.assertNotIn("primary-b", rag_service._EXHAUSTED_MODELS)
         self.assertEqual(primary.chat.completions.create.call_count, 1)
         self.assertNotIn("secondary:second-a", rag_service._EXHAUSTED_MODELS)
+
+    def test_secondary_last_tries_the_gateway_fallbacks_first(self):
+        primary = _failing_client(_HttpError(401))
+        with patch.dict(os.environ, {"LLM_SECONDARY_ORDER": "last"}):
+            self.assertEqual(rag_service.call_llm([], primary, preferred_model="primary-a"), "from-secondary")
+        tried = [call.kwargs["model"] for call in primary.chat.completions.create.call_args_list]
+        self.assertEqual(tried, ["primary-a", "primary-b"])   # the gateway fallback before the other provider
 
     def test_failover_works_even_when_the_caller_allows_one_attempt(self):
         # KB generation uses max_attempts=1; instant quota errors must not block failover.
