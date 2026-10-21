@@ -1,15 +1,17 @@
 import logging
 import asyncio
+import time
 
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from linebot.v3 import WebhookParser
 from linebot.v3.exceptions import InvalidSignatureError
-from linebot.v3.webhooks import MessageEvent, TextMessageContent
+from linebot.v3.webhooks import MessageEvent, TextMessageContent, PostbackEvent
 
 from app.config import LINE_CHANNEL_SECRET
 from app.services.ai_service import ask_ai
 from app.services.line_service import DUMMY_REPLY_TOKENS, push_text, reply_text, show_loading_animation
+from app.services.rich_menu_service import get_rich_menu_preanswer
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,21 @@ async def webhook(
     t_parse = time.perf_counter() - t0
 
     for event in events:
+        # ── Rich Menu Postback Event ─────────────────────────────────────────
+        if isinstance(event, PostbackEvent):
+            reply_token = event.reply_token
+            if not reply_token or reply_token in DUMMY_REPLY_TOKENS:
+                continue
+            postback_data = getattr(event.postback, "data", "")
+            pre_answer = get_rich_menu_preanswer(postback_data)
+            if pre_answer:
+                sent = await run_in_threadpool(reply_text, reply_token, pre_answer)
+                if not sent:
+                    user_id = getattr(event.source, "user_id", None)
+                    await run_in_threadpool(push_text, user_id, pre_answer)
+            continue
+
+        # ── Rich Menu or User Text Message Event ─────────────────────────────
         if (
             isinstance(event, MessageEvent)
             and isinstance(event.message, TextMessageContent)
@@ -57,6 +74,14 @@ async def webhook(
             user_id = getattr(event.source, "user_id", None)
 
             if not reply_token or reply_token in DUMMY_REPLY_TOKENS:
+                continue
+
+            # ── Fast-path: Rich Menu Pre-Answer (Bypasses CRAG backend) ───────
+            pre_answer = get_rich_menu_preanswer(user_message)
+            if pre_answer:
+                sent = await run_in_threadpool(reply_text, reply_token, pre_answer)
+                if not sent:
+                    await run_in_threadpool(push_text, user_id, pre_answer)
                 continue
 
             # Trigger native LINE Loading Animation (bouncing dots) immediately

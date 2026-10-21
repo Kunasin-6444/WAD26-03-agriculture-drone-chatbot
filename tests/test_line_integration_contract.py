@@ -16,10 +16,40 @@ from app.services.line_service import reply_text
 from app.services.rich_menu_service import build_rich_menu_request
 
 
-def event_payload(token="mock-reply", message_type="text"):
-    return {"destination": "Ubot", "events": [{"type": "message", "message": {"type": message_type, "id": "1", "text": "หัวฉีดพัดส้ม", "quoteToken": "q"},
-        "timestamp": 1727150000000, "source": {"type": "user", "userId": "Utest"}, "replyToken": token,
-        "webhookEventId": "event-1", "deliveryContext": {"isRedelivery": False}, "mode": "active"}]}
+def event_payload(token="mock-reply", message_type="text", text="หัวฉีดพัดส้ม"):
+    return {
+        "destination": "Ubot",
+        "events": [
+            {
+                "type": "message",
+                "message": {"type": message_type, "id": "1", "text": text, "quoteToken": "q"},
+                "timestamp": 1727150000000,
+                "source": {"type": "user", "userId": "Utest"},
+                "replyToken": token,
+                "webhookEventId": "event-1",
+                "deliveryContext": {"isRedelivery": False},
+                "mode": "active",
+            }
+        ],
+    }
+
+
+def postback_payload(token="mock-reply", data="richmenu_1"):
+    return {
+        "destination": "Ubot",
+        "events": [
+            {
+                "type": "postback",
+                "postback": {"data": data},
+                "timestamp": 1727150000000,
+                "source": {"type": "user", "userId": "Utest"},
+                "replyToken": token,
+                "webhookEventId": "event-postback-1",
+                "deliveryContext": {"isRedelivery": False},
+                "mode": "active",
+            }
+        ],
+    }
 
 
 def signed_request(payload):
@@ -31,9 +61,11 @@ def signed_request(payload):
 class LineIntegrationContractTests(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
-        patches = [patch("app.api.webhook.show_loading_animation", return_value=True),
-                   patch("app.api.webhook.ask_ai", return_value="หัวฉีด 500 ml\n\nแหล่งอ้างอิง:\n[1] UAV07.pdf, หน้า 12"),
-                   patch("app.api.webhook.reply_text", return_value=True)]
+        patches = [
+            patch("app.api.webhook.show_loading_animation", return_value=True),
+            patch("app.api.webhook.ask_ai", return_value="หัวฉีด 500 ml\n\nแหล่งอ้างอิง:\n[1] UAV07.pdf, หน้า 12"),
+            patch("app.api.webhook.reply_text", return_value=True),
+        ]
         self.loading, self.ask, self.reply = [p.start() for p in patches]
         for p in patches:
             self.addCleanup(p.stop)
@@ -80,20 +112,43 @@ class LineIntegrationContractTests(unittest.TestCase):
         self.assertIn("คำตอบยาวเกิน", request.messages[0].text)
         self.assertLess(len(request.messages[0].text), 4950)
 
-    def test_rich_menu_source_policy_and_topics(self):
+    def test_rich_menu_structure_and_buttons(self):
         menu = build_rich_menu_request()
         self.assertEqual(len(menu.areas), 6)
-        self.assertEqual(menu.areas[0].action.uri, "https://uasportal.caat.or.th/infographic")
-        self.assertIn("หัวฉีด", menu.areas[2].action.text)
-        self.assertIn("วิธีพิมพ์คำถาม", menu.areas[5].action.text)
+        self.assertIn("ขึ้นทะเบียนโดรน", menu.areas[0].action.text)
+        self.assertIn("ขึ้นทะเบียนนักบินโดรน", menu.areas[1].action.text)
+        self.assertIn("ขออนุญาตบินโดรน", menu.areas[2].action.text)
+        self.assertIn("กฎหมายการบินโดรน", menu.areas[3].action.text)
+        self.assertIn("โดรนฉีดพ่นและหัวฉีด", menu.areas[4].action.text)
+        self.assertIn("การใช้สารกำจัดวัชพืช", menu.areas[5].action.text)
+
+    def test_rich_menu_preanswer_fastpath_bypasses_crag(self):
+        body, headers = signed_request(event_payload(text="ขึ้นทะเบียนโดรน"))
+        self.assertEqual(self.client.post("/webhook", content=body, headers=headers).status_code, 200)
+        # CRAG backend must NOT be called for Rich Menu pre-answers
+        self.ask.assert_not_called()
+        self.reply.assert_called_once()
+        answer = self.reply.call_args.args[1]
+        self.assertIn("คู่มือการขึ้นทะเบียนโดรน", answer)
+
+    def test_rich_menu_postback_event_returns_preanswer(self):
+        body, headers = signed_request(postback_payload(data="richmenu_5"))
+        self.assertEqual(self.client.post("/webhook", content=body, headers=headers).status_code, 200)
+        self.ask.assert_not_called()
+        self.reply.assert_called_once()
+        answer = self.reply.call_args.args[1]
+        self.assertIn("คู่มือโดรนฉีดพ่นทางการเกษตร", answer)
 
     def test_slow_ai_does_not_block_async_event_loop(self):
         entered, release = threading.Event(), threading.Event()
+
         def slow_answer(_):
             entered.set()
             release.wait(timeout=5)
             return "mock answer"
+
         self.ask.side_effect = slow_answer
+
         async def verify():
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
                 body, headers = signed_request(event_payload())
@@ -105,4 +160,5 @@ class LineIntegrationContractTests(unittest.TestCase):
                 finally:
                     release.set()
                     await pending
+
         asyncio.run(verify())

@@ -4,6 +4,7 @@ import threading
 import time
 
 from app.rag.crag_service import run_crag_pipeline
+from app.services.rich_menu_service import get_rich_menu_preanswer
 
 # Verified answers are cached in memory so a repeated question (a demo, a popular FAQ) is
 # answered instantly and does not depend on the LLM provider being fast at that moment.
@@ -35,11 +36,18 @@ def clear_answer_cache() -> None:
 def ask_ai(user_message: str) -> str:
     """
     Answer user query using Corrective RAG (CRAG) pipeline:
-    1. Local knowledge base retrieval & relevance grading
-    2. Web fallback (Tavily & official sources) if insufficient
-    3. Designated CAAT UAS portal routing for Air Law/Air Space
-    4. Abstain path if unverified (zero hallucination)
+    1. Instant pre-answer check for Rich Menu queries
+    2. Local knowledge base retrieval & relevance grading
+    3. Web fallback (Tavily & official sources) if insufficient
+    4. Designated CAAT UAS portal routing for Air Law/Air Space
+    5. Abstain path if unverified (zero hallucination)
     """
+    # 1. Rich Menu pre-answer fast-path
+    pre_answer = get_rich_menu_preanswer(user_message)
+    if pre_answer:
+        return pre_answer
+
+    # 2. In-memory cache check
     ttl = _ttl_seconds()
     key = _key(user_message)
     now = time.monotonic()
@@ -49,6 +57,7 @@ def ask_ai(user_message: str) -> str:
             if hit and hit[0] > now:
                 return hit[1]
 
+    # 3. CRAG Pipeline execution
     response = run_crag_pipeline(user_message)
 
     if (ttl > 0 and key and response.source_type in _CACHEABLE_SOURCES and response.grade == "CORRECT"
