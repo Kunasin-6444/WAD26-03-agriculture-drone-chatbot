@@ -7,6 +7,7 @@ from concurrent.futures import Future, TimeoutError as FutureTimeout
 
 from app.rag.crag_service import run_crag_pipeline
 from app.service_status import ERROR_MESSAGES
+from app.services.rich_menu_service import get_rich_menu_preanswer
 
 # Verified answers are cached in memory so a repeated question (a demo, a popular FAQ) is
 # answered instantly and does not depend on the LLM provider being fast at that moment.
@@ -66,6 +67,11 @@ def ask_ai(user_message: str) -> str:
     3. Designated CAAT UAS portal routing for Air Law/Air Space
     4. Abstain path if unverified (zero hallucination)
     """
+    # Rich menu buttons get their fixed guide at once, without the pipeline.
+    pre_answer = get_rich_menu_preanswer(user_message)
+    if pre_answer:
+        return pre_answer
+
     ttl = _ttl_seconds()
     message = re.sub(r"\s+", " ", user_message).strip().casefold()
     key = _key(user_message) if ttl > 0 and message and not any(term in message for term in _FRESHNESS_TERMS) else ()
