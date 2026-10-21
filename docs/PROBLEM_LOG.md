@@ -31,7 +31,7 @@
 - **วันที่พบ**: 2026-09-24
 - **สถานะ**: Resolved (แก้ไขแล้ว ปัจจุบันอยู่ที่ ~8-10 วินาที)
 - **อาการ / ผลกระทบ**: ผู้ใช้ส่งข้อความใน LINE แต่ต้องรอนานเกิน 30-50 วินาทีจนอาจเกิด Webhook Timeout หรือผู้ใช้คิดว่าระบบค้าง
-- **หลักฐาน (Evidence)**: สคริปต์จับเวลา Profiling ใน `scratch/measure_latency_steps.py`
+- **หลักฐาน (Evidence)**: สคริปต์จับเวลา Profiling ใน `scratch/measure_latency_steps.py` (ไฟล์นี้ไม่อยู่ในเครื่องแล้ว ณ 2026-10-21)
 - **สาเหตุรากเหง้า (Root Cause)**:
   1. โมเดลเริ่มต้นบางตัวบน KKU GenAI (`gemini-3.5-flash-lite`, `qwen3.6-flash`) โควตาหมด (HTTP 401) ทำให้เสียเวลา Fallback วนซ้ำทุก Request
   2. Tavily Web Fallback ตั้งค่า `search_depth="advanced"` ซึ่งใช้เวลาดึงและ scrape หน้าเว็บนาน 8-15 วินาที

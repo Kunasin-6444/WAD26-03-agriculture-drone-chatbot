@@ -8,8 +8,9 @@
 
 ## เริ่มตรงนี้
 
-1. **สภาพ repo:** branch `wip/ingest-v2-eval-2026-10-19` นำหน้า GitHub หลาย commit (**ยังไม่ push** — ดู `git status -sb`)
+1. **สภาพ repo:** branch `wip/ingest-v2-eval-2026-10-19` push ขึ้น GitHub แล้ว (2026-10-21) และรวม `origin/frontend` ครบ — เช็กด้วย `git status -sb`
    `origin/main` = `3129eed` (ยังไม่มีงานตั้งแต่ 16 ต.ค.) — push / merge / เปิด PR เมื่อเจ้าของสั่งเท่านั้น
+   ไฟล์ทิ้งใน `garbage/` และ `scratch/` (git ignore) ลบแล้ว 2026-10-21 เหลือ `scratch/readiness_review_20261019.py` ที่ PROBLEM_LOG อ้าง
 2. **ตรวจว่าเครื่องพร้อม (offline ไม่เสีย quota):** `.venv/Scripts/python.exe -B -m pytest -q -p no:cacheprovider tests` → 498 passed (2026-10-21)
 3. **ลองระบบ:**
    - หน้าเว็บในเครื่อง: `.venv/Scripts/python.exe -m scripts.playground` → http://127.0.0.1:8080 (จำคำถามก่อนหน้าแบบเดียวกับ LINE)

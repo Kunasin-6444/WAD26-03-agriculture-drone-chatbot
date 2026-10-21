@@ -5,7 +5,8 @@
 
 ## สรุปสถานะ 2026-10-21
 
-**Repo:** branch `wip/ingest-v2-eval-2026-10-19` นำหน้า GitHub 7 commit + งานยังไม่ commit (การ์ดเมนู, เอกสารส่งต่อ), `origin/main` = `3129eed`; เทสต์ offline 498 ผ่าน
+**Repo:** branch `wip/ingest-v2-eval-2026-10-19` push ขึ้น GitHub แล้วถึง `60b0fab` (2026-10-21) และรวม `origin/frontend` ของเพื่อนครบ (ไม่มี commit ค้าง);
+`origin/main` = `3129eed` (ยังไม่ merge — รอเจ้าของสั่ง); repo ยังเป็น **public** (ดูข้อจำกัดข้อ 10); เทสต์ offline 498 ผ่าน
 
 ### ระบบทำงานอย่างไร (โหมดที่ใช้จริง `ANSWER_MODE=natural`)
 ```
