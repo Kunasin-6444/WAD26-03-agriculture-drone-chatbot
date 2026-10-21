@@ -80,52 +80,49 @@ docker compose start chatbot
 ยังไม่มี host จริง การเตรียม production ไม่เป็น gate ก่อนให้เจ้าของทดลองถามในเครื่อง
 หากจะเปิด production ให้ตกลงขอบเขตคุณภาพและปิดข้อเสี่ยงสำคัญของรุ่นก่อน โดยไม่ขยาย live batch เอง
 
-## Hugging Face Spaces (Docker ฟรี) — เตรียม 2026-10-21
+## Render (Docker ฟรี) — เตรียม 2026-10-21
 
-เจ้าของเลือก Hugging Face เพราะฟรี ไม่ต้องใช้บัตร และรันโค้ดเดิมทั้งก้อนผ่าน Docker (RAM ของบริการ ~260–300 MB หลังเริ่มทำงาน)
-ไฟล์ที่ใช้: `deploy/huggingface/Dockerfile` (พอร์ต 7860, user id 1000), `deploy/huggingface/README.md` (ค่าตั้งของ Space)
-และ `scripts/fetch_index.py` (ดาวน์โหลด index ตอนเริ่ม)
+**ทำไมไม่ใช่ Hugging Face Spaces:** ตั้งแต่ปี 2026 Space แบบ Docker/Gradio บน CPU ฟรีต้องสมัคร PRO ($9/เดือน)
+(สร้างแล้วได้ `402 ... requires a PRO subscription`) ผิดเงื่อนไขห้ามใช้บริการเสียเงิน — ใช้ HF แค่เก็บ index ใน dataset private
 
-**ข้อจำกัดที่ต้องรู้ก่อน**
-- Space แบบ **private** เข้าถึงได้เฉพาะคนที่ล็อกอิน Hugging Face → LINE ส่ง webhook เข้าไม่ได้ จึงต้องเป็น **public**
-  ใครก็เปิดดูโค้ดใน `app/` ของ Space ได้ (ไม่มีกุญแจอยู่ในนั้น) แต่ **index (`chroma_db` ซึ่งมีเนื้อหาเอกสาร) ไม่อยู่ใน Space**
-  เก็บแยกใน **dataset แบบ private** แล้ว Space ดาวน์โหลดตอนเริ่มด้วย `HF_TOKEN` (`scripts/fetch_index.py`)
-  ถ้าเจ้าของไม่ยอมให้โค้ดเปิดเผยด้วย ให้ใช้เครื่องตัวเองแทน: รัน uvicorn พอร์ต 8000 แล้ว `ngrok http --url=<ชื่อ>.ngrok-free.app 8000`
-  (โดเมนถาวรฟรี 1 อันจาก ngrok dashboard → Domains) และตั้ง Webhook URL = `https://<ชื่อ>.ngrok-free.app/webhook`
-- เมื่อไม่มี index และไม่ได้ตั้ง `HF_INDEX_REPO` บริการจะไม่ยอมเริ่ม (ดีกว่าตอบ "ไม่พบข้อมูล" ทุกคำถาม) — ดูข้อความใน Logs
-- server ของ Hugging Face อยู่ต่างประเทศ ต้องลองว่าเรียก KKU Gen AI (`https://gen.ai.kku.ac.th/api/v1`) ได้หรือไม่ เป็นสิ่งแรกที่ต้องเช็กหลัง deploy
-- Space ฟรีหลับเมื่อไม่มีคนใช้ 48 ชม. (ข้อความแรกหลังหลับรอราว 1 นาที) และคิว LINE ใน `/app/cache` หายเมื่อ restart
+**ภาพรวม**
+- Render สร้าง image จาก GitHub ตาม `render.yaml` + `deploy/render/Dockerfile` (มีแค่ `app/`, คู่มือ rich menu, `scripts/fetch_index.py` ไม่มี PDF/เทสต์/เอกสาร)
+- index (`chroma_db` = เนื้อหาเอกสาร) ไม่อยู่ใน git: เก็บใน dataset private `Kunasin/agri-drone-index`
+  ตอนเริ่ม `scripts/fetch_index.py` ดาวน์โหลดด้วย `HF_TOKEN` (~10 วิ); ไม่มี index และไม่ตั้ง `HF_INDEX_REPO` → ไม่ยอมเริ่ม
+- ฟรี ไม่ต้องใช้บัตร: RAM 512 MB (ใช้ ~250 MB), CPU 0.1, 750 ชม./เดือน, ดิสก์ชั่วคราว (คิว LINE หายเมื่อ restart/deploy/หลับ)
+- **หลับหลังไม่มีคนเรียก 15 นาที** ปลุกราว 1 นาที + เริ่มบริการ — ต้องมีตัวปลุก (ข้อ 6) ไม่งั้นข้อความแรกหลังหลับจะช้าหรือหลุด
+- **ช้ากว่าเครื่องเจ้าของ:** ลองในเครื่องด้วย `--cpus 0.1 --memory 512m` (2026-10-21): เริ่มบริการ ~110 วิ (เต็ม CPU 12 วิ),
+  ค้นหนึ่งครั้ง ~8 วิ (เต็ม CPU < 1 วิ) → คำตอบช้าขึ้นราว 15–20 วิ และตอบทีละข้อความ ถ้าคนถามพร้อมกันหลายคนจะต่อคิว
+  วันทดสอบจริงที่คนใช้พร้อมกันเยอะ พิจารณาสลับ Webhook URL ไปเครื่องเจ้าของ + ngrok ชั่วคราว แล้วสลับกลับ
+- ต้องเช็กหลัง deploy: server ของ Render (สิงคโปร์) เรียก KKU Gen AI ได้ไหม
 
-**ขั้นตอน (เจ้าของทำ ยกเว้นข้อ 3)** — ใน Git Bash ใช้ `/` ในพาธ, `<owner>` คือชื่อบัญชี Hugging Face
-1. สมัคร https://huggingface.co → Settings → Access Tokens → สร้าง token 2 อัน:
-   **write** (ใช้ในเครื่องตอนอัปโหลด) และ **read** (ใส่เป็น secret ของ Space เพื่ออ่าน dataset private)
-   แล้วล็อกอินในเครื่อง: `.venv/Scripts/hf.exe auth login` (วาง token write)
-   สร้าง repo 2 อัน:
-   `.venv/Scripts/hf.exe repos create <owner>/agri-drone-index --type dataset --private`
-   `.venv/Scripts/hf.exe repos create <owner>/agri-drone-bot --type space --sdk docker --public`
-2. หน้า Space → Settings → **Variables and secrets**:
-   - Secrets: `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `API_KEY` (KKU), `GOOGLE_API_KEY` (embedding), `TAVILY_API_KEY`,
-     `HF_TOKEN` (token แบบ read จากข้อ 1) และถ้าใช้ Google เป็นตัวสำรอง `LLM_SECONDARY_BASE_URL`, `LLM_SECONDARY_API_KEY`
-   - Variables: `HF_INDEX_REPO=<owner>/agri-drone-index`, `ANSWER_MODE=natural`, `RAG_MODEL=gpt-5.6-luna`, `LLM_FALLBACK_MODELS=claude-sonnet-5.5,gemini-3.7-flash,deepseek-v4-pro`,
-     `LLM_SECONDARY_ORDER=last`, `LLM_SECONDARY_MODELS=gemini-3.5-flash-lite`, `LLM_REASONING_EFFORT=low`, `LLM_MAX_OUTPUT_TOKENS=6000`,
-     `LLM_ATTEMPT_TIMEOUT_SECONDS=35`, `RAG_REQUEST_TIMEOUT_SECONDS=50`
-3. สร้างโฟลเดอร์: `.venv/Scripts/python.exe -m scripts.build_hf_space` ได้ 2 โฟลเดอร์ข้าง repo
-   - `../agriculture-drone-chatbot-hf-space` (public): `app/`, คู่มือ rich menu, `scripts/fetch_index.py`, Dockerfile — ราว 0.5 MB
-   - `../agriculture-drone-chatbot-hf-index` (private): ไฟล์ index อย่างเดียว ไม่รวม embedding cache — ราว 38 MB
-   ทั้งคู่ไม่มี PDF, เทสต์, เอกสาร และไม่มี `.env` (สคริปต์ปฏิเสธถ้าเจอ)
-4. อัปโหลด index ก่อน แล้วค่อย Space:
-   `.venv/Scripts/hf.exe upload <owner>/agri-drone-index ../agriculture-drone-chatbot-hf-index . --repo-type dataset`
-   `.venv/Scripts/hf.exe upload <owner>/agri-drone-bot ../agriculture-drone-chatbot-hf-space . --repo-type space`
-5. รอ build เสร็จ (แท็บ Logs ต้องเห็น `index downloaded from ...`) แล้วเปิด `https://<owner>-agri-drone-bot.hf.space/health/ready` ต้องได้ 200
-6. LINE Developers Console → Webhook URL = `https://<owner>-agri-drone-bot.hf.space/webhook` → Verify → ลองพิมพ์ "เมนู" และถามคำถามจริง 1 ข้อ
-   ถ้าคำถามจริงตอบว่าบริการขัดข้อง ให้ดู Logs ว่าเรียก KKU ได้หรือไม่
-7. อัปเดตครั้งต่อไป: ทำข้อ 3 แล้วอัปโหลดเฉพาะส่วนที่เปลี่ยน (โค้ด → Space, index ใหม่ → dataset แล้วกด Restart Space) — Webhook URL ไม่เปลี่ยน
+**ขั้นตอน (เจ้าของทำ)** — index อัปโหลดเข้า dataset แล้ว 2026-10-21 (982 ชิ้น)
+1. Token อ่าน index: https://huggingface.co/settings/tokens → Create new token → **Fine-grained** ชื่อ `render-read-index`
+   → Repositories permissions เลือก `Kunasin/agri-drone-index` → ติ๊ก **Read access to contents of selected repos** → Create (เห็นครั้งเดียว)
+2. สมัคร https://dashboard.render.com/register ด้วย **GitHub** (ไม่ต้องใส่บัตร) แล้วอนุญาต Render เข้า repo `WAD26-03-agriculture-drone-chatbot`
+3. Dashboard → **New → Blueprint** → เลือก repo → Branch ที่มี `render.yaml` (ตอนนี้ `wip/ingest-v2-eval-2026-10-19`; `main` ยังไม่มีจนกว่าจะ merge)
+   → Render อ่าน `render.yaml` แล้วขอค่า secret 8 ตัว: `HF_TOKEN` (token จากข้อ 1), `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`,
+   `API_KEY`, `GOOGLE_API_KEY`, `TAVILY_API_KEY`, `LLM_SECONDARY_BASE_URL`, `LLM_SECONDARY_API_KEY` — คัดลอกจาก `.env`
+   **เฉพาะค่า ไม่เอาเครื่องหมายคำพูดหรือ comment** → Apply (ค่าที่ไม่ลับเช่นชื่อโมเดลอยู่ใน `render.yaml` แล้ว)
+4. รอ build ครั้งแรก ~5–10 นาที: Logs ต้องเห็น `index downloaded from Kunasin/agri-drone-index` แล้ว `Uvicorn running on ...:10000`
+5. เปิด `https://<ชื่อ service>.onrender.com/health/ready` (URL อยู่บนหัวหน้า service) ต้องได้ 200
+6. ตัวปลุก: https://cron-job.org (ฟรี) → Create cronjob → URL `https://<ชื่อ service>.onrender.com/health/live` → ทุก 10 นาที
+   (เปิดตลอดเดือนใช้ ~744 ชม. ไม่เกิน 750 ชม. ของ Render; อย่าสร้าง service ฟรีตัวที่สองใน workspace เดียวกัน)
+7. LINE Developers Console → Messaging API → Webhook URL = `https://<ชื่อ service>.onrender.com/webhook` → Update → Verify
+   → เปิด **Use webhook** และ **Webhook redelivery** (ระบบคิวกันข้อความซ้ำด้วย `webhookEventId` แล้ว)
+   → ลองพิมพ์ "เมนู" และถามคำถามจริง 1 ข้อ ถ้าตอบว่าบริการขัดข้อง ดู Logs ว่าเรียก KKU ได้ไหม
 
-ลองในเครื่องก่อน (เปิด Docker Desktop, รันจากโฟลเดอร์ `project` ที่อยู่เหนือ repo):
-`docker build -t agri-hf agriculture-drone-chatbot-hf-space`
-`docker run --rm -p 7860:7860 --env-file agriculture-drone-chatbot/.env -v "$(pwd)/agriculture-drone-chatbot-hf-index:/app/chroma_db" agri-hf`
-แล้วเปิด http://127.0.0.1:7860/health/ready — mount สำเนา index จากข้อ 3 ไม่ใช่ `chroma_db` ตัวจริงของ repo
-ระวัง: `--env-file` ของ docker และช่อง Variables ของ Space **ไม่ตัด comment ท้ายบรรทัดและเครื่องหมายคำพูด** แบบที่ python-dotenv ทำ
-(เช่น `RAG_MODEL=gpt-5.6-luna  # ...` จะได้ชื่อรุ่นที่มี comment ติดไป) — ใส่เฉพาะค่าเปล่าๆ
-ค่าอื่นใน `.env` ที่ไม่ได้อยู่ในรายการข้อ 2 (เช่น `KB_GENERATION_BUDGET_SECONDS`, `LLM_SECONDARY_REASONING_EFFORT`,
-`LLM_SECONDARY_STRUCTURED_OUTPUT`) ใส่เป็น Variables ค่าเดียวกับ `.env`
+**อัปเดตครั้งต่อไป**
+- โค้ด: push เข้า branch ที่ผูกไว้ → หน้า service กด **Manual Deploy → Deploy latest commit**
+  (`autoDeployTrigger: "off"` จนส่งงาน 2 พ.ย.; อยากให้ deploy เองทุก push เปลี่ยนเป็น `"commit"` ใน `render.yaml` = CI/CD)
+- index ใหม่ (หลัง ingest): `.venv/Scripts/python.exe -m scripts.build_index_bundle` →
+  `.venv/Scripts/hf.exe upload Kunasin/agri-drone-index ../agriculture-drone-chatbot-hf-index . --repo-type dataset`
+  → Render กด **Manual Deploy → Restart service** (ดิสก์ชั่วคราว เริ่มใหม่จึงดาวน์โหลด index ใหม่เอง)
+- เลี่ยง deploy ช่วงที่คนกำลังใช้ (ระหว่างเริ่มใหม่ ~2 นาทีตอบไม่ได้)
+
+**ลองในเครื่องก่อน** (Docker Desktop, รันจาก root ของ repo):
+`docker build -f deploy/render/Dockerfile -t agri-render .` แล้ว
+`docker run --rm -p 10000:10000 --cpus 0.1 --memory 512m --env-file <ไฟล์ env ที่ไม่มี comment/quote> -v "<โฟลเดอร์ index จาก build_index_bundle>:/app/chroma_db" agri-render`
+— `--env-file` ของ docker ไม่ตัด comment ท้ายบรรทัดและเครื่องหมายคำพูดแบบ python-dotenv (เช่น `RAG_MODEL=gpt-5.6-luna  # ...` จะพัง)
+และ mount สำเนา index ไม่ใช่ `chroma_db` ตัวจริงของ repo
+ถ้าเจ้าของไม่ใช้ host ภายนอก: เครื่องตัวเองรัน uvicorn พอร์ต 8000 + `ngrok http --url=<ชื่อ>.ngrok-free.app 8000` (โดเมนถาวรฟรี 1 อัน)
