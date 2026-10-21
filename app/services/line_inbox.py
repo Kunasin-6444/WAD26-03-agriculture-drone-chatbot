@@ -336,7 +336,7 @@ class LineInbox:
             loading = asyncio.create_task(asyncio.to_thread(show_loading_animation, user_id, loading_seconds=20))
             loading.add_done_callback(lambda t: t.cancelled() or t.exception())  # best effort only
             try:
-                answer = await asyncio.to_thread(ask_ai, row["text"])
+                answer = await asyncio.to_thread(ask_ai, row["text"], user_id)
             except Exception as e:
                 logger.error("Error processing user query in ask_ai: %s", type(e).__name__)
                 answer = FRIENDLY_ERROR

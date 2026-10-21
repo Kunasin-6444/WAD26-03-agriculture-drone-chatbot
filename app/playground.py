@@ -54,7 +54,8 @@ def ask_live(question: str) -> tuple[str, bool]:
     # Lazy import is deliberate: loading a page or trying a demo must not load
     # credentials, open Chroma, start LINE workers or instantiate providers.
     from app.services.ai_service import ask_ai
-    answer = ask_ai(question)
+    # One local tester: follow-ups ("สูงแค่ไหน") are read with the previous full question, as on LINE.
+    answer = ask_ai(question, user_id="playground")
     return answer, bool(service_error_code(answer))
 
 

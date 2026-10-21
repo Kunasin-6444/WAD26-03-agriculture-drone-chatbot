@@ -59,7 +59,37 @@ def clear_answer_cache() -> None:
         _cache.clear()
 
 
-def ask_ai(user_message: str) -> str:
+_topics: dict[str, tuple[float, str]] = {}
+_MAX_TOPICS = 1000
+
+
+def previous_question(user_id: str | None, message: str) -> str | None:
+    """The user's last full question when ``message`` is a short follow-up ("สูงแค่ไหน"), else None.
+
+    Each LINE message used to be answered alone, so "ข้อมูลการบิน" after a question on spraying sugarcane
+    was answered about survey drones (LINE test, 2026-10-21). A full question becomes the topic; short
+    messages within CONVERSATION_TTL_SECONDS are read with it and do not replace it."""
+    try:
+        ttl = float(os.getenv("CONVERSATION_TTL_SECONDS", "600"))
+        short = int(os.getenv("FOLLOW_UP_MAX_CHARS", "30"))
+    except ValueError:
+        return None
+    text = re.sub(r"\s+", " ", message or "").strip()
+    if not user_id or ttl <= 0 or not text:
+        return None
+    now = time.monotonic()
+    with _lock:
+        if len(text) > short:
+            _topics.pop(user_id, None)
+            if len(_topics) >= _MAX_TOPICS:
+                _topics.pop(next(iter(_topics)))
+            _topics[user_id] = (now + ttl, text)
+            return None
+        last = _topics.get(user_id)
+        return last[1] if last and last[0] > now else None
+
+
+def ask_ai(user_message: str, user_id: str | None = None) -> str:
     """
     Answer user query using Corrective RAG (CRAG) pipeline:
     1. Local knowledge base retrieval & relevance grading
@@ -71,6 +101,11 @@ def ask_ai(user_message: str) -> str:
     pre_answer = get_rich_menu_preanswer(user_message)
     if pre_answer:
         return pre_answer
+
+    previous = previous_question(user_id, user_message)
+    if previous:
+        # The answer depends on the earlier question, so it is neither cached nor shared.
+        return run_crag_pipeline(user_message, previous_question=previous).answer
 
     ttl = _ttl_seconds()
     message = re.sub(r"\s+", " ", user_message).strip().casefold()

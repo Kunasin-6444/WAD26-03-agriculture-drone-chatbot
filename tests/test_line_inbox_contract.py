@@ -54,7 +54,7 @@ class WebhookIntakeTests(InboxAppCase):
     def test_ack_is_prompt_and_loop_free_while_ai_is_blocked(self):
         entered, release = threading.Event(), threading.Event()
 
-        def slow_answer(_):
+        def slow_answer(*_):
             entered.set()
             release.wait(timeout=10)
             return "mock answer"
@@ -189,7 +189,7 @@ class RestartRecoveryTests(InboxAppCase):
         release = threading.Event()
         calls = []
 
-        def answer(_):
+        def answer(*_):
             calls.append(1)
             if len(calls) == 1:
                 release.wait(timeout=10)  # first process "dies" while the AI is running

@@ -32,7 +32,7 @@ class LineIntegrationContractTests(InboxAppCase):
     def test_signed_text_preserves_answer_and_citations(self):
         self.assertEqual(self.post(event_payload(), "/api/webhook").status_code, 200)
         self.assertEqual(self.wait_terminal()["state"], "done")
-        self.ask.assert_called_once_with("หัวฉีดพัดส้ม")
+        self.ask.assert_called_once_with("หัวฉีดพัดส้ม", "Utest")
         self.reply.assert_called_once_with("mock-reply", self.ask.return_value)
 
     def test_dummy_token_skips_expensive_pipeline(self):

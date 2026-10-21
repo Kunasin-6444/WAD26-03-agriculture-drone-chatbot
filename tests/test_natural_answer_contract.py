@@ -219,3 +219,75 @@ class RangeDash(unittest.TestCase):
     def test_an_en_dash_range_is_written_as_the_documents_write_it(self):
         answer = na.render("หัวฉีดพัดส้มที่รอบ 1600 rpm ไหล 500 ml/หัวฉีด สูง 1.0–2.8 m [D1]", [NOZZLE])
         self.assertIn("1.0-2.8 m", answer.text)
+
+
+class FollowUpQuestions(unittest.TestCase):
+    def setUp(self):
+        from app.services import ai_service
+        self.ai = ai_service
+        ai_service._topics.clear()
+        self.addCleanup(ai_service._topics.clear)
+
+    def test_a_short_message_is_read_with_the_users_last_full_question(self):
+        full = "ขอข้อมูลการบินเพื่อฉีดพ่นสารในไร่อ้อยหน่อยครับ"
+        self.assertIsNone(self.ai.previous_question("U1", full))
+        self.assertEqual(self.ai.previous_question("U1", "สูงแค่ไหน และเร็วแค่ไหน"), full)
+        self.assertEqual(self.ai.previous_question("U1", "หมายถึงหลักการบิน"), full)   # a follow-up keeps the topic
+        self.assertIsNone(self.ai.previous_question("U2", "สูงแค่ไหน"))                  # another user
+        self.assertIsNone(self.ai.previous_question(None, "สูงแค่ไหน"))
+
+    def test_the_topic_expires(self):
+        with patch.dict(os.environ, {"CONVERSATION_TTL_SECONDS": "0.01"}):
+            self.ai.previous_question("U1", "ขอข้อมูลการบินเพื่อฉีดพ่นสารในไร่อ้อยหน่อยครับ")
+            import time
+            time.sleep(0.05)
+            self.assertIsNone(self.ai.previous_question("U1", "สูงแค่ไหน"))
+
+    def test_a_follow_up_goes_to_the_pipeline_with_the_topic_and_is_not_cached(self):
+        from app.rag.crag_service import CragResponse
+        with patch.object(self.ai, "run_crag_pipeline", return_value=CragResponse("ตอบ", "knowledge_base", "CORRECT", "x")) as run:
+            self.ai.ask_ai("ขอข้อมูลการบินเพื่อฉีดพ่นสารในไร่อ้อยหน่อยครับ", user_id="U1")
+            self.ai.ask_ai("สูงแค่ไหน", user_id="U1")
+        self.assertEqual(run.call_args.kwargs["previous_question"], "ขอข้อมูลการบินเพื่อฉีดพ่นสารในไร่อ้อยหน่อยครับ")
+
+    def test_the_pipeline_searches_with_the_topic_and_shows_the_model_both(self):
+        with patch.dict(os.environ, {"ANSWER_MODE": "natural"}), \
+             patch("app.rag.crag_service.retrieve_evidence", return_value=document_evidence(DOCUMENT_CONTEXT)) as kb, \
+             patch("app.rag.crag_service.search_web_fallback", return_value=[]):
+            client = llm_client("หัวฉีดพัดส้มไหล 500 ml/หัวฉีด [D1]")
+            run_crag_pipeline("ไหลเท่าไร", client=client, previous_question="หัวฉีดพัดส้มใช้กับงานไหน")
+        searched = [call.args[0] for call in kb.call_args_list]
+        self.assertTrue(any("หัวฉีดพัดส้ม" in q and "ไหลเท่าไร" in q for q in searched))   # with the topic
+        self.assertIn("ไหลเท่าไร", searched)                                                # and alone
+        payload = client.chat.completions.create.call_args.kwargs["messages"][1]["content"]
+        self.assertIn('"previous_question": "หัวฉีดพัดส้มใช้กับงานไหน"', payload)
+        self.assertIn('"question": "ไหลเท่าไร"', payload)
+
+
+class ClarifyingQuestion(unittest.TestCase):
+    def test_a_question_back_is_shown_without_numbers_or_references(self):
+        answer = na.render("ถามกลับ: หมายถึงเรื่องไหนครับ: หลักการบินตามลม ความสูงที่ใช้ทดสอบ 2 m หรือต้นทุนการพ่น [D1]", [NOZZLE])
+        self.assertFalse(answer.clarify)    # a number makes it a claim: the line checks drop it
+        self.assertEqual(answer.text, "")
+        answer = na.render("ถามกลับ: หมายถึงเรื่องไหนครับ: หลักการบินตามลม หรือต้นทุนการพ่น", [NOZZLE])
+        self.assertTrue(answer.clarify)
+        self.assertNotIn("แหล่งอ้างอิง", answer.text)
+
+    def test_the_pipeline_returns_the_question_back_without_searching_the_web(self):
+        with patch.dict(os.environ, {"ANSWER_MODE": "natural"}), \
+             patch("app.rag.crag_service.retrieve_evidence", return_value=document_evidence(DOCUMENT_CONTEXT)), \
+             patch("app.rag.crag_service.search_web_fallback", return_value=[]) as web:
+            response = run_crag_pipeline("ข้อมูลการบิน", client=llm_client("ถามกลับ: หมายถึงหลักการบินตามลม หรือการขออนุญาตบิน"))
+        web.assert_not_called()
+        self.assertTrue(response.answer.startswith("หมายถึงหลักการบินตามลม"))
+
+
+class InterleaveEvidence(unittest.TestCase):
+    def test_follow_up_pages_come_first_each_page_once_renumbered(self):
+        from app.rag.crag_service import interleave_evidence
+        own = [Evidence("D1", "หลักการบิน", "a.pdf", "23"), Evidence("D2", "ลม", "a.pdf", "11")]
+        topic = [Evidence("D1", "ต้นทุน", "b.pdf", "15"), Evidence("D2", "หลักการบิน", "a.pdf", "23"),
+                 Evidence("D3", "อ้อย", "b.pdf", "7")]
+        merged = interleave_evidence(own, topic)
+        self.assertEqual([(e.source_file, e.page_number) for e in merged], [("a.pdf", "23"), ("b.pdf", "15"), ("a.pdf", "11")])
+        self.assertEqual([e.id for e in merged], ["D1", "D2", "D3"])

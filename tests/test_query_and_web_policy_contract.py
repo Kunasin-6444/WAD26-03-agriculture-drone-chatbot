@@ -38,3 +38,14 @@ class QueryAndWebPolicyContract(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BotScopeQuestions(unittest.TestCase):
+    def test_questions_about_what_the_bot_covers_get_the_help_text(self):
+        from app.rag.intent_router import route_intent
+        for question in ("สามารถให้ข้อมูลการใช้โดรนกับพืชชนิดใดได้บ้าง", "บอทมีข้อมูลพืชอะไรบ้าง", "ครอบคลุมเรื่องอะไรบ้าง"):
+            result = route_intent(question)
+            self.assertEqual(result.intent, "bot_usage", question)
+            self.assertIn("อ้อย ข้าว ข้าวโพด และมันสำปะหลัง", result.handled_response)
+        for question in ("ไกลโฟเซตใช้กับพืชชนิดใดได้บ้าง", "มีข้อมูลเรื่องราคาโดรนรุ่นไหนบ้าง", "สารนี้ใช้กับพืชอะไรได้บ้าง"):
+            self.assertEqual(route_intent(question).intent, "document_qa", question)

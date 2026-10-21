@@ -36,6 +36,7 @@ _NEWS_URL = re.compile(r"/(?:caat-media|news)/", re.IGNORECASE)
 _NEWS_TITLE = re.compile(r"\bNEWS\b|ข่าว|ประกาศ\s*ฉบับ", re.IGNORECASE)
 _MARKER = re.compile(r"\[\s*([DW]\d+(?:\s*[,，]\s*[DW]\d+)*)\s*\]")
 _LIST_PREFIX = re.compile(r"^\s*(?:[-•*·]|\d{1,2}[.)])\s*")
+_CLARIFY = re.compile(r"^\s*ถามกลับ\s*[:：]\s*(.+)$", re.DOTALL)
 _MISSING = re.compile(r"^\s*(?:ยังไม่พบข้อมูล|ยังยืนยันไม่ได้)\s*[:：]\s*(.*)$")
 _BARE_ID = re.compile(r"(?<![\w\[])[DW]\d{1,2}(?![\w\]])")
 _MODEL_FOOTER = re.compile(r"^\s*(?:แหล่งอ้างอิง|อ้างอิง|References?)\s*[:：]?\s*$", re.IGNORECASE)
@@ -49,11 +50,14 @@ class NaturalAnswer:
     lines: list[tuple[str, list[str]]] = field(default_factory=list)
     not_found: bool = False
     gap: str = ""
+    clarify: bool = False                        # the model asked which topic the user means
 
 
-def build_messages(query: str, evidence: list[Evidence]) -> list[dict]:
+def build_messages(query: str, evidence: list[Evidence], previous_question: str | None = None) -> list[dict]:
     payload = {"question": query, "today": datetime.now(timezone(timedelta(hours=7))).date().isoformat(),
                "sources": [{k: v for k, v in e.__dict__.items() if v} for e in evidence]}
+    if previous_question:
+        payload["previous_question"] = previous_question
     return [{"role": "system", "content": PROMPT}, {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
 
 
@@ -119,6 +123,13 @@ def render(raw: str, evidence: list[Evidence], service_note: str = "") -> Natura
     text = _plain_chat_text((raw or "").strip())
     if not text or text.strip("` \n").upper() == NOT_FOUND:
         return NaturalAnswer(not_found=True)
+    clarify = _CLARIFY.match(text)
+    if clarify:
+        # A question back carries no facts: keep only its lines without numbers.
+        lines = [_MARKER.sub("", line).strip() for line in clarify.group(1).splitlines()]
+        lines = [line for line in lines if line and not _numbers(without_document_ids(_LIST_PREFIX.sub("", line)))]
+        if lines:
+            return NaturalAnswer(text="\n".join(lines), clarify=True)
     by_id = {e.id: e for e in evidence}
     result = NaturalAnswer()
     # Lines grouped into blocks (split by blank lines). A list item without its own marker belongs to
