@@ -12,6 +12,9 @@ from linebot.v3.messaging import (
     FlexMessage,
     ShowLoadingAnimationRequest,
     TextMessage,
+    QuickReply,
+    QuickReplyItem,
+    MessageAction,
 )
 
 from app.config import LINE_CHANNEL_ACCESS_TOKEN
@@ -65,11 +68,18 @@ def _safe_text(text: str) -> str:
     return text if len(text) <= 4950 else "คำตอบยาวเกินขอบเขต กรุณาระบุประเด็นให้เฉพาะเจาะจงขึ้นครับ"
 
 
+def _default_quick_reply() -> QuickReply:
+    return QuickReply(items=[
+        QuickReplyItem(action=MessageAction(label="📋 เปิดเมนู", text="เมนู")),
+        QuickReplyItem(action=MessageAction(label="❓ วิธีใช้งาน", text="วิธีใช้งานบอท")),
+    ])
+
+
 def _messages(text: str) -> list:
     """The stored answer as LINE messages: the menu answer becomes the Flex card (shown on LINE PC too)."""
     if text == MENU_ANSWER:
         return [FlexMessage(alt_text=menu_as_text()[:400], contents=FlexContainer.from_dict(menu_card()))]
-    return [TextMessage(text=_safe_text(text))]
+    return [TextMessage(text=_safe_text(text), quick_reply=_default_quick_reply())]
 
 
 def _never_reached_line(exc: BaseException) -> bool:

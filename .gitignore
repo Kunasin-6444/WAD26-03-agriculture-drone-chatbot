@@ -1,6 +1,8 @@
 # Environment variables (CRITICAL: Do not commit sensitive keys)
 .env
+.env.*
 *.env
+!.env.example
 
 # Python Virtual Environment
 .venv/
@@ -21,6 +23,7 @@ data/chroma/
 cache/
 garbage/
 scratch/
+backups/
 
 # IDE & Editor files
 .vscode/

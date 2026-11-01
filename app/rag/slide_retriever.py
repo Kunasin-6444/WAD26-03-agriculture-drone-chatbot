@@ -42,7 +42,13 @@ logger = logging.getLogger(__name__)
 RETRIEVER_BM25 = os.getenv("RETRIEVER_BM25", "global").strip().lower()
 RETRIEVER_RERANK = os.getenv("RETRIEVER_RERANK", "diverse").strip().lower()
 # Pages appended after the top-k when they continue a selected table (0 disables).
-RETRIEVER_TABLE_CONTINUATION = int(os.getenv("RETRIEVER_TABLE_CONTINUATION", "2"))
+RETRIEVER_TABLE_CONTINUATION = int(os.getenv("RETRIEVER_TABLE_CONTINUATION", "4"))
+
+
+_THAI_QUERY_FILLERS = re.compile(
+    r"อะไร|เท่าไร|เท่าไหร่|เท่าใด|แค่ไหน|อย่างไร|ยังไง|ได้ไหม|ไหม|มั้ย|หรือไม่|บ้าง|ควร|ต้อง"
+    r"|เมื่อไร|เมื่อไหร่|ที่ไหน|ทำไม|ช่วย|หน่อย|ครับ|ค่ะ|คะ"
+)
 
 
 def tokenize_thai_terms(text: str) -> list[str]:
@@ -60,16 +66,23 @@ def tokenize_thai_terms(text: str) -> list[str]:
         "สารเคมี", "เพนดิเมทาลิน", "อาลาคลอร์", "แอตทราซีน", "ไกลโฟเซต", "แตกกอ",
     ]
     t_lower = text.lower()
+    # Split out question/modal filler words so they do not flood BM25 n-grams or glue onto content words
+    t_clean = _THAI_QUERY_FILLERS.sub(" ", t_lower)
     for dt in domain_terms:
-        if dt in t_lower:
+        if dt in t_clean:
             tokens.append(dt)
 
-    # Thai character 3-grams & 2-grams for continuous Thai sub-sequences
-    thai_chunks = re.findall(r"[\u0E00-\u0E7F]+", t_lower)
+    thai_chunks = re.findall(r"[\u0E00-\u0E7F]+", t_clean)
     for chunk in thai_chunks:
-        if len(chunk) <= 3:
+        # Morphological root bridging for Thai 'ความ+<adj/verb>' <-> '<adj/verb>' (handles unspaced compounds)
+        for m in re.finditer(r"ความ([ก-๙]{3,6})", chunk):
+            sub = m.group(1)
+            tokens.append("ความ" + sub)
+            for k in range(3, len(sub) + 1):
+                tokens.append(sub[:k])
+        if len(chunk) <= 5:
             tokens.append(chunk)
-        else:
+        if len(chunk) > 3:
             for i in range(len(chunk) - 2):
                 tokens.append(chunk[i : i + 3])
             for i in range(len(chunk) - 1):
@@ -139,9 +152,11 @@ def warm_up() -> None:
 
 
 def _apply_global_bm25(candidates: list[dict[str, Any]], q_tokens: list[str], dense_count: int,
-                       aspects: list[str] | None = None, source_files: set[str] | None = None) -> None:
+                       aspects: list[str] | None = None, source_files: set[str] | None = None,
+                       index: dict[str, Any] | None = None) -> None:
     """Replace top-50-only BM25 by corpus-wide BM25 and add lexical hits dense search missed."""
-    index = _bm25_index()
+    if index is None:
+        index = _bm25_index()
     scored = sorted(((compute_bm25_score(q_tokens, toks, index["avgdl"], idf=index["idf"]), i)
                      for i, toks in enumerate(index["tokens"])
                      if source_files is None or (index["metas"][i] or {}).get("source_file") in source_files), reverse=True)
@@ -183,6 +198,25 @@ def _apply_global_bm25(candidates: list[dict[str, Any]], q_tokens: list[str], de
                 candidates.append(candidate)
                 by_doc[doc] = candidate
             by_doc[doc].setdefault("aspect_ranks", {})[aspect] = rank
+    # Ensure all pages of any candidate structured table are present in candidates so
+    # add_table_continuations can walk multi-page tables without missing unretrieved pages.
+    table_ids = {(c["meta"] or {}).get("table_id") for c in candidates if (c["meta"] or {}).get("table_id")}
+    if table_ids:
+        for i, meta in enumerate(index["metas"]):
+            meta = meta or {}
+            doc = index["docs"][i]
+            if (meta.get("table_id") in table_ids and doc and doc not in by_doc
+                    and not is_excluded_document(meta.get("source_file", ""))
+                    and (source_files is None or meta.get("source_file") in source_files)):
+                extra += 1
+                pos, score = position.get(doc, (len(scored) + 1, 0.0))
+                candidate = {"doc": doc, "meta": meta, "dense_rank": dense_count + extra, "dense_sim": 0.0,
+                             "bm25_rank": pos, "bm25_score": score,
+                             "source_file": meta.get("source_file", "unknown"),
+                             "page_number": str(meta.get("page_number", "unknown")),
+                             "source_type": meta.get("source_type", "text")}
+                candidates.append(candidate)
+                by_doc[doc] = candidate
 
 
 def _order_by_seq(group: dict[str, list]) -> None:
@@ -273,6 +307,8 @@ def classify_slide_topic(content: str) -> str:
 def search_slides_pipeline(
     query: str,
     top_k: int = 5,
+    *,
+    source_scope=None,
 ) -> dict[str, Any]:
     """
     Execute the 6-step slide retrieval pipeline and return assembled context and metadata.
@@ -294,10 +330,14 @@ def search_slides_pipeline(
         return {"context": "", "top_pages": [], "total_chars": 0}
     scope = requested_document_ids(norm_query)
     source_files = None
-    if scope:
-        index = _bm25_index()
-        source_files = {m["source_file"] for m in index["metas"] if m and m.get("source_file")
-                        and canonical_document_id(m["source_file"]) in scope and not is_excluded_document(m["source_file"])}
+    bm25_idx = None
+    if scope or source_scope is not None:
+        bm25_idx = _bm25_index()
+        source_files = {m["source_file"] for m in bm25_idx["metas"] if m and m.get("source_file")
+                        and (not scope or canonical_document_id(m["source_file"]) in scope)
+                        and not is_excluded_document(m["source_file"])
+                        and (source_scope is None or source_scope.allows_source(
+                            m["source_file"], str(m.get("application_scope") or "")))}
         if not source_files:
             return {"context": "", "top_pages": [], "total_chars": 0}
     q_emb = embed_text(norm_query, max_retries=1, timeout_seconds=3.0)
@@ -354,8 +394,24 @@ def search_slides_pipeline(
             topics = {classify_slide_topic(part) for part in aspects} - {"general"}
             if len(topics) < 2:
                 aspects = []
+            if target_crop and not aspects and RETRIEVER_RERANK == "diverse":
+                crop_aspect = re.sub(
+                    r"การบินโดรน|บินโดรน|โดรนเกษตร|ด้วยโดรน|(?:ใน|ที่)?(?:ไร่|นา|แปลง|สวน)",
+                    " ",
+                    norm_query,
+                ).strip()
+                crop_free = re.sub(
+                    rf"(?:การบินโดรน|บินโดรน|โดรนเกษตร|ด้วยโดรน|โดรน|(?:ใน|ที่)?(?:ไร่|นา|แปลง|สวน)?\s*{re.escape(target_crop)})",
+                    " ",
+                    norm_query,
+                ).strip()
+                if any(
+                    k in crop_free
+                    for k in ("สูง", "เร็ว", "กว้าง", "หัวฉีด", "ละออง", "อัตราการไหล", "สำรวจ", "ภาพถ่าย", "gsd", "overlap")
+                ):
+                    aspects = [crop_aspect, crop_free]
             _apply_global_bm25(candidates, q_tokens, len(raw_docs),
-                               aspects, source_files)
+                               aspects, source_files, index=bm25_idx)
         except Exception as exc:  # keep the dense + top-50 ranking rather than failing the request
             logger.warning("Global BM25 unavailable (%s); using top-50 BM25", type(exc).__name__)
 

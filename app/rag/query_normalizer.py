@@ -4,7 +4,6 @@ Query Normalizer
 Normalizes Thai agricultural drone queries:
 - Fixes Thai typed with the wrong (English) keyboard layout (e.g. 'gfnvo' -> 'เดือน')
 - Normalizes colloquialisms (e.g. 'พัดฟ้า' -> 'พัดฟ้า (พัดน้ำเงิน)')
-- Normalizes agricultural common terms ('คุมดิน' -> 'คลุมดิน/คุมดิน')
 - Cleans typos from LINE keyboard ('ดพ่น', 'ฉีดดพ่น' -> 'ฉีดพ่น')
 - Collapses consecutive whitespace
 """
@@ -29,7 +28,7 @@ _LATIN_WHITELIST = {
     "agras", "xag", "app", "rpm", "lidar", "fpv", "rgb", "nir", "ml", "km", "cm", "kg",
 }
 
-_LATIN_TOKEN_RE = re.compile(r"[a-z][a-z;'\[\],./]{2,}")
+_LATIN_TOKEN_RE = re.compile(r"(?<![A-Za-z])[a-z][a-z;'\[\],./]{2,}")
 
 
 def _convert_keyboard_token(token: str) -> str:
@@ -61,8 +60,8 @@ SYNONYM_REPLACEMENTS = [
     # Agricultural colloquialisms
     (r"พัดฟ้า(?:\s*\(พัดน้ำเงิน\))?", "พัดฟ้า (พัดน้ำเงิน)"),
     
-    # Soil coverage & pre-emergence herbicide term
-    (r"คุมดิน(?:/คลุมดิน)?", "คุมดิน/คลุมดิน"),
+    # Do not expand คุมดิน into คลุมดิน: that changes a herbicide question
+    # into one that can also retrieve mulch/plastic ground covering.
 ]
 
 

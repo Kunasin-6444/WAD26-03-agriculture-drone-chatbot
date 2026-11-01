@@ -3,8 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from itertools import zip_longest
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Literal
 
 from openai import OpenAI
@@ -51,21 +50,7 @@ def answer_mode() -> str:
     return (os.getenv("ANSWER_MODE") or "grounded").strip().lower()
 
 
-def interleave_evidence(first: list[Evidence], second: list[Evidence]) -> list[Evidence]:
-    """Alternate two document rankings, first-list pages first, each page once, renumbered D1..Dn."""
-    merged, seen = [], set()
-    for pair in zip_longest(first, second):
-        for item in pair:
-            key = (item.source_file, item.page_number) if item else None
-            if item and key not in seen:
-                seen.add(key)
-                merged.append(item)
-    limit = max(len(first), len(second))
-    return [replace(item, id=f"D{index}") for index, item in enumerate(merged[:limit], 1)]
-
-
-def run_natural_pipeline(query: str, n_results: int = 8, client: OpenAI | None = None,
-                         previous_question: str | None = None) -> CragResponse:
+def run_natural_pipeline(query: str, n_results: int = 8, client: OpenAI | None = None) -> CragResponse:
     """Documents first; the web only for current/regulatory questions or when the documents have nothing.
 
     No self-graded sufficiency step: the 2026-10-20 screening found the model's own "partial" verdict
@@ -77,11 +62,8 @@ def run_natural_pipeline(query: str, n_results: int = 8, client: OpenAI | None =
     diagnostics: list[dict] = []
     clean_query = query.strip()
     question = normalize_query(clean_query)
-    # A short follow-up ("สูงแค่ไหน") is searched and routed together with the user's previous full
-    # question; the model sees both and decides whether it continues that topic (LINE test 2026-10-21).
-    previous = (previous_question or "").strip()
-    topic = f"{previous} {clean_query}" if previous else clean_query
-    search_query = normalize_query(topic)
+    topic = clean_query
+    search_query = question
     if not clean_query:
         return CragResponse("กรุณาระบุคำถามเกี่ยวกับโดรนการเกษตรครับ", "abstain", "INCORRECT", "Empty query")
     intent = route_intent(clean_query)
@@ -113,20 +95,17 @@ def run_natural_pipeline(query: str, n_results: int = 8, client: OpenAI | None =
         before = time.monotonic()
         try:
             kb = retrieve_evidence(" ".join(technical) if technical else search_query, n_results=n_results, deadline=deadline)
-            if previous and not technical:
-                # Searched with the earlier question alone, its words drown the short follow-up's
-                # ("หลักการบิน", "สูง เร็ว"): pages for the follow-up itself come first.
-                kb = interleave_evidence(retrieve_evidence(question, n_results=n_results, deadline=deadline), kb)
         except Exception as exc:
             logger.warning("Document retrieval unavailable (%s)", type(exc).__name__)
             failures.append(classify_service_error(exc))
             diagnostics.append({"stage": "retrieval", "error_code": failures[-1]})
         timings["retrieval_ms"] = round((time.monotonic() - before) * 1000, 2)
 
-    def search_web(is_caat: bool) -> list[Evidence]:
+    def search_web(is_caat: bool, missing: str = "") -> list[Evidence]:
         before = time.monotonic()
         try:
-            results = search_web_fallback(search_query, is_caat_topic=is_caat, deadline=deadline, diagnostics=diagnostics)
+            web_query = f"{search_query} {missing[:300]}".strip()
+            results = search_web_fallback(web_query, is_caat_topic=is_caat, deadline=deadline, diagnostics=diagnostics)
         except Exception as exc:
             logger.warning("Web search unavailable (%s)", type(exc).__name__)
             diagnostics.append({"stage": "web_search", "error_code": classify_service_error(exc)})
@@ -139,7 +118,7 @@ def run_natural_pipeline(query: str, n_results: int = 8, client: OpenAI | None =
     def generate(evidence: list[Evidence], stage: str) -> natural_answer.NaturalAnswer | str:
         before = time.monotonic()
         try:
-            raw = call_llm(natural_answer.build_messages(question, evidence, previous), client=client,
+            raw = call_llm(natural_answer.build_messages(question, evidence), client=client,
                            deadline=deadline, max_attempts=2, structured=False)
         except Exception as exc:
             code = getattr(exc, "error_code", "") or ("invalid_response" if isinstance(exc, RuntimeError)
@@ -171,22 +150,27 @@ def run_natural_pipeline(query: str, n_results: int = 8, client: OpenAI | None =
     result = generate(evidence, "answer")
     if isinstance(result, str):
         return failure(result, "LLM generation failed")
-    if result.clarify:
-        # The sources hold several things the question could mean: ask, do not answer another topic.
-        timings["total_ms"] = round((time.monotonic() - started) * 1000, 2)
-        return CragResponse(result.text, "knowledge_base", "AMBIGUOUS", "Clarifying question", dict(timings), [],
-                            list(diagnostics))
     needs_caat = any(item.startswith(natural_answer.CAAT_PAGE_REQUIRED) for item in result.dropped)
-    if not searched and (result.not_found or not result.text or needs_caat):
+    if not searched and (result.not_found or result.gap or needs_caat):
         # The documents have nothing on this (R4/R5), or a drone rule was stated without the CAAT
         # page it needs: search once. Document facts stay in the evidence unless there were none.
-        web = search_web(caat_web or needs_caat)
+        web = search_web(caat_web or needs_caat, result.gap)
         if web:
-            evidence = (pack_evidence(kb + web, required_ids={e.id for e in web})
+            prior, prior_evidence = result, evidence
+            evidence = (pack_evidence(kb + web, required_ids=set(result.used_ids) | {e.id for e in web})
                         if kb and not result.not_found else pack_evidence(web))
             result = generate(evidence, "web_answer")
             if isinstance(result, str):
-                return failure(result, "LLM generation failed")
+                if prior.text:
+                    result = natural_answer.merge_verified(prior, None, prior_evidence,
+                                                          ERROR_MESSAGES.get(result, DEGRADED_MESSAGE))
+                    evidence = prior_evidence
+                else:
+                    return failure(result, "LLM generation failed")
+            elif prior.text:
+                # Keep verified KB facts even if the web answer omits them or abstains.
+                evidence = list({e.id: e for e in evidence + prior_evidence}.values())
+                result = natural_answer.merge_verified(prior, result, evidence)
 
     timings["total_ms"] = round((time.monotonic() - started) * 1000, 2)
     if not result.text:
@@ -205,10 +189,9 @@ def run_natural_pipeline(query: str, n_results: int = 8, client: OpenAI | None =
                         dict(timings), trace, list(diagnostics))
 
 
-def run_crag_pipeline(query: str, n_results: int = 8, client: OpenAI | None = None,
-                      previous_question: str | None = None) -> CragResponse:
+def run_crag_pipeline(query: str, n_results: int = 8, client: OpenAI | None = None) -> CragResponse:
     if answer_mode() == "natural":
-        return run_natural_pipeline(query, n_results, client, previous_question)
+        return run_natural_pipeline(query, n_results, client)
     started = time.monotonic()
     deadline = started + float(os.getenv("RAG_REQUEST_TIMEOUT_SECONDS", "22"))
     timings: dict[str, float] = {}

@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
+from decimal import Decimal
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -19,7 +20,7 @@ from app.rag.claim_consistency import claim_inconsistency
 from app.rag.evidence import (CHEMICAL_NOTE, MAX_ANSWER_CHARS, Claim, Evidence, _is_aviation_regulation, _numbers,
                               needs_chemical_note)
 from app.rag.source_policy import is_caat_url, without_document_ids
-from app.rag.table_grounding import table_inconsistency
+from app.rag.table_grounding import parse_tables, table_inconsistency
 
 PROMPT = (Path(__file__).parent / "prompts" / "natural_answer.txt").read_text(encoding="utf-8")
 NOT_FOUND = "NOT_FOUND"
@@ -28,18 +29,32 @@ DROPPED_GAP = "บางส่วนของคำตอบตรวจกั�
 CAAT_PAGE_REQUIRED = "drone-law line without a CAAT page"
 # CAAT web results include dated announcements (a 2025 temporary night-flight ban read as a standing
 # rule, 2026-10-20); the system says so instead of trusting every model to name the announcement.
-CAAT_NOTE = "หมายเหตุ: ข้อกำหนดของ กพท. เปลี่ยนตามประกาศได้ ก่อนบินจริงควรตรวจประกาศล่าสุดที่ https://uasportal.caat.or.th"
+CAAT_NOTE = "หมายเหตุ: ข้อกำหนดของ กพท. เปลี่ยนตามประกาศได้ ก่อนบินจริงควรตรวจประกาศล่าสุดและขอบเขตการใช้บังคับของเอกสารที่อ้างอิง"
 CAAT_NEWS_NOTE = ("หมายเหตุ: ข้อมูลบางส่วนมาจากข่าวของ กพท. ({title}) ซึ่งอาจเป็นเงื่อนไขเฉพาะช่วงเวลา "
-                  "ก่อนบินจริงควรตรวจประกาศล่าสุดที่ https://uasportal.caat.or.th")
+                  "ก่อนบินจริงควรตรวจประกาศล่าสุดและขอบเขตการใช้บังคับของเอกสารที่อ้างอิง")
 # A news or announcement page: the CAAT media section, or a title that names one ("CAAT NEWS 15/2568").
 _NEWS_URL = re.compile(r"/(?:caat-media|news)/", re.IGNORECASE)
 _NEWS_TITLE = re.compile(r"\bNEWS\b|ข่าว|ประกาศ\s*ฉบับ", re.IGNORECASE)
+_BASIC_DRONE_SCOPE = re.compile(r"ขั้นพื้นฐาน(ต่ำกว่า|ต\u0e48ากว่า|ไม่เกิน)(\d+(?:\.\d+)?)กิโลกรัม")
 _MARKER = re.compile(r"\[\s*([DW]\d+(?:\s*[,，]\s*[DW]\d+)*)\s*\]")
 _LIST_PREFIX = re.compile(r"^\s*(?:[-•*·]|\d{1,2}[.)])\s*")
 _CLARIFY = re.compile(r"^\s*ถามกลับ\s*[:：]\s*(.+)$", re.DOTALL)
-_MISSING = re.compile(r"^\s*(?:ยังไม่พบข้อมูล|ยังยืนยันไม่ได้)\s*[:：]\s*(.*)$")
+_MISSING = re.compile(
+    r"^\s*(?:[-•*·]|\d{1,2}[.)])?\s*(?:(?:ยังไม่พบข้อมูล|ยังยืนยันไม่ได้)\s*[:：]\s*(.+?)"
+    r"|([^:：]+?)\s*[:：]\s*(?:ยังไม่พบข้อมูล|ยังยืนยันไม่ได้|ไม่มีข้อมูลระบุในแหล่งข้อมูล))\s*(?:\[[^\]]*\])?\s*$"
+)
 _BARE_ID = re.compile(r"(?<![\w\[])[DW]\d{1,2}(?![\w\]])")
 _MODEL_FOOTER = re.compile(r"^\s*(?:แหล่งอ้างอิง|อ้างอิง|References?)\s*[:：]?\s*$", re.IGNORECASE)
+_BAHT_AMOUNT = re.compile(r"(?<![\d.,])(?P<amount>\d+(?:,\d{3})*(?:\.\d+)?)\s*(?P<scale>ล้าน|แสน|หมื่น|พัน)?\s*บาท")
+_MONEY_SCALES = {None: 1, "พัน": 1000, "หมื่น": 10000, "แสน": 100000, "ล้าน": 1000000}
+
+
+def _money_notation(text: str) -> str:
+    """Compare equivalent baht notation without treating the scale as another unit/value."""
+    def expand(match: re.Match) -> str:
+        amount = Decimal(match['amount'].replace(',', '')) * _MONEY_SCALES[match['scale']]
+        return f"{amount:f} บาท"
+    return _BAHT_AMOUNT.sub(expand, text)
 
 
 @dataclass
@@ -50,14 +65,12 @@ class NaturalAnswer:
     lines: list[tuple[str, list[str]]] = field(default_factory=list)
     not_found: bool = False
     gap: str = ""
-    clarify: bool = False                        # the model asked which topic the user means
 
 
-def build_messages(query: str, evidence: list[Evidence], previous_question: str | None = None) -> list[dict]:
-    payload = {"question": query, "today": datetime.now(timezone(timedelta(hours=7))).date().isoformat(),
-               "sources": [{k: v for k, v in e.__dict__.items() if v} for e in evidence]}
-    if previous_question:
-        payload["previous_question"] = previous_question
+def build_messages(query: str, evidence: list[Evidence], *, include_today: bool = True) -> list[dict]:
+    payload = {"question": query, "sources": [{k: v for k, v in e.__dict__.items() if v} for e in evidence]}
+    if include_today:
+        payload["today"] = datetime.now(timezone(timedelta(hours=7))).date().isoformat()
     return [{"role": "system", "content": PROMPT}, {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
 
 
@@ -72,9 +85,9 @@ def _named_sources(text: str, by_id: dict, replacement) -> str:
     return _BARE_ID.sub(lambda m: name(m.group(0)) if m.group(0) in by_id else m.group(0), text)
 
 
-def line_problem(line: str, ids: list[str], by_id: dict[str, Evidence]) -> str:
+def line_problem(line: str, ids: list[str], by_id: dict[str, Evidence], *, row_quotes=None) -> str:
     """'' when the line may be shown. The same checks as the JSON path, applied per line."""
-    plain = _named_sources(_LIST_PREFIX.sub("", _MARKER.sub("", line)).strip(), by_id, "")
+    plain = _money_notation(_named_sources(_LIST_PREFIX.sub("", _MARKER.sub("", line)).strip(), by_id, ""))
     numbers = _numbers(without_document_ids(plain))
     if not ids:
         return "number without a source" if numbers else ""
@@ -84,17 +97,52 @@ def line_problem(line: str, ids: list[str], by_id: dict[str, Evidence]) -> str:
     # numbers, and the pipeline fetches that page when it sees this reason.
     if _is_aviation_regulation(plain) and any(not is_caat_url(by_id[i].url) for i in ids):
         return CAAT_PAGE_REQUIRED
+    # Expand source amounts only for monetary claims: a baht scale must not supply
+    # a newly matching number for an unrelated unit such as kilograms.
+    monetary = bool(_BAHT_AMOUNT.search(plain))
     cited = " ".join(f"{by_id[i].content} {by_id[i].title}" for i in ids)
+    if monetary:
+        cited = _money_notation(cited)
     if not numbers <= _numbers(cited):
         return "number not in the cited sources"
-    problem = claim_inconsistency(plain, [], cited)
+    cited_with_url = " ".join(f"{cited} {by_id[i].url}" for i in ids)
+    problem = claim_inconsistency(plain, [], cited_with_url)
     if problem:
         return problem
     for i in ids:
-        problem = table_inconsistency(without_document_ids(plain), [], by_id[i].content)
+        content = _money_notation(by_id[i].content) if monetary else by_id[i].content
+        problem = table_inconsistency(without_document_ids(plain), (row_quotes or {}).get(i, []), content)
+        if problem.startswith("table row mismatch") and len(ids) > 1:
+            combined_tables = "\n".join((_money_notation(by_id[j].content) if monetary else by_id[j].content) for j in ids)
+            problem = table_inconsistency(without_document_ids(plain), [], combined_tables)
         if problem:
             return problem
     return ""
+
+
+def _adjacent_mixture_row(previous: str, line: str, ids: list[str], by_id: dict[str, Evidence]) -> dict[str, list[str]]:
+    """Resolve one explicitly named mixture to a real cited row; never invent a quote."""
+    if len(ids) != 1:
+        return {}
+    source = by_id.get(ids[0])
+    if not source:
+        return {}
+    previous = re.sub(r"\s+", "", _MARKER.sub("", previous)).casefold()
+    current = re.sub(r"\s+", "", _MARKER.sub("", line)).casefold()
+    if any(word in previous or word in current for word in ('ไม่ใช่', 'ไม่ใช้', 'เดี่ยว', 'alone', 'standalone')):
+        return {}
+    rows = {}
+    for table in parse_tables(source.content):
+        for row in table.rows:
+            for cell in row.cells:
+                label = re.sub(r"\s+", "", cell).casefold()
+                parts = label.split('+')
+                if len(parts) >= 2 and all(len(part) >= 2 for part in parts) and label in previous:
+                    rows[row.raw] = (row, parts)
+    if len(rows) != 1:
+        return {}
+    raw, (_, parts) = next(iter(rows.items()))
+    return {ids[0]: [raw]} if any(part in current for part in parts) else {}
 
 
 def caat_note(sources: list[Evidence]) -> str:
@@ -110,6 +158,30 @@ def caat_note(sources: list[Evidence]) -> str:
     return CAAT_NEWS_NOTE.format(title=title if len(title) <= 60 else title[:57].rstrip() + "...")
 
 
+def caat_exam_scope(lines, by_id, labels):
+    """Expose an explicitly stated basic-registration scope alongside an exam claim."""
+    for line, ids in lines:
+        if not re.search(r'e\s*[-–]?\s*exam', line, re.I):
+            continue
+        for source_id in ids:
+            source = by_id.get(source_id)
+            if not source or not is_caat_url(source.url) or source_id not in labels:
+                continue
+            content = re.sub(r'\s+', '', source.content)
+            for scope in _BASIC_DRONE_SCOPE.finditer(content):
+                preceding = content[max(0, scope.start() - 350):scope.start()]
+                if not re.search(r'e[-–]?exam', preceding, re.I):
+                    continue
+                condition = scope.group(0)
+                normalized_answer = re.sub(r'\s+', '', ' '.join(text for text, _ in lines))
+                if condition in normalized_answer:
+                    return ''
+                comparator = 'ต่ำกว่า' if scope.group(1) == 'ต\u0e48ากว่า' else scope.group(1)
+                return (f'ขอบเขตในเอกสาร: การขึ้นทะเบียนผู้บังคับฯ ขั้นพื้นฐาน '
+                        f'{comparator} {scope.group(2)} กิโลกรัม [{labels[source_id]}]')
+    return ''
+
+
 def _plain_chat_text(text: str) -> str:
     """LINE shows markdown literally: drop **bold**/__bold__, heading hashes and code fences."""
     text = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda m: m.group(1) or m.group(2), text)
@@ -119,17 +191,38 @@ def _plain_chat_text(text: str) -> str:
     return re.sub(r"^\s*```\w*\s*$", "", text, flags=re.MULTILINE)
 
 
+_FORMULATED_RATE = re.compile(
+    r"^\s*(?:[-•*·]|\d+[.)])?\s*([ก-๙]{4,})\s*(?:\([^)]*\)\s*)?"
+    r"(?:สูตร\s*)?(\d+(?:\.\d+)?\s*%\s*(?:WP|WG|EC|SC|SL|EW))"
+    r".*?(?:อัตรา\s*)?\d+(?:\s*[-–]\s*\d+)?\s*(กรัม|มิลลิลิตร|ซีซี|มล\.?)",
+    re.IGNORECASE,
+)
+
+
+def _remove_conflicting_formulated_rates(result: NaturalAnswer) -> None:
+    """Do not present incompatible mass/volume rates for one named formulation as alternatives."""
+    groups: dict[tuple[str, str], list[tuple[int, str]]] = {}
+    for index, (line, ids) in enumerate(result.lines):
+        match = _FORMULATED_RATE.search(line)
+        if not match or not ids:
+            continue
+        name, formula, unit = match.groups()
+        key = (name, re.sub(r"\s+", "", formula).casefold())
+        groups.setdefault(key, []).append((index, "mass" if unit == "กรัม" else "volume"))
+    conflicted = {index for entries in groups.values()
+                  if len({unit for _, unit in entries}) > 1 for index, _ in entries}
+    if conflicted:
+        for index in sorted(conflicted):
+            result.dropped.append("inconsistent formulation rate units: " + result.lines[index][0][:100])
+        result.lines = [line for index, line in enumerate(result.lines) if index not in conflicted]
+        result.gap = "; ".join(filter(None, (result.gap,
+            "แหล่งข้อมูลระบุหน่วยอัตราของสารสูตรเดียวกันต่างกัน จึงยังยืนยันอัตราไม่ได้ โปรดตรวจฉลากและผู้เชี่ยวชาญ")))
+
+
 def render(raw: str, evidence: list[Evidence], service_note: str = "") -> NaturalAnswer:
     text = _plain_chat_text((raw or "").strip())
     if not text or text.strip("` \n").upper() == NOT_FOUND:
         return NaturalAnswer(not_found=True)
-    clarify = _CLARIFY.match(text)
-    if clarify:
-        # A question back carries no facts: keep only its lines without numbers.
-        lines = [_MARKER.sub("", line).strip() for line in clarify.group(1).splitlines()]
-        lines = [line for line in lines if line and not _numbers(without_document_ids(_LIST_PREFIX.sub("", line)))]
-        if lines:
-            return NaturalAnswer(text="\n".join(lines), clarify=True)
     by_id = {e.id: e for e in evidence}
     result = NaturalAnswer()
     # Lines grouped into blocks (split by blank lines). A list item without its own marker belongs to
@@ -142,23 +235,37 @@ def render(raw: str, evidence: list[Evidence], service_note: str = "") -> Natura
             blocks.append([])
         elif not _MODEL_FOOTER.match(line):
             blocks[-1].append(line)
+    previous_accepted = None
     for block in blocks:
         own = [_ids(line) for line in block]
+        if block and not _LIST_PREFIX.match(block[0]):
+            previous_accepted = None
         for index, line in enumerate(block):
+            # The retired clarification protocol must not bypass evidence checks.
+            if _CLARIFY.match(line):
+                previous_accepted = None
+                result.dropped.append("unsupported clarification: " + line.strip()[:100])
+                continue
             missing = _MISSING.match(line)
             if missing:
-                result.gap = missing.group(1).strip()
+                previous_accepted = None
+                result.gap = (missing.group(1) or missing.group(2) or "").strip()
                 continue
             ids = own[index]
             if not ids:
                 before = [found for found in own[:index] if found]
                 after = [found for found in own[index + 1:] if found]
-                ids = (before[-1] if before else after[0] if after else [])
-            problem = line_problem(line, ids, by_id)
+                ids = (before[-1] if before else list(dict.fromkeys(s for found in after for s in found)))
+            quotes = (_adjacent_mixture_row(previous_accepted[0], line, ids, by_id)
+                      if previous_accepted and previous_accepted[1] == ids else {})
+            problem = line_problem(line, ids, by_id, row_quotes=quotes)
             if problem:
                 result.dropped.append(f"{problem}: {line.strip()[:100]}")
+                previous_accepted = None
             else:
                 result.lines.append((line.strip() if own[index] else _MARKER.sub("", line).strip(), ids))
+                previous_accepted = (line, ids)
+    _remove_conflicting_formulated_rates(result)
     if not any(ids for _, ids in result.lines):
         result.lines = []
         return result
@@ -191,6 +298,9 @@ def render(raw: str, evidence: list[Evidence], service_note: str = "") -> Natura
         body += "\n\n" + GAP_LABEL + "; ".join(gaps)
     if service_note:
         body += f"\n({service_note} ส่วนที่แสดงด้านบนตรวจกับแหล่งอ้างอิงแล้ว)"
+    exam_scope = caat_exam_scope(result.lines, by_id, labels)
+    if exam_scope:
+        body += f"\n\n{exam_scope}"
     claims = [Claim(_MARKER.sub("", line), tuple(ids)) for line, ids in result.lines if ids]
     if needs_chemical_note(claims, [by_id[i] for i in result.used_ids]):
         body += f"\n\n{CHEMICAL_NOTE}"
@@ -205,4 +315,29 @@ def render(raw: str, evidence: list[Evidence], service_note: str = "") -> Natura
             result.lines.pop()
             return render("\n".join(line for line, _ in result.lines) + "\nยังไม่พบข้อมูล: คำตอบยาวเกินข้อความแชท",
                           evidence, service_note)
+    return result
+
+
+def merge_verified(primary: NaturalAnswer, supplement: NaturalAnswer | None,
+                   evidence: list[Evidence], service_note: str = "") -> NaturalAnswer:
+    """Retain verified document lines while adding a web supplement; check the union again."""
+    parts, seen = [], set()
+    for answer in (primary, supplement):
+        if answer is None:
+            continue
+        for line, ids in answer.lines:
+            plain = _MARKER.sub("", line).strip()
+            key = (plain, tuple(ids))
+            if key in seen:
+                continue
+            seen.add(key)
+            parts.append(plain + (" [" + ",".join(ids) + "]" if ids else ""))
+    gap = supplement.gap if supplement and supplement.text else primary.gap
+    rejected = primary.dropped + (supplement.dropped if supplement else [])
+    if rejected:
+        gap = "; ".join(filter(None, (gap, DROPPED_GAP)))
+    if gap:
+        parts.append("ยังไม่พบข้อมูล: " + gap)
+    result = render("\n".join(parts), evidence, service_note)
+    result.dropped = list(dict.fromkeys(rejected + result.dropped))
     return result

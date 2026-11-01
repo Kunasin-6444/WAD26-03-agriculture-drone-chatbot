@@ -7,22 +7,23 @@ WORKDIR /app
 COPY requirements.txt constraints.txt ./
 RUN pip install --no-cache-dir -r requirements.txt && pip check
 
-FROM base AS test
-COPY app ./app
-COPY scripts ./scripts
-COPY tests ./tests
-COPY data ./data
-RUN python -B -m pytest -q tests -p no:cacheprovider
-
-FROM base AS runtime
+FROM base AS application
 RUN groupadd --gid 10001 chatbot && useradd --uid 10001 --gid chatbot --create-home chatbot \
     && mkdir -p /app/chroma_db /app/cache && chown -R chatbot:chatbot /app
 COPY --chown=chatbot:chatbot app ./app
 COPY --chown=chatbot:chatbot scripts ./scripts
 COPY --chown=chatbot:chatbot data ./data
+COPY --chown=chatbot:chatbot assets ./assets
 COPY --chown=chatbot:chatbot tests/data ./tests/data
 USER chatbot
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3).close()"
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+
+FROM application AS test
+COPY --chown=chatbot:chatbot tests ./tests
+RUN python -B -m pytest -q tests -p no:cacheprovider
+
+# Preserve the default image and the existing compose target as the LINE runtime.
+FROM application AS runtime

@@ -20,6 +20,11 @@ ASSETS = Path(__file__).with_name("playground_assets")
 _live_lock = threading.Lock()
 DEMO_NOTICE = "ข้อมูลจำลองสำหรับลองหน้าจอ ไม่ใช่คำแนะนำหรือหลักฐานจาก KB/web จริง และไม่ได้เรียก AI"
 DEMO_ANSWERS = {
+    "web": (
+        "• นี่คือตัวอย่างคำตอบจากเว็บ พร้อมลิงก์หน้าที่ใช้ [1]\n\n"
+        "แหล่งอ้างอิง:\n[1] หน้าเว็บตัวอย่าง (ข้อมูลจำลอง)\n"
+        "https://example.org/articles/drone-guide?lang=th#safety"
+    ),
     "mixed": (
         "• ส่วนนี้สาธิตคำตอบที่มีหลักฐานจากเอกสาร [1]\n"
         "• ส่วนนี้สาธิตข้อมูลที่ค้นเว็บมาเติมให้ครบคำถาม [2]\n\n"
@@ -39,7 +44,8 @@ DEMO_ANSWERS = {
 class Question(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     mode: Literal["demo", "live"] = "demo"
-    scenario: Literal["mixed", "kb", "unverified", "quota"] = "mixed"
+    scenario: Literal["mixed", "kb", "web", "unverified", "quota"] = "mixed"
+    source: Literal["auto", "kb", "web"] = "auto"
 
     @field_validator("question")
     @classmethod
@@ -50,11 +56,18 @@ class Question(BaseModel):
         return value
 
 
-def ask_live(question: str) -> tuple[str, bool]:
+def ask_live(question: str, source: str = "auto") -> tuple[str, bool]:
     # Lazy import is deliberate: loading a page or trying a demo must not load
     # credentials, open Chroma, start LINE workers or instantiate providers.
+    if app.state.pipeline == "support":
+        from app.rag.support_pipeline import run_support_pipeline
+        options = {"json_mode": True} if getattr(app.state, "support_json_mode", False) else {}
+        response = run_support_pipeline(question, source=source, **options)
+        if response.error_code:
+            return ERROR_MESSAGES.get(response.error_code, ERROR_MESSAGES["provider_unavailable"]), True
+        return response.answer, False
     from app.services.ai_service import ask_ai
-    # One local tester: follow-ups ("สูงแค่ไหน") are read with the previous full question, as on LINE.
+    # The baseline currently processes each question independently, as on LINE.
     answer = ask_ai(question, user_id="playground")
     from app.services.rich_menu_service import MENU_ANSWER, menu_as_text
     if answer == MENU_ANSWER:
@@ -67,20 +80,26 @@ def result(answer: str, started: float, mode: str, status: str = "ok", code: str
         "answer": answer,
         "elapsed_ms": round((time.perf_counter() - started) * 1000, 1),
         "mode": mode,
+        "pipeline": app.state.pipeline,
         "status": status,
         "error_code": code,
-        "notice": DEMO_NOTICE if mode == "demo" else "",
+        "notice": DEMO_NOTICE if mode == "demo" else (
+            "โหมดทดลอง · ใช้เอกสารหรือเว็บแยกกัน · ยังไม่ได้ยืนยันคุณภาพคำตอบจริง"
+            if app.state.pipeline == "support" else
+            "ระบบค้นรุ่นทดลอง · ยังไม่ได้ยืนยันคุณภาพคำตอบจริง"
+            if getattr(app.state, "retriever_experimental", False) else ""),
     }
 
 
-def live_response(question: str, started: float) -> JSONResponse:
+def live_response(question: str, started: float, source: str = "auto") -> JSONResponse:
     # Held inside the worker thread until the provider actually finishes, even
     # when a browser disconnects. No queued or automatic follow-up questions.
     if not _live_lock.acquire(blocking=False):
         return JSONResponse(result("มีคำถามจริงกำลังประมวลผลอยู่ กรุณารอให้จบก่อนส่งใหม่ครับ",
                                    started, "live", "error", "busy"), status_code=409)
     try:
-        answer, unavailable = ask_live(question)
+        answer, unavailable = (ask_live(question, source=source) if app.state.pipeline == "support"
+                               else ask_live(question))
         if unavailable:
             code = service_error_code(answer) or "provider_unavailable"
             return JSONResponse(result(
@@ -105,6 +124,7 @@ def live_response(question: str, started: float) -> JSONResponse:
 
 
 app = FastAPI(title="Drone Chatbot · Local Playground", docs_url=None, redoc_url=None, openapi_url=None)
+app.state.pipeline = "baseline"
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
 
 
@@ -138,7 +158,8 @@ def home():
 
 @app.get("/health/live")
 def health():
-    return {"status": "alive", "application": "playground", "line_worker": False, "provider_probed": False}
+    return {"status": "alive", "application": "playground", "line_worker": False,
+            "provider_probed": False, "pipeline": app.state.pipeline}
 
 
 @app.post("/api/ask")
@@ -146,9 +167,12 @@ async def ask(payload: Question):
     started = time.perf_counter()
     if payload.mode == "demo":
         status = {"quota": "unavailable", "unverified": "unverified"}.get(payload.scenario, "ok")
-        return result(DEMO_ANSWERS[payload.scenario], started, "demo", status,
+        scenario = payload.scenario
+        if app.state.pipeline == "support" and scenario == "mixed":
+            scenario = "web" if payload.source == "web" else "kb"
+        return result(DEMO_ANSWERS[scenario], started, "demo", status,
                       "quota_exhausted" if payload.scenario == "quota" else None)
-    return await run_in_threadpool(live_response, payload.question, started)
+    return await run_in_threadpool(live_response, payload.question, started, payload.source)
 
 
 app.mount("/assets", StaticFiles(directory=ASSETS), name="assets")

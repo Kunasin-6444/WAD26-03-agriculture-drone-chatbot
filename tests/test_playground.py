@@ -30,6 +30,9 @@ with TestClient(app, base_url="http://127.0.0.1:8080", headers={"origin": "http:
     for scenario in ["mixed", "kb", "unverified", "quota"]:
         data = client.post("/api/ask", json={"question": "example", "scenario": scenario}).json()
         assert data["mode"] == "demo" and data["notice"] and data["elapsed_ms"] >= 0
+    app.state.pipeline = "standard"
+    assert client.get("/health/live").json()["pipeline"] == "standard"
+    assert client.post("/api/ask", json={"question": "example"}).json()["mode"] == "demo"
 assert not any(name.startswith(("app.rag", "app.services", "app.config", "chromadb", "openai", "tavily")) for name in sys.modules)
 '''
     checked = subprocess.run([sys.executable, "-X", "utf8", "-c", code], capture_output=True, text=True, timeout=20)

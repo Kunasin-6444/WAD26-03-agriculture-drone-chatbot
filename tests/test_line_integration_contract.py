@@ -41,6 +41,18 @@ class LineIntegrationContractTests(InboxAppCase):
         self.ask.assert_not_called()
         self.reply.assert_not_called()
 
+    def test_same_question_with_new_event_id_gets_a_fresh_answer(self):
+        from app.rag.crag_service import CragResponse
+        self.ask.side_effect = ai_service.ask_ai
+        answers = ['คำตอบแรก [1]\n[1] guide.pdf, หน้า 1', 'คำตอบใหม่ [1]\n[1] guide.pdf, หน้า 2']
+        with patch.object(ai_service, 'run_crag_pipeline', side_effect=[
+                CragResponse(text, 'knowledge_base', 'CORRECT', '') for text in answers]):
+            for index in range(2):
+                event_id = f'repeat-question-{index}'
+                self.assertEqual(self.post(event_payload(event_id=event_id, token=f'reply-{index}')).status_code, 200)
+                self.assertEqual(self.wait_terminal(event_id)['state'], 'done')
+        self.assertEqual([c.args[1] for c in self.reply.call_args_list], answers)
+
     def test_non_text_event_is_not_stored(self):
         self.assertEqual(self.post(event_payload(message_type="sticker")).status_code, 200)
         self.assertEqual(self.inbox.store.count(), 0)

@@ -8,6 +8,11 @@ services:
     environment:
       CHROMA_PATH: /app/chroma_db
       LINE_INBOX_DB_PATH: /app/cache/line_inbox.sqlite3
+      # Require an explicit release profile; do not silently use legacy code defaults.
+      ANSWER_MODE: ${ANSWER_MODE:?Set ANSWER_MODE in .env (see .env.example)}
+      RAG_MODEL: ${RAG_MODEL:?Set RAG_MODEL in .env (see .env.example)}
+      LLM_FALLBACK_MODELS: ${LLM_FALLBACK_MODELS?Set LLM_FALLBACK_MODELS in .env (empty disables fallback)}
+      LLM_SECONDARY_ORDER: ${LLM_SECONDARY_ORDER:?Set LLM_SECONDARY_ORDER in .env (last for current profile)}
       PDF_RETRIEVAL_MODE: ${PDF_RETRIEVAL_MODE:-text}
       RETRIEVER_RERANK: ${RETRIEVER_RERANK:-diverse}
       WARMUP_ON_STARTUP: "true"
@@ -18,7 +23,7 @@ services:
       - state:/app/cache
     restart: unless-stopped
     init: true
-    stop_grace_period: 45s
+    stop_grace_period: 75s
     security_opt:
       - no-new-privileges:true
     logging:

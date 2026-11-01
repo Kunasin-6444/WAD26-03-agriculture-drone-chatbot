@@ -10,6 +10,22 @@ WIDTHS = ("ความสูง (เมตร) | หน้ากว้าง (�
           "0.5 | 1.4 | 3.1\n1.0 | 2.8 | 4.5\n1.5 | 4.3 | 6.0")
 
 
+def test_cited_mixture_components_are_not_mistaken_for_the_single_substance_row():
+    from app.rag.table_grounding import table_inconsistency
+    table = ('สาร | อัตรา (กรัม/ไร่)\nเพนดิเมทาลิน | 320-480\n'
+             'เพนดิเมทาลิน+อิมาซาปิก | 120-160+12')
+    quote = table.splitlines()[-1]
+    good = ('อัตราที่ใช้คือ 120-160+12 กรัม/ไร่ ตามลำดับชื่อสาร คือ '
+            'เพนดิเมทาลิน 120-160 กรัม/ไร่ และอิมาซาปิก 12 กรัม/ไร่')
+    swapped = good.replace('เพนดิเมทาลิน 120-160', 'เพนดิเมทาลิน 12').replace(
+        'อิมาซาปิก 12 กรัม', 'อิมาซาปิก 120-160 กรัม')
+    assert table_inconsistency(good, [quote], table) == ''
+    assert table_inconsistency(swapped, [quote], table)
+    assert table_inconsistency(good.replace('เพนดิเมทาลิน 120-160', 'เพนดิเมทาลิน 160-120'), [quote], table)
+    assert table_inconsistency(good, [], table)  # No cited mixture row; do not infer.
+    assert table_inconsistency(good.replace('กรัม/ไร่', 'มิลลิลิตร/ไร่'), [quote], table)
+
+
 class TableGroundingContractTests(unittest.TestCase):
     def result(self, text, table=NOZZLES, quote=None):
         return parse_grounded_result(result_json(claims=[(text, "D1", quote or table)]), [Evidence("D1", table, "table.pdf", "12")])
@@ -156,3 +172,30 @@ class ColumnNameLabelsTheNextNumber(unittest.TestCase):
         self.assertTrue(self.check("แมลงซีร้อนติดต่อ >=9 วัน"))
         self.assertTrue(self.check("แมลงซีฝนทิ้งช่วง 2 วัน"))
         self.assertTrue(self.check("แมลงซีมีระยะฟักตัว 4-5 วัน"))
+
+    def test_nozzle_prose_after_three_head_volume_does_not_override_denominator(self):
+        from app.rag.table_grounding import table_inconsistency
+        table = ("ลำดับ | หัวฉีด | รอบ (rpm) | ปริมาณ (ml) / หัวฉีด | ปริมาณ (ml) 3 หัวฉีด\n"
+                 "**นิยมใช้** | 1 | พัดส้ม | 1600 | 500 | 1500\n4 | พัดน้ำเงิน | 1600 | 950 | 2850")
+        good = "หัวฉีดพัดส้ม: อัตราการไหล 500 ml/หัวฉีด (ปริมาณสำหรับ 3 หัวฉีด 1500 ml) และระบุว่าเป็นหัวฉีดที่นิยมใช้"
+        bad = "หัวฉีดพัดส้ม: อัตราการไหล 1500 ml/หัวฉีด (ปริมาณสำหรับ 3 หัวฉีด 500 ml) และระบุว่าเป็นหัวฉีดที่นิยมใช้"
+        self.assertEqual(table_inconsistency(good, [], table), "")
+        self.assertIn("mismatch", table_inconsistency(bad, [], table))
+
+    def test_multi_row_comparison_clause_binds_values_in_row_order(self):
+        from app.rag.table_grounding import table_inconsistency
+        table = ("ลำดับ | หัวฉีด | รอบ (rpm) | ปริมาณ (ml) / หัวฉีด | ปริมาณ (ml) 3 หัวฉีด\n"
+                 "**นิยมใช้** | 1 | พัดส้ม | 1600 | 500 | 1500\n4 | พัดน้ำเงิน | 1600 | 950 | 2850")
+        good = "ตามตารางอัตราการไหล พัดส้มปล่อยน้ำน้อยกว่าพัดน้ำเงิน คือ 500 ml/หัวฉีด เทียบกับ 950 ml/หัวฉีด"
+        swapped = "ตามตารางอัตราการไหล พัดส้มปล่อยน้ำมากกว่าพัดน้ำเงิน คือ 950 ml/หัวฉีด เทียบกับ 500 ml/หัวฉีด"
+        self.assertEqual(table_inconsistency(good, [], table), "")
+        self.assertIn("mismatch", table_inconsistency(swapped, [], table))
+
+    def test_model_column_preferred_over_single_row_brand_column(self):
+        from app.rag.table_grounding import table_inconsistency
+        table = ("ยี่ห้อ | รุ่น | ราคา (บาท) | ความจุ (ลิตร)\nDJI AGRAS | T25 | 330,000 | 20\nDJI AGRAS | T40 | 408,500 | 40\n\n"
+                 "ยี่ห้อ | รุ่น | ราคา (บาท) | ความจุ (ลิตร)\nDJI AGRAS | T50 | 427,500 | 40\nXAG | P100 | 500,000 | 50")
+        good = "DJI AGRAS T25 ราคา 330,000 บาท ความจุ 20 ลิตร ขณะที่ DJI AGRAS T50 ราคา 427,500 บาท ความจุ 40 ลิตร"
+        bad = "DJI AGRAS T25 ราคา 427,500 บาท ความจุ 20 ลิตร ขณะที่ DJI AGRAS T50 ราคา 330,000 บาท ความจุ 40 ลิตร"
+        self.assertEqual(table_inconsistency(good, [], table), "")
+        self.assertIn("mismatch", table_inconsistency(bad, [], table))

@@ -10,6 +10,13 @@ class EvidenceContractTests(unittest.TestCase):
     def setUp(self):
         self.sources = document_evidence(DOCUMENT_CONTEXT)
 
+    def test_ordinary_source_phrase_is_not_a_bibliography_but_actual_inline_metadata_still_fails(self):
+        source = [Evidence('D1', 'อัตราการไหล 250 ml', 'synthetic.pdf', '2')]
+        text = 'ตามแหล่งอ้างอิงนี้ อัตราการไหล 250 ml'
+        assert parse_grounded_result(result_json(claims=[(text, 'D1', 'อัตราการไหล 250 ml')]), source).claims
+        for text in ['แหล่งอ้างอิง: invented', 'อัตรา 250 ml https://fake.example', 'ข้อมูลจาก invented.pdf']:
+            assert not parse_grounded_result(result_json(claims=[(text, 'D1', 'อัตราการไหล 250 ml')]), source).claims
+
     def test_file_page_content_preserved(self):
         self.assertEqual((self.sources[0].source_file, self.sources[0].page_number), ("UAV07.pdf", "12"))
         self.assertIn("1600 rpm", self.sources[0].content)

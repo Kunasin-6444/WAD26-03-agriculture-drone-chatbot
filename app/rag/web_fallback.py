@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -16,12 +17,55 @@ from app.service_status import classify_service_error
 
 logger = logging.getLogger(__name__)
 TRUSTED_DOMAINS = ["caat.or.th", "nstda.or.th", "thaipbs.or.th", "pttor.com", "bangchak.co.th", "dji.com"]
-# Non-CAAT web answers are restricted to official/known sources; generic blogs and news
-# sites (seen in a real chat log) must not become citations for agronomy or price claims.
+# Official/known domains are prioritized first; open web fallback is allowed for reliable
+# informational sources while excluding social media, forums, and invalid/spoofed hosts.
 PREFERRED_DOMAINS = ["doa.go.th", "doae.go.th", "moac.go.th", "eppo.go.th", "caat.or.th", "pttor.com", "bangchak.co.th"]
 WEB_ALLOWED_DOMAINS = list(dict.fromkeys(TRUSTED_DOMAINS + PREFERRED_DOMAINS))
+EXCLUDED_WEB_DOMAINS = (
+    "facebook.com", "fb.com", "tiktok.com", "instagram.com", "twitter.com", "x.com",
+    "youtube.com", "youtu.be", "threads.net", "pantip.com", "reddit.com", "pinterest.com",
+    "postjung.com", "dek-d.com", "blockdit.com",
+)
 MAX_WEB_TIMEOUT_SECONDS = float(os.getenv("WEB_SEARCH_TIMEOUT_SECONDS", "6"))
 _client_local = threading.local()
+
+_META_SEARCH_PREFIX = re.compile(
+    r"^\s*(?:ช่วย\s*)?(?:ค้น(?:หา)?(?:ข้อมูล)?(?:ใน|จาก)?(?:เว็บ(?:ไซต์)?(?:ทางการ)?|อินเทอร์เน็ต|อินเตอร์เน็ต|เน็ต|ออนไลน์)|"
+    r"หา(?:ข้อมูล|คู่มือ)?(?:ใน|จาก)?(?:เว็บ(?:ไซต์)?(?:ทางการ)?|อินเทอร์เน็ต|อินเตอร์เน็ต|เน็ต|ออนไลน์)|"
+    r"web\s*search|internet)\s*[:：]?\s*",
+    re.IGNORECASE,
+)
+
+
+def _prepare_manufacturer_search(query: str) -> tuple[str, list[str] | None, bool]:
+    """Clean meta-search prefixes and map international manufacturer queries to official domains/terms."""
+    cleaned = _META_SEARCH_PREFIX.sub("", (query or "").strip())
+    cleaned = re.sub(r"\bจากแหล่งทางการ\b", "", cleaned).strip(" :：-")
+    cleaned = re.sub(r"^ไม(?!(?:่|้|ครอน|ล์))(?=[ก-๙]{2,})", "ทำไม", cleaned)
+    cleaned = re.sub(r"เมื่อไม่กี่วันมานี้|ไม่กี่วันมานี้|เมื่อไม่นานมานี้|เมื่อกี้|เมื่อสักครู่", " ", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    q_low = cleaned.casefold()
+    if any(b in q_low for b in ("dji", "agras")):
+        domains = ["ag.dji.com", "dji.com"]
+        extra_latin = [
+            tok for tok in re.findall(r"[A-Za-z0-9-]+", cleaned)
+            if tok.casefold() not in {"dji", "agras", "drone"}
+        ]
+        en_terms = ["DJI Agras", *extra_latin]
+        if any(t in q_low for t in ("ก่อนบิน", "ตรวจ", "เช็ค", "เตรียม")):
+            en_terms.append("before flight check inspection maintenance")
+        if "แบต" in q_low:
+            en_terms.append("battery")
+        if "ใบพัด" in q_low:
+            en_terms.append("propeller")
+        if "เรดาร์" in q_low or "กันชน" in q_low:
+            en_terms.append("radar obstacle avoidance")
+        if any(t in q_low for t in ("สเปก", "ความจุ", "ถัง", "อัตราการไหล", "น้ำหนัก", "บรรทุก")):
+            en_terms.append("spray tank payload capacity specifications")
+        if len(en_terms) > 1:
+            return " ".join(en_terms), domains, True
+        return f"{cleaned} DJI Agras".strip(), domains, True
+    return (cleaned or query), None, False
 
 
 def allowed_domains() -> list[str]:
@@ -51,6 +95,21 @@ def is_trusted_domain(url: str) -> bool:
     return hostname.endswith((".go.th", ".ac.th", ".gov", ".edu")) or any(
         hostname == domain or hostname.endswith("." + domain) for domain in allowed_domains()
     )
+
+
+def is_reliable_web_url(url: str) -> bool:
+    """Allow general reliable HTTPS web pages while blocking spoofed/test hosts and social/forum noise."""
+    if not valid_web_url(url):
+        return False
+    hostname = get_domain(url)
+    if (
+        not hostname
+        or hostname.endswith(".example")
+        or hostname.startswith(("board.", "forum.", "forums."))
+        or ("caat.or.th" in hostname and not is_caat_url(url))
+    ):
+        return False
+    return not any(hostname == d or hostname.endswith("." + d) for d in EXCLUDED_WEB_DOMAINS)
 
 
 @dataclass
@@ -88,7 +147,7 @@ def _results(items: list[dict], is_caat: bool) -> list[WebSearchResult]:
     for item in items:
         url = item.get("url", "").strip()
         content = (item.get("content") or item.get("raw_content") or "").strip()
-        if not is_trusted_domain(url) or not content or url.rstrip("/") in seen:
+        if not (is_trusted_domain(url) if is_caat else is_reliable_web_url(url)) or not content or url.rstrip("/") in seen:
             continue
         host = get_domain(url)
         if is_caat and not (host == "caat.or.th" or host.endswith(".caat.or.th")):
@@ -103,7 +162,7 @@ def _results(items: list[dict], is_caat: bool) -> list[WebSearchResult]:
 
 def search_web_fallback(query: str, is_caat_topic: bool = False, max_results: int = 4,
                         tavily_client: TavilyClient | None = None, deadline: float | None = None,
-                        diagnostics: list[dict] | None = None) -> list[WebSearchResult]:
+                        diagnostics: list[dict] | None = None, *, stop_on_timeout: bool = False) -> list[WebSearchResult]:
     def failed(stage: str, exc: Exception | None = None):
         if diagnostics is not None:
             kind = ("not_configured" if exc is None else "budget_exhausted" if str(exc) == "Web search budget exhausted"
@@ -121,21 +180,36 @@ def search_web_fallback(query: str, is_caat_topic: bool = False, max_results: in
         try:
             response = client.extract(urls=designated_caat_urls(), query=query,
                 chunks_per_source=3, extract_depth="basic", format="text", timeout=_timeout(deadline))
+            if stop_on_timeout and any(isinstance(f, dict) and any(term in str(f.get("error", "")).lower()
+                    for term in ("timeout", "timed out")) for f in response.get("failed_results", [])):
+                raise TimeoutError("A designated source extraction timed out")
             extracted = _results(response.get("results", []), True)
         except Exception as exc:
             failed("caat_extract", exc)
             logger.warning("CAAT extraction unavailable (%s)", type(exc).__name__)
+            if stop_on_timeout and (classify_service_error(exc) == "timeout"
+                                    or "timeout" in type(exc).__name__.lower()):
+                return []
     try:
-        kwargs = dict(query=query, search_depth="basic", max_results=max_results, timeout=_timeout(deadline),
-                      include_domains=["uasportal.caat.or.th", "caat.or.th"] if is_caat_topic else allowed_domains(),
-                      include_domains_mode="restrict")
+        search_q, custom_domains, needs_advanced = _prepare_manufacturer_search(query) if not is_caat_topic else (query, None, True)
+        kwargs = dict(query=search_q, search_depth="basic", max_results=max_results, timeout=_timeout(deadline))
         if is_caat_topic:
+            kwargs.update(include_domains=["uasportal.caat.or.th", "caat.or.th"], include_domains_mode="restrict")
+        elif custom_domains:
+            kwargs.update(include_domains=custom_domains, include_domains_mode="restrict")
+        else:
+            kwargs.update(exclude_domains=list(EXCLUDED_WEB_DOMAINS))
+        if is_caat_topic or needs_advanced:
             # A basic result is a ~140-character page summary; the requirement itself sits deep in a
-            # CAAT PDF (2026-10-20: insurance cover by drone weight). Advanced search returns the
-            # passages that match the question (2 credits instead of 1).
+            # CAAT PDF or DJI Agras manual. Advanced search returns passages matching the question.
             kwargs.update(search_depth="advanced", chunks_per_source=3)
         response = client.search(**kwargs)
         found = _results(response.get("results", []), is_caat_topic)
+        if not found and custom_domains and not is_caat_topic:
+            fallback_kwargs = dict(query=search_q, search_depth="basic", max_results=max_results,
+                                   timeout=_timeout(deadline), exclude_domains=list(EXCLUDED_WEB_DOMAINS))
+            response = client.search(**fallback_kwargs)
+            found = _results(response.get("results", []), False)
     except Exception as exc:
         failed("web_search", exc)
         logger.warning("Web search unavailable (%s)", type(exc).__name__)
@@ -152,7 +226,7 @@ def search_web_fallback(query: str, is_caat_topic: bool = False, max_results: in
 def web_evidence(results: list[WebSearchResult]) -> list[Evidence]:
     evidence = []
     for result in results:
-        if not is_trusted_domain(result.url) or not result.content.strip():
+        if not is_reliable_web_url(result.url) or not result.content.strip():
             continue
         # Retain complete paragraphs/lines rather than chopping words or table rows.
         chunks, lines, length = [], [], 0
@@ -160,14 +234,13 @@ def web_evidence(results: list[WebSearchResult]) -> list[Evidence]:
             if length + len(line) + 1 > 4500 and lines:
                 chunks.append("\n".join(lines))
                 lines, length = [], 0
-            if len(line) > 4500:
-                # Huge unstructured blocks cannot be safely clipped into evidence.
-                continue
+            # Long lines are whole evidence too. The caller applies the context
+            # budget and records omissions; do not silently erase fetched facts.
             lines.append(line)
             length += len(line) + 1
         if lines:
             chunks.append("\n".join(lines))
-        for chunk in chunks[:3]:
+        for chunk in chunks:
             if chunk.strip():
                 evidence.append(Evidence(f"W{len(evidence) + 1}", chunk.strip(), url=result.url, title=result.title))
     return evidence

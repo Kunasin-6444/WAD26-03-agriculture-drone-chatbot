@@ -77,9 +77,12 @@ TRANSIENT_COOLDOWN_SECONDS = 60
 class LLMUnavailableError(RuntimeError):
     """No usable LLM response, with a safe failure code for the caller."""
 
-    def __init__(self, message: str, error_code: str = "provider_unavailable"):
+    def __init__(self, message: str, error_code: str = "provider_unavailable", *,
+                 partial_response: str = "", finish_reason: str = ""):
         super().__init__(message)
         self.error_code = error_code
+        self.partial_response = partial_response
+        self.finish_reason = finish_reason
 
 
 # RAG_PROMPT picks the answer prompt so variants can be measured on the same gold set before one
@@ -123,7 +126,13 @@ def get_secondary_client() -> OpenAI:
 
 
 def _model_candidates(preferred: str) -> list[tuple[str, str, bool]]:
-    primary = [(m, m, False) for m in dict.fromkeys([preferred] + FALLBACK_MODELS)]
+    models = list(dict.fromkeys([preferred] + FALLBACK_MODELS))
+    if "deepseek-v4-pro" in models:
+        for m in _DEFAULT_FALLBACK_MODELS:
+            if m not in models:
+                models.append(m)
+        models = [m for m in models if m != "deepseek-v4-pro"] + ["deepseek-v4-pro"]
+    primary = [(m, m, False) for m in models]
     secondary = []
     if secondary_enabled():
         secondary = [(_SECONDARY_PREFIX + m, m, True) for m in dict.fromkeys(SECONDARY_MODELS or [preferred])]
@@ -148,7 +157,7 @@ def _available_candidates(candidates: list[tuple[str, str, bool]], now: float) -
 
 def llm_pool_error(preferred_model: str | None = None) -> str:
     """Read known local cooldowns only. Empty means an attempt remains possible."""
-    candidates = _model_candidates(preferred_model or os.getenv("RAG_MODEL", "gemini-3.5-flash-lite"))
+    candidates = _model_candidates(preferred_model or os.getenv("RAG_MODEL", "gemini-3.7-flash"))
     if _available_candidates(candidates, time.monotonic()):
         return ""
     return common_error([_MODEL_FAILURES.get(key, "provider_unavailable") for key, _, _ in candidates])
@@ -156,24 +165,29 @@ def llm_pool_error(preferred_model: str | None = None) -> str:
 
 def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model: str | None = None,
              temperature: float = 0.0, max_tokens: int | None = None, deadline: float | None = None,
-             max_attempts: int = 2, structured: bool = True) -> str:
+             max_attempts: int = 2, structured: bool = True, allow_fallback: bool = True,
+             json_mode: bool = False) -> str:
     """``structured=False`` never sends the grounded JSON response schema (plain-text answers)."""
-    preferred = preferred_model or os.getenv("RAG_MODEL", "gemini-3.5-flash-lite")
+    if json_mode and (structured or allow_fallback):
+        raise ValueError('Experimental JSON mode requires structured=False and fallback disabled')
+    preferred = preferred_model or os.getenv("RAG_MODEL", "gemini-3.7-flash")
     # (cooldown key, model name, uses secondary provider). Primary keys stay the bare model
     # name; the secondary gets a prefix so the same model name on two providers can't collide.
     # After an explicit quota/auth rejection, try the configured alternate provider
     # before slow models on the same exhausted gateway consume the entire budget.
     # A timed-out model is cooled down too, so final generation does not call
     # the same stalled model again after KB generation already spent its budget.
-    candidates = _model_candidates(preferred)
+    candidates = _model_candidates(preferred) if allow_fallback else [(preferred, preferred, False)]
     now = time.monotonic()
     allow_secondary = _EXHAUSTED_MODELS.get(preferred, 0) > now
     candidates = _available_candidates(candidates, now)
     if not candidates:
-        raise LLMUnavailableError("All LLM models are in quota/rate-limit cooldown", llm_pool_error(preferred))
+        code = llm_pool_error(preferred) if allow_fallback else _MODEL_FAILURES.get(preferred, 'provider_unavailable')
+        raise LLMUnavailableError("All LLM models are in quota/rate-limit cooldown", code)
     ai_client = client or get_llm_client()
     attempted = failed = slow = 0
     failure_codes: list[str] = []
+    incomplete_content, incomplete_finish = '', ''
     for key, model, on_secondary in candidates:
         if on_secondary and not allow_secondary:
             continue
@@ -193,17 +207,25 @@ def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model
             # that still hits this limit is discarded below rather than used truncated.
             effort = SECONDARY_REASONING_EFFORT if on_secondary else REASONING_EFFORT
             extra = {"extra_body": {"reasoning_effort": effort}} if effort else {}
-            if structured and (STRUCTURED_OUTPUT or (on_secondary and SECONDARY_STRUCTURED_OUTPUT)):
+            if json_mode:
+                extra['response_format'] = {'type': 'json_object'}
+            elif structured and (STRUCTURED_OUTPUT or (on_secondary and SECONDARY_STRUCTURED_OUTPUT)):
                 extra["response_format"] = _GROUNDED_RESPONSE_FORMAT
             response = (get_secondary_client() if on_secondary else ai_client).chat.completions.create(
-                model=model, messages=messages, temperature=temperature,
-                max_tokens=max_tokens or MAX_OUTPUT_TOKENS, stream=False, timeout=min(ATTEMPT_TIMEOUT_SECONDS, remaining), **extra)
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens or MAX_OUTPUT_TOKENS,
+                stream=False,
+                timeout=min(ATTEMPT_TIMEOUT_SECONDS, remaining), **extra)
             _log_model_quota(model, response)
             if not response or not response.choices:
                 continue
             choice = response.choices[0]
             # Reasoning and truncated output are never treated as a final answer.
             if choice.finish_reason not in {"stop", None}:
+                incomplete_content = choice.message.content if isinstance(choice.message.content, str) else ''
+                incomplete_finish = choice.finish_reason
                 continue
             content = choice.message.content
             if isinstance(content, str) and content.strip():
@@ -235,7 +257,8 @@ def call_llm(messages: list[dict], client: OpenAI | None = None, preferred_model
         raise LLMUnavailableError("Every LLM attempt failed outright", common_error(failure_codes))
     exhausted = deadline is not None and deadline - time.monotonic() <= 0.2
     raise LLMUnavailableError("No complete LLM response within request budget",
-                              "timeout" if exhausted else "invalid_response")
+                              "timeout" if exhausted else "invalid_response",
+                              partial_response=incomplete_content, finish_reason=incomplete_finish)
 
 
 def _is_daily_limit(exc: Exception) -> bool:
@@ -274,13 +297,14 @@ def retrieve_context(query: str, n_results: int = 8, deadline: float | None = No
     return search_slides_pipeline(query, top_k=max(1, n_results))["context"]
 
 
-def retrieve_evidence(query: str, n_results: int = 8, deadline: float | None = None) -> list[Evidence]:
+def retrieve_evidence(query: str, n_results: int = 8, deadline: float | None = None, *, source_scope=None) -> list[Evidence]:
     """Live citation boundary: metadata comes from the index, never parsed from PDF text."""
     from app.rag.direct_pdf import enabled, search_pdf_evidence
     if enabled():
         return search_pdf_evidence(query, top_k=max(1, n_results), deadline=deadline)
     from app.rag.slide_retriever import search_slides_pipeline
-    pages = search_slides_pipeline(query, top_k=max(1, n_results))["top_pages"]
+    options = {"source_scope": source_scope} if source_scope is not None else {}
+    pages = search_slides_pipeline(query, top_k=max(1, n_results), **options)["top_pages"]
     return document_page_evidence(pages)
 
 

@@ -5,12 +5,14 @@ const form = byId("question-form");
 const question = byId("question");
 const modeFieldset = byId("mode-fieldset");
 const scenario = byId("scenario");
+const source = byId("answer-source");
 const submitButton = byId("submit-button");
 const copyButton = byId("copy-button");
 const answerPanel = document.querySelector(".answer-panel");
 const screenStatus = byId("screen-status");
 let busy = false;
 let lastAnswer = "";
+let activePipeline = "baseline";
 
 function selectedMode() {
   return form.querySelector('input[name="mode"]:checked').value;
@@ -19,8 +21,11 @@ function selectedMode() {
 function updateMode() {
   const live = selectedMode() === "live";
   byId("demo-options").hidden = live;
+  byId("source-options").hidden = activePipeline !== "support";
   byId("mode-note").textContent = live
-    ? "ใช้ API และ quota จริงเมื่อกดส่งเท่านั้น หาก quota ยังหมด ให้ใช้โหมดจำลองต่อก่อน"
+    ? (["standard", "simple"].includes(activePipeline) ? "ระบบทดลอง LangChain · เอกสารเท่านั้น · "
+       : activePipeline === "support" ? "โหมดทดลอง · เอกสารหรือเว็บแยกกัน · " : "")
+      + "ใช้ API และ quota จริงเมื่อกดส่งเท่านั้น หาก quota ยังหมด ให้ใช้โหมดจำลองต่อก่อน"
     : "คำตอบและแหล่งอ้างอิงเป็นตัวอย่าง ยังไม่ได้ค้นเอกสารหรือเว็บจริง";
   byId("mode-note").classList.toggle("live", live);
   submitButton.classList.toggle("live", live);
@@ -98,10 +103,12 @@ form.addEventListener("submit", async (event) => {
   }
   const mode = selectedMode();
   const chosenScenario = scenario.value;
+  const chosenSource = source.value;
   busy = true;
   submitButton.disabled = true;
   modeFieldset.disabled = true;
   scenario.disabled = true;
+  source.disabled = true;
   question.readOnly = true;
   copyButton.hidden = true;
   byId("empty-state").hidden = true;
@@ -121,7 +128,7 @@ form.addEventListener("submit", async (event) => {
     const response = await fetch("/api/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: text, mode, scenario: chosenScenario }),
+      body: JSON.stringify({ question: text, mode, scenario: chosenScenario, source: chosenSource }),
       credentials: "same-origin",
     });
     const data = await response.json();
@@ -141,6 +148,7 @@ form.addEventListener("submit", async (event) => {
     submitButton.disabled = false;
     modeFieldset.disabled = false;
     scenario.disabled = false;
+    source.disabled = false;
     question.readOnly = false;
     byId("loading-state").hidden = true;
     answerPanel.setAttribute("aria-busy", "false");
@@ -160,3 +168,14 @@ copyButton.addEventListener("click", async () => {
 });
 
 updateMode();
+fetch("/health/live", { credentials: "same-origin" })
+  .then((response) => response.json())
+  .then((data) => {
+    activePipeline = data.pipeline;
+    if (activePipeline === "support") {
+      scenario.querySelector('option[value="mixed"]').hidden = true;
+      if (scenario.value === "mixed") scenario.value = "kb";
+    }
+    updateMode();
+  })
+  .catch(() => { /* Submission reports connection failures; never retry a question. */ });

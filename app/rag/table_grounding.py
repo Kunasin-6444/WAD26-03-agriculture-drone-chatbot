@@ -11,7 +11,7 @@ from collections import Counter
 from dataclasses import dataclass
 from decimal import Decimal
 
-from app.rag.claim_consistency import _ALIAS_TO_UNIT, _ALTERNATION, _NOZZLE, _WEED_CLASS, _nozzles, _units, rate_units, time_denominator
+from app.rag.claim_consistency import _ALIAS_TO_UNIT, _ALTERNATION, _NOZZLE, _WEED_CLASS, _nozzles, _units, rate_units, time_denominator, weed_class_supported
 
 _NUMBER = r"\d+(?:,\d{3})*(?:\.\d+)?"
 _QUANTITY = re.compile(rf"(?P<value>{_NUMBER})\s*(?P<unit>{_ALTERNATION})(?![a-z])", re.IGNORECASE)
@@ -47,7 +47,7 @@ def parse_tables(content: str) -> tuple[Table, ...]:
         if "|" in line:
             if re.fullmatch(r"[\s|:\-]+", line):
                 continue
-            cells = tuple(cell.strip() for cell in line.strip().strip("|").split("|"))
+            cells = tuple(cell.strip() for cell in line.strip().split("|"))
             if len(cells) >= 2:
                 group.append((line.strip(), cells))
                 continue
@@ -56,6 +56,19 @@ def parse_tables(content: str) -> tuple[Table, ...]:
             group = []
     tables = []
     for group in groups:
+        # Framing pipes belong to the table's formatting, while empty cells
+        # belong to its coordinates. Decide framing from the header, not each
+        # data row: a leading blank may be a continued row label, and a trailing
+        # blank may be a genuinely missing value.
+        if group[0][0].startswith('|'):
+            normalized = []
+            for raw, cells in group:
+                if raw.startswith('|'):
+                    cells = cells[1:]
+                if raw.endswith('|'):
+                    cells = cells[:-1]
+                normalized.append((raw, cells))
+            group = normalized
         if len(group) < 2:
             continue
         if len({len(cells) for _, cells in group}) != 1:
@@ -112,9 +125,9 @@ def _axis(text: str) -> str:
 
 
 def _denominator(text: str) -> int | None:
-    match = re.search(r"(?:ต่อ|/|สำหรับ|จำนวน)?(?P<count>\d+)?(?:หัวฉีด|หัว|nozzles?)", _flat(text))
+    match = re.search(r"(?:(?:ต่อ|/|สำหรับ|จำนวน|รวม|per|for)(?P<count>\d+)?|(?P<bare>\d+))(?:หัวฉีด|หัว|nozzles?)", _flat(text))
     if match:
-        return int(match["count"] or 1)
+        return int(match["count"] or match["bare"] or 1)
     return None
 
 
@@ -130,10 +143,11 @@ def _quantities(claim: str):
         # e.g. '2.8 m และหน้ากว้างรวม 3 หัว 4.5 m', never to the preceding 2.8.
         suffix_local = re.split(axis_markers, suffix, maxsplit=1)[0]
         prefix_local = re.split(axis_markers, prefix)[-1]
-        before = list(re.finditer(r"(?:ต่อ|/|สำหรับ|รวม|per|for)(\d+)?(?:หัวฉีด|หัว|nozzles?)", prefix_local))
+        prefix_local = re.sub(r"^(?:ต่อ|/|per)\d*(?:หัวฉีด|หัว|nozzles?)", "", prefix_local)
+        before = list(re.finditer(r"(?:(?:ต่อ|/|สำหรับ|รวม|ปริมาณ|per|for)(\d+)?|(\d+))(?:หัวฉีด|หัว|nozzles?)", prefix_local))
         denominator = _denominator(suffix_local)
         if denominator is None and before:
-            denominator = int(before[-1][1] or 1)
+            denominator = int(before[-1][1] or before[-1][2] or 1)
         axis = _axis(prefix)
         if not axis and re.fullmatch(r"(?:[,;:–\-]|และ|หรือ|ถึง|กับ)*", prefix):
             axis = previous_axis  # e.g. heights 0.5 m, 1.0 m, 1.5 m
@@ -158,7 +172,13 @@ def _check_columns(segment: str, table: Table, rows: list[TableRow]) -> str:
             continue  # A claim can also contain facts from another table/prose block.
         columns = [index for index, header in enumerate(table.headers) if unit in _units(header)]
         if not columns:
-            continue  # No declared unit means no justified column inference.
+            # A value in a typed column cannot change dimensions (e.g. mass to
+            # volume). Only unknown units permit abstaining from inference.
+            declared = [(header, row.cells[index]) for index, header in enumerate(table.headers)
+                        for row in rows if value in _numbers(row.cells[index]) and _units(header)]
+            if declared and not any(unit in _units(header + ' ' + cell) for header, cell in declared):
+                return f"table value/unit/column mismatch in {table.id}"
+            continue
         if per_time:
             columns = [index for index in columns if (unit, per_time) in rate_units(table.headers[index])]
             if not columns:
@@ -191,6 +211,11 @@ def _check_columns(segment: str, table: Table, rows: list[TableRow]) -> str:
             continue
         bindings = []
         for column, header in enumerate(table.headers):
+            # Entity/text-only columns cannot label a numerical measurement.
+            # Otherwise a unit such as "กรัมสารออกฤทธิ์" rebinds a later dose
+            # to the text column "สาร", rejecting a faithful component explanation.
+            if not any(_numbers(row.cells[column]) for row in rows):
+                continue
             for alias in _column_aliases(header):
                 found = segment.rfind(alias, start, match.start())
                 if found >= 0:
@@ -275,7 +300,8 @@ def _weed_group(flat_label: str) -> frozenset[str]:
     return frozenset(re.findall(r"แคบ|กว้าง", flat_label))
 
 
-def _row_class_problem(row: TableRow, position: int, end: int, labels: list[tuple[int, frozenset[str]]]) -> str:
+def _row_class_problem(row: TableRow, position: int, end: int, labels: list[tuple[int, frozenset[str]]],
+                       *, claim='', allow_weed_subset=False) -> str:
     """A class label must fit every row it is applied to, not just one row of the quote.
 
     A claim may label a list up front ("…สำหรับใบแคบ ได้แก่ A, B") or after each item
@@ -287,7 +313,8 @@ def _row_class_problem(row: TableRow, position: int, end: int, labels: list[tupl
     before = [group for label_end, group in labels if label_end <= position]
     own = [group for label_end, group in labels if position < label_end <= end]
     candidates = before[-1:] + own
-    if candidates and not any(group in row_classes for group in candidates):
+    if candidates and not any(weed_class_supported(group, row_classes, claim,
+                             allow_subset=allow_weed_subset) for group in candidates):
         return f"table weed class mismatch in {row.id}"
     return ""
 
@@ -323,8 +350,9 @@ def _entities_are_columns(claim: str, table: Table) -> bool:
     return not rows or any(rows)
 
 
-def table_inconsistency(claim: str, quotes: list[str], content: str) -> str:
+def table_inconsistency(claim: str, quotes: list[str], content: str, *, allow_weed_subset=False) -> str:
     claim = _flat(claim)
+    tables, unique = [], []
     for table in parse_tables(content):
         # Some slides put entities in columns and measurements in rows. Use the
         # named entity axis, not the printed orientation, to preserve the same cells.
@@ -336,29 +364,89 @@ def table_inconsistency(claim: str, quotes: list[str], content: str) -> str:
         # text cell that no other row repeats in the same column, so a leading category column
         # ("แมลง/สัตว์ศัตรูพืช" on every row) does not hide the pest/disease name after it.
         column_counts = [Counter(_flat(row.cells[i]) for row in table.rows) for i in range(len(table.headers))]
-        text_keys = [next((cell for i, cell in enumerate(row.cells) if len(_flat(cell)) >= 3
+        is_group_col = [bool(re.search(r"บริษัท|ผู้ผลิต|ยี่ห้อ|แบรนด์|company|manufacturer|brand|ประเภท|หมวด|กลุ่ม", _flat(h))) for h in table.headers]
+        text_keys = [next((cell for grp in (False, True) for i, cell in enumerate(row.cells) if is_group_col[i] == grp and len(_flat(cell)) >= 3
                            and not re.fullmatch(_NUMBER, _flat(cell)) and column_counts[i][_flat(cell)] == 1), "")
                      for row in table.rows]
         counts = Counter(_flat(key) for key in text_keys if key)
-        unique = [(key, row) for key, row in zip(text_keys, table.rows) if key and counts[_flat(key)] == 1]
-        mentions = sorted(((position, row) for position, row in _row_mentions(claim, unique) if position >= 0),
+        unique.extend((key, row) for key, row in zip(text_keys, table.rows) if key and counts[_flat(key)] == 1)
+        tables.append(table)
+    # A page can split one list over several printed tables. Resolve names and
+    # claim boundaries across the whole page before checking each table's cells:
+    # a mixture in table 2 must not be read as its standalone component in table 1.
+    all_mentions = sorted(((position, row) for position, row in _row_mentions(claim, unique) if position >= 0),
                           key=lambda pair: pair[0])
-        mentions = _without_component_explanations(claim, mentions, dict((row.id, _flat(key)) for key, row in unique))
+    # A claim may describe the two components separately without repeating the
+    # mixture name. Bind that explanation only to an explicitly cited mixture
+    # row, and verify each printed component/rate pair before ignoring the
+    # otherwise misleading single-substance row mentions.
+    cited_mixtures = [(key, row) for key, row in unique if '+' in key and (
+        _flat(key) in claim or any(_flat(row.raw) in _flat(quote) for quote in quotes))]
+    if len(cited_mixtures) == 1:
+        key, mixture = cited_mixtures[0]
+        parts = key.split('+')
+        amount_cells = [cell.split('+') for cell in mixture.cells if re.fullmatch(
+            rf'\s*{_NUMBER}(?:\s*[-–]\s*{_NUMBER})?(?:\s*\+\s*{_NUMBER}(?:\s*[-–]\s*{_NUMBER})?)+\s*', cell)]
+        if len(parts) > 1 and len(amount_cells) == 1 and len(amount_cells[0]) == len(parts):
+            patterns = [re.compile(r'(?<!\+)' + re.escape(part) + rf'(?:อัตรา|ใช้อัตรา|คือ|เท่ากับ|:|：)*({_NUMBER}(?:[-–]{_NUMBER})?)') for part in parts]
+            found = [pattern.search(claim) for pattern in patterns]
+            if any(found) and not any(word in claim for word in ('เดี่ยว', 'alone', 'standalone')):
+                values = lambda value: tuple(Decimal(n.replace(',', '')) for n in re.findall(_NUMBER, value))
+                actual = [values(m.group(1)) for m in found if m]
+                expected = [values(value) for value, m in zip(amount_cells[0], found) if m]
+                if actual != expected:
+                    return f'table mixture component mismatch in {mixture.id}'
+                part_positions = {m.start() for m in found if m}
+                all_mentions = [(pos, row) for pos, row in all_mentions
+                                if not (pos in part_positions and _flat(next((k for k, r in unique if r.id == row.id), '')) in parts)]
+                if not any(row.id == mixture.id for _, row in all_mentions):
+                    all_mentions.append((0, mixture))
+                    all_mentions.sort(key=lambda pair: pair[0])
+    all_mentions = _without_component_explanations(
+        claim, all_mentions, {row.id: _flat(key) for key, row in unique})
+    positions = sorted({position for position, _ in all_mentions})
+    # Repeated labels in separate tables share a span; none gets an empty
+    # segment that would silently bypass its checks.
+    boundaries = {row.id: (position if position != positions[0] else 0,
+                          next((p for p in positions if p > position), len(claim)))
+                  for position, row in all_mentions}
+    for table in tables:
+        row_ids = {row.id for row in table.rows}
+        mentions = [(position, row) for position, row in all_mentions if row.id in row_ids]
         if mentions:
-            table_numbers = _numbers(" ".join(cell for row in table.rows for cell in row.cells))
+            table_numbers = _numbers(" ".join(cell for t in tables if t.headers == table.headers for row in t.rows for cell in row.cells))
             header_numbers = _numbers(" ".join(table.headers))
             labels = [(match.end(), _weed_group(match[0])) for match in _WEED_CLASS.finditer(claim)]
-            for index, (position, row) in enumerate(mentions):
-                start = position if index else 0
-                end = mentions[index + 1][0] if index + 1 < len(mentions) else len(claim)
+            pending_rows: list[TableRow] = []
+            for idx, (position, row) in enumerate(mentions):
+                start, end = boundaries[row.id]
                 segment = claim[start:end]
-                problem = _row_class_problem(row, position, end, labels)
+                problem = _row_class_problem(row, position, end, labels, claim=claim,
+                                             allow_weed_subset=allow_weed_subset)
                 if problem:
                     return problem
-                allowed = _numbers(" ".join(row.cells)) | header_numbers
-                if (_numbers(segment) & table_numbers) - allowed:
+                clean_seg = re.sub(r"\d+(?:หัวฉีด|หัว|nozzles?)", "", segment)
+                seg_nums = _numbers(clean_seg)
+                if not (seg_nums & table_numbers) and idx + 1 < len(mentions):
+                    pending_rows.append(row)
+                    continue
+                group_rows = pending_rows + [row]
+                pending_rows = []
+                allowed = _numbers(" ".join(cell for r in group_rows for cell in r.cells)) | header_numbers
+                if (seg_nums & table_numbers) - allowed:
                     return f"table row mismatch in {row.id}"
-                problem = _check_columns(segment, table, [row])
+                if len(group_rows) > 1:
+                    row_num_sets = [_numbers(" ".join(r.cells)) - header_numbers for r in group_rows]
+                    ordered_vals = [Decimal(v.replace(",", "")) for v in re.findall(_NUMBER, clean_seg)]
+                    first_pos = []
+                    for r_idx, r_nums in enumerate(row_num_sets):
+                        exclusive = r_nums - set().union(*(s for j, s in enumerate(row_num_sets) if j != r_idx))
+                        pos = next((i for i, val in enumerate(ordered_vals) if val in exclusive), None)
+                        if pos is not None:
+                            first_pos.append(pos)
+                    if first_pos != sorted(first_pos):
+                        return f"table row mismatch in {row.id}"
+                problem = _check_columns(segment, table, group_rows)
                 if problem:
                     return problem
             continue

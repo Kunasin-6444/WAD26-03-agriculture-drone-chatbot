@@ -18,8 +18,11 @@ def split_query_aspects(query: str) -> list[str]:
 
 
 # Question words and fillers; what is left of the question is its subject ("เพลี้ยแป้งมันสำปะหลัง", "AR-30L/6").
-_QUESTION_WORDS = re.compile(r"อะไร|เท่าไร|เท่าไหร่|อย่างไร|ยังไง|ได้ไหม|ไหม|มั้ย|หรือไม่|บ้าง|ควร|ต้อง|ใช้|กี่"
-                             r"|เมื่อไร|เมื่อไหร่|ที่ไหน|ทำไม|คือ|ช่วย|หน่อย|ครับ|ค่ะ|คะ|ในตาราง|ตาราง")
+_QUESTION_WORDS = re.compile(
+    r"อะไร|เท่าไร|เท่าไหร่|เท่าใด|แค่ไหน|อย่างไร|ยังไง|ได้ไหม|ไหม|มั้ย|หรือไม่|บ้าง|ควร|ต้อง|ใช้|กี่"
+    r"|เมื่อไร|เมื่อไหร่|ที่ไหน|ทำไม|คือ|ช่วย|หน่อย|ครับ|ค่ะ|คะ|ในตาราง|ตาราง"
+    r"|การบินโดรน|บินโดรน|โดรนเกษตร|ในไร่|ที่ไร่|ในนา|ในแปลง|เพื่อฉีดพ่น|การฉีดพ่น"
+)
 # Added to the rerank score of a page holding a rare verbatim piece of the question (0 disables).
 # Dev 2026-10-20: pages complete 40 -> 43 of 45 at 0.2 and 0.35, no case worse.
 PHRASE_WEIGHT = float(os.getenv("RETRIEVER_PHRASE_WEIGHT", "0.2"))
@@ -103,8 +106,16 @@ def add_table_continuations(selected: list[dict], pages: list[dict], limit: int)
         return selected
     chosen = {id(page) for page in selected}
     own = {(table, first, last) for page in selected for table, first, last in page.get("table_rows", ())}
-    continuing = [page for page in pages if id(page) not in chosen and any(
-        table == other and (first == other_last + 1 or last == other_first - 1)
-        for table, first, last in page.get("table_rows", ()) for other, other_first, other_last in own)]
-    continuing.sort(key=lambda page: page.get("rerank_score", page.get("rrf_score", 0)), reverse=True)
-    return selected + continuing[:limit]
+    added: list[dict] = []
+    while len(added) < limit and own:
+        continuing = [page for page in pages if id(page) not in chosen and any(
+            table == other and (first == other_last + 1 or last == other_first - 1)
+            for table, first, last in page.get("table_rows", ()) for other, other_first, other_last in own)]
+        if not continuing:
+            break
+        continuing.sort(key=lambda page: page.get("rerank_score", page.get("rrf_score", 0)), reverse=True)
+        best = continuing[0]
+        added.append(best)
+        chosen.add(id(best))
+        own.update(best.get("table_rows", ()))
+    return selected + added

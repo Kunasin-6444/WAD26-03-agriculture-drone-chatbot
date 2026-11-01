@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import re
@@ -20,6 +21,8 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+
+from scripts.rag_evaluation_trace import blank_review, capture_pipeline, retrieval_diagnostics, summarize_reviews
 
 ROOT = Path(__file__).resolve().parents[1]
 GOLD = ROOT / "tests" / "data" / "source_gold_2026-10-18.json"
@@ -120,6 +123,8 @@ def summarize(rows: list[dict]) -> dict:
 
     return {
         "cases": len(rows), "ran": len(ran), "unavailable": len(ran) - len(available),
+        "quality_review": summarize_reviews(rows),
+        "legacy_judge_scope": "correct/complete/harmful only; not full RAG quality",
         "pass_rate": rate(judged, lambda r: r["judge"]["passed"]),
         "correct_rate": rate(judged, lambda r: r["judge"]["correct"]),
         "complete_rate": rate(judged, lambda r: r["judge"]["complete"]),
@@ -166,13 +171,35 @@ def pin_model(model: str, prompt: str, attempt: float | None, kb: float | None, 
         os.environ["ANSWER_MODE"] = answer_mode
 
 
-def run(args) -> int:
+def run(args, *, stop_requested=None) -> int:
+    pipeline_name = getattr(args, "pipeline", "baseline")
+    if pipeline_name not in {"baseline", "candidate", "support", "exclusive"}:
+        raise ValueError(f"Unknown evaluation pipeline: {pipeline_name}")
+    # Fail before any provider work if a report name would overwrite a baseline.
+    stem = args.output or f"answers_{pipeline_name}_{args.model}_{args.prompt}_{datetime.now():%Y%m%d_%H%M%S_%f}"
+    if Path(stem).name != stem or "/" in stem or "\\" in stem or ":" in stem:
+        raise ValueError("--output must be a filename stem under cache/eval")
+    if any((OUT_DIR / f"{stem}.{ext}").exists() for ext in ("json", "csv")):
+        raise FileExistsError(f"Report already exists: {stem}; choose a new --output")
     pin_model(args.model, args.prompt, args.attempt_timeout, args.kb_budget, args.request_timeout, args.reasoning_effort,
               getattr(args, "max_output_tokens", None), getattr(args, "answer_mode", None))
     from openai import OpenAI
     from app.config import LLM_API_KEY, LLM_BASE_URL
     from app.rag import rag_service
-    from app.rag.crag_service import run_crag_pipeline
+    prompt_profile = None
+    if pipeline_name == "exclusive":
+        from app.rag.exclusive_pipeline import run_exclusive_pipeline as run_pipeline
+        prompt_profile = 'line-exclusive-v1'
+    elif pipeline_name == "support":
+        from app.rag.support_pipeline import run_support_pipeline, PROFILE
+        prompt_profile = PROFILE
+        def run_pipeline(query):
+            options = {'json_mode': True} if getattr(args, 'support_json_mode', False) else {}
+            return run_support_pipeline(query, source=getattr(args, 'source', 'auto'), **options)
+    elif pipeline_name == "candidate":
+        from app.rag.candidate.pipeline import run_candidate_pipeline as run_pipeline
+    else:
+        from app.rag.crag_service import run_crag_pipeline as run_pipeline
     from scripts.retrieval_metrics import evidence_groups
 
     # The 2026-10-19 terra run was silently answered by another model after one timeout. Refuse to
@@ -194,28 +221,44 @@ def run(args) -> int:
     for index, case in enumerate(cases, 1):
         gold = set().union(*evidence_groups(case, [])) if case.get("evidence_groups") else set()
         row = {"id": case["id"], "query": case["query"], "expected": case["expected_answer"],
-               "must_contain": case.get("must_contain", []), "gold_pages": sorted(gold), "outcome": "not_run"}
+               "must_contain": case.get("must_contain", []), "gold_pages": sorted(gold), "outcome": "not_run",
+               "quality_review": blank_review()}
         rows.append(row)
-        if stopped:
+        if stopped or (stop_requested is not None and stop_requested()):
+            stopped = True
             continue
         started = time.monotonic()
         diagnostics, grade_reason, error_code = [], "", ""
-        try:
-            response = run_crag_pipeline(case["query"])
-            answer, source_type = response.answer, response.source_type
-            # Why a claim was rejected or a stage abstained: the raw material for error analysis.
-            diagnostics, grade_reason = getattr(response, "diagnostics", []), getattr(response, "grade_reason", "")
-            error_code = getattr(response, "error_code", "")
-        except Exception as exc:  # recorded, never retried with another model
-            answer, source_type = f"[EXCEPTION {type(exc).__name__}: {exc}]", "error"
+        response = None
+        with capture_pipeline(pipeline_name) as trace:
+            try:
+                response = run_pipeline(case["query"])
+                answer, source_type = response.answer, response.source_type
+                # Why a claim was rejected or a stage abstained: the raw material for error analysis.
+                diagnostics, grade_reason = getattr(response, "diagnostics", []), getattr(response, "grade_reason", "")
+                error_code = getattr(response, "error_code", "")
+            except Exception as exc:  # recorded, never retried with another model
+                answer, source_type = f"[EXCEPTION {type(exc).__name__}: {exc}]", "error"
+        row.update(trace=trace, retrieval_diagnostics=retrieval_diagnostics(case, trace))
+        if response is not None:
+            row["pipeline_result"] = {key: getattr(response, key) for key in (
+                "grade", "generation_succeeded", "citation_checks_passed", "semantic_quality",
+                "pre_selection_evidence", "post_selection_evidence", "dropped_reasons", "missing_aspect")
+                if hasattr(response, key)}
         row.update(seconds=round(time.monotonic() - started, 1), answer=answer, source_type=source_type,
                    grade_reason=grade_reason, diagnostics=diagnostics, error_code=error_code,
                    outcome=outcome(answer), missing_terms=missing_terms(answer, row["must_contain"]),
                    cited_gold_pages=sorted(cited_pages(answer) & gold))
-        # A partial answer that ran out of quota still gets judged, but counts toward stopping.
-        if row["outcome"] == "unavailable" or error_code == "quota_exhausted":
+        # Response metadata is authoritative. An arbitrary abstention/failure
+        # string must never be counted as an answer merely because its wording
+        # is absent from the list of standard error messages.
+        if source_type == 'abstain':
+            row['outcome'] = 'unavailable' if error_code else 'abstain'
+        # Partial KB answers can survive a web/provider failure. Count that error
+        # toward the stop boundary even though usable answer text remains.
+        if row["outcome"] == "unavailable" or error_code:
             unavailable_streak += 1
-            stopped = unavailable_streak >= 2
+            stopped = (row["outcome"] == "unavailable" and error_code == "timeout") or unavailable_streak >= 2
         else:
             unavailable_streak = 0
         if row["outcome"] != "unavailable":
@@ -230,32 +273,41 @@ def run(args) -> int:
         print(f"[{index}/{len(cases)}] {case['id']:6} {row['outcome']:11} {row['seconds']:5.1f}s "
               f"pass={verdict.get('passed', '-')} missing={row['missing_terms'] or '-'}", flush=True)
     if stopped:
-        print("STOP: the pinned model was unavailable twice in a row (quota or outage)", flush=True)
+        print("STOP: timeout, controller stop, or consecutive request/provider failures", flush=True)
 
     summary = summarize(rows)
-    config = {"model": args.model, "prompt": args.prompt, "judge_model": None if args.skip_judge else args.judge_model,
+    config = {"pipeline": pipeline_name, "model": args.model, "prompt": args.prompt,
+              "judge_model": None if args.skip_judge else args.judge_model,
               "split": args.split, "gold": str(args.gold.relative_to(ROOT)), "limit": args.limit,
-              "answer_mode": os.environ.get("ANSWER_MODE", "grounded"),
+              "gold_sha256": hashlib.sha256(args.gold.read_bytes()).hexdigest(),
+              "case_ids": [case["id"] for case in cases],
+              "answer_mode": pipeline_name if pipeline_name in {"candidate", "standard", "support", "simple"} else os.environ.get("ANSWER_MODE", "grounded"),
+              "source_mode": getattr(args, 'source', 'auto') if pipeline_name == 'support' else None,
+              "kb_retriever": os.environ.get('RAG_KB_RETRIEVER', 'legacy') if pipeline_name == 'exclusive' else None,
+              "web_retriever": os.environ.get('RAG_WEB_RETRIEVER', 'legacy') if pipeline_name == 'exclusive' else None,
+              "table_executor": os.environ.get('RAG_TABLE_EXECUTOR', 'off') if pipeline_name == 'exclusive' else None,
+              "support_json_mode": bool(getattr(args, 'support_json_mode', False)) if pipeline_name == 'support' else None,
+              "prompt_profile": prompt_profile,
               "reasoning_effort": os.environ.get("LLM_REASONING_EFFORT", ""),
               "max_output_tokens": os.environ.get("LLM_MAX_OUTPUT_TOKENS", "2200"),
               "timeouts": {k: os.environ.get(k) for k in ("LLM_ATTEMPT_TIMEOUT_SECONDS", "KB_GENERATION_BUDGET_SECONDS",
                                                          "RAG_REQUEST_TIMEOUT_SECONDS")},
               "started": datetime.now().isoformat(timespec="seconds")}
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    stem = args.output or f"answers_{args.model}_{args.prompt}_{datetime.now():%Y%m%d_%H%M}"
     (OUT_DIR / f"{stem}.json").write_text(json.dumps({"config": config, "summary": summary, "rows": rows},
                                                      ensure_ascii=False, indent=2), encoding="utf-8")
     with (OUT_DIR / f"{stem}.csv").open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["id", "คำถาม", "ผล", "ผ่าน", "ถูก", "ครบ", "อันตราย", "รูปแบบ", "วินาที",
-                         "คำที่ขาด", "เหตุผลผู้ตรวจ", "เหตุผลระบบ", "คำตอบบอต", "คำตอบอ้างอิง", "คนตรวจเห็นด้วย (ใช่/ไม่)"])
+        writer.writerow(["id", "คำถาม", "ผล", "ผ่านเกณฑ์ judge เดิม (ไม่ใช่คุณภาพ RAG ครบด้าน)", "ถูก", "ครบ", "อันตราย", "รูปแบบ", "วินาที",
+                         "คำที่ขาด", "เหตุผลผู้ตรวจ", "เหตุผลระบบ", "คำตอบบอต", "คำตอบอ้างอิง", "คนตรวจเห็นด้วย (ใช่/ไม่)",
+                         "ค้นตรงเรื่อง", "ตอบตรงคำถาม", "ความหมายตรงหลักฐาน", "ถูกต้อง", "ครบถ้วน", "ผิดอันตราย", "ผู้ตรวจ", "เหตุผลการตรวจ"])
         for row in rows:
             verdict = row.get("judge", {})
             writer.writerow([row["id"], row["query"], row["outcome"], verdict.get("passed", ""), verdict.get("correct", ""),
                              verdict.get("complete", ""), verdict.get("harmful", ""), verdict.get("style_ok", ""),
                              row.get("seconds", ""), " | ".join(row.get("missing_terms", [])),
                              verdict.get("critique", row.get("judge_error", "")), row.get("grade_reason", ""),
-                             row.get("answer", ""), row["expected"], ""])
+                             row.get("answer", ""), row["expected"], "", "", "", "", "", "", "", "", ""])
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     print(f"report: {OUT_DIR / (stem + '.json')}\nreview sheet: {OUT_DIR / (stem + '.csv')}")
     return 1 if stopped else 0
@@ -265,6 +317,10 @@ def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--model", required=True, help="the one answer model (fallbacks are disabled)")
+    parser.add_argument("--source", choices=["auto", "kb", "web"], default="auto", help="source selection for --pipeline support")
+    parser.add_argument("--support-json-mode", action="store_true", help="experimental JSON-object provider mode for support; availability unverified")
+    parser.add_argument("--pipeline", choices=["baseline", "candidate", "support", "exclusive"], default="baseline",
+                        help="evaluation only; candidate uses auto routing; standard is LangChain KB-only with its own prompt")
     parser.add_argument("--prompt", choices=["full", "concise"], default="full")
     parser.add_argument("--judge-model", default="gpt-5.6-terra", help="a different KKU model that grades answers")
     parser.add_argument("--skip-judge", action="store_true", help="deterministic checks only")
@@ -282,6 +338,8 @@ def main() -> int:
     parser.add_argument("--reasoning-effort", help="sets LLM_REASONING_EFFORT for the run, e.g. low for thinking models")
     parser.add_argument("--output", help="file stem under cache/eval/")
     args = parser.parse_args()
+    if args.support_json_mode and args.pipeline != 'support':
+        parser.error('--support-json-mode requires --pipeline support')
     if not args.skip_judge and args.judge_model == args.model:
         parser.error("use a judge model different from the answer model")
     return run(args)

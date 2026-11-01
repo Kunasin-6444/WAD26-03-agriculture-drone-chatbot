@@ -28,9 +28,6 @@ BOT_USAGE_KEYWORDS = [
     "ฟังก์ชันการทำงาน",
     "บอททำอะไรได้บ้าง",
     "สอบถามอะไรได้บ้าง",
-    # Generic phrasing (without the word "บอท") seen in real LINE chat logs
-    "ใช้งานยังไง",
-    "ใช้งานอย่างไร",
 ]
 
 # Questions about what the bot covers ("ให้ข้อมูลพืชชนิดใดได้บ้าง"). Answered from the documents they got
@@ -74,6 +71,11 @@ class IntentResult:
 
 def route_intent(query: str) -> IntentResult:
     q = query.strip().lower()
+
+    # Bare help requests refer to the bot; an equipment-use question does not.
+    if q in {"ใช้งานยังไง", "ใช้งานอย่างไร"} or (
+            any(word in q for word in ("บอท", "บอต")) and any(word in q for word in ("ใช้งานยังไง", "ใช้งานอย่างไร"))):
+        return IntentResult(intent="bot_usage", handled_response=BOT_USAGE_RESPONSE)
     
     # Check for bot usage intent
     for kw in BOT_USAGE_KEYWORDS:

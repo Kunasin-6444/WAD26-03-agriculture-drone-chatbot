@@ -13,6 +13,7 @@ CAAT_DESIGNATED_URLS = ["https://uasportal.caat.or.th/images/infographic/guideli
 # Crops known in the knowledge base (shared by retrieval and claim/evidence consistency checks).
 SUPPORTED_CROPS = ["อ้อย", "ข้าว", "ข้าวโพด", "ถั่วเหลือง", "ถั่วลิสง", "มันสำปะหลัง"]
 _DOCUMENT_ID = re.compile(r"(?<![a-z0-9])(?:uav|ua)\s*0*\d{1,3}(?![a-z0-9])", re.IGNORECASE)
+_CAPTION_LABEL = re.compile(r"(?:ตาราง|ภาพ|รูป|แผนภาพ|สมการ)\s*(?:ที่)?\s*\(?\d{1,3}\)?")
 
 
 def requested_document_ids(query: str) -> set[str]:
@@ -21,7 +22,7 @@ def requested_document_ids(query: str) -> set[str]:
 
 
 def without_document_ids(text: str) -> str:
-    return _DOCUMENT_ID.sub("", text)
+    return _CAPTION_LABEL.sub("", _DOCUMENT_ID.sub("", text))
 
 
 # Air-law / permit-procedure material is answered from the designated CAAT portal, not the PDF KB.
@@ -36,7 +37,6 @@ def is_excluded_document(filename: str) -> bool:
 
 def canonical_document_id(filename: str) -> str:
     """Stable doc id: 'UAV07 หัวฉีด….pdf' -> 'UAV07'; otherwise the underscored stem."""
-    import re
     stem = Path(filename).stem
     match = re.match(r"(?i)^(uav|ua)\s*0*(\d+)", stem)
     if match:

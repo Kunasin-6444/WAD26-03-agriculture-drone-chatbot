@@ -12,10 +12,10 @@ from typing import Literal
 from app.rag.claim_consistency import claim_inconsistency
 from app.rag.source_policy import canonical_document_id, is_caat_url, is_excluded_document, requested_document_ids, valid_web_url, without_document_ids
 from app.rag.crag_grader import is_caat_air_law_or_airspace_topic
-from app.rag.table_grounding import table_inconsistency
+from app.rag.table_grounding import parse_tables, table_inconsistency
 
 ABSTAIN_MESSAGE = "ยังไม่พบหลักฐานเพียงพอจากเอกสารและเว็บไซต์ จึงไม่สามารถยืนยันคำตอบได้ครับ"
-CONTEXT_CHAR_BUDGET = 14000
+CONTEXT_CHAR_BUDGET = 19000
 MAX_BODY_CHARS = 1800
 MAX_ANSWER_CHARS = 4200
 MAX_CLAIMS = 8
@@ -184,17 +184,48 @@ def _numbers(text: str) -> set[Decimal]:
     return {Decimal(value.replace(",", "")) for value in re.findall(r"\d+(?:,\d{3})*(?:\.\d+)?", text)}
 
 
-def _parse_claim(item: dict, by_id: dict[str, Evidence]) -> Claim:
+def _cross_source_table_problem(text, ids, quotes, by_id, *, allow_weed_subset=False):
+    """Do not let a value in one source support a different source's table row."""
+    values = _numbers(without_document_ids(text))
+    numeric_sources = {sid for sid, quote in zip(ids, quotes) if values & _numbers(quote)}
+    if len(numeric_sources) < 2:
+        return ""
+    matches = []
+    for sid, quote in zip(ids, quotes):
+        if sid not in numeric_sources:
+            continue
+        for table in parse_tables(by_id[sid].content):
+            for row in table.rows:
+                if _quote_supported(quote, row.raw) or _quote_supported(row.raw, quote):
+                    matches.append((sid, table.headers, row.raw))
+    if not matches:
+        return ""  # No table involved; other grounding checks still apply.
+    if numeric_sources - {sid for sid, _, _ in matches}:
+        return "numeric facts mix a table with unmatched sources; split the claim"
+    schemas = {tuple(_canonical(h).lower() for h in headers) for _, headers, _ in matches}
+    if len(schemas) != 1 or not all(next(iter(schemas))):
+        return "numeric facts use different or unknown table columns; split the claim"
+    headers = matches[0][1]
+    rows = list(dict.fromkeys(row for _, _, row in matches))
+    combined = " | ".join(headers) + "\n" + "\n".join(rows)
+    return table_inconsistency(without_document_ids(text), quotes, combined,
+                               allow_weed_subset=allow_weed_subset)
+
+
+def _parse_claim(item: dict, by_id: dict[str, Evidence], *, allow_weed_subset=False,
+                 max_evidence_per_claim=4) -> Claim:
     """Validate one independent fact; a rejected fact never reaches the renderer."""
     text = item.get("text", "")
     citations = item.get("evidence", [])
     if not isinstance(text, str) or not text.strip():
         raise ValueError("Invalid claim text")
+    if '{{' in text or '}}' in text:
+        raise ValueError("Unresolved source label reference")
     if len(text) > 400:
         raise ValueError("Claim exceeds 400 characters; split independent facts")
-    if "http" in text.lower() or ".pdf" in text.lower() or "แหล่งอ้างอิง" in text:
+    if "http" in text.lower() or ".pdf" in text.lower() or re.search(r"แหล่งอ้างอิง\s*[:：]", text):
         raise ValueError("Inline citation in claim; use evidence metadata only")
-    if not isinstance(citations, list) or not citations or len(citations) > 4:
+    if not isinstance(citations, list) or not citations or len(citations) > max_evidence_per_claim:
         raise ValueError("Missing claim evidence")
     ids, quotes = [], []
     for citation in citations:
@@ -213,17 +244,23 @@ def _parse_claim(item: dict, by_id: dict[str, Evidence]) -> Claim:
         raise ValueError("Claim names a different document from its citation")
     if _is_aviation_regulation(text) and any(not is_caat_url(by_id[i].url) for i in ids):
         raise ValueError("Regulatory claims require fetched CAAT sources")
-    if not _numbers(without_document_ids(text)).issubset(_numbers(" ".join(quotes) + " " + cited_content)):
+    # A number elsewhere on the same page does not support this claim's quote.
+    # Require every stated value in the actual cited excerpts, not the whole chunk.
+    if not _numbers(without_document_ids(text)).issubset(_numbers(" ".join(quotes))):
         raise ValueError("Unsupported numeric claim")
     cited_text = " ".join(f"{by_id[i].content} {by_id[i].title} {by_id[i].url} {by_id[i].source_file}" for i in dict.fromkeys(ids))
-    problem = claim_inconsistency(text, quotes, cited_text)
+    problem = claim_inconsistency(text, quotes, cited_text, allow_weed_subset=allow_weed_subset)
     if problem:
         raise ValueError(f"Claim inconsistent with cited evidence ({problem})")
     for source_id in dict.fromkeys(ids):
         source_quotes = [quote for current_id, quote in zip(ids, quotes) if current_id == source_id]
-        problem = table_inconsistency(without_document_ids(text), source_quotes, by_id[source_id].content)
+        problem = table_inconsistency(without_document_ids(text), source_quotes, by_id[source_id].content,
+                                      allow_weed_subset=allow_weed_subset)
         if problem:
             raise ValueError(f"Claim inconsistent with cited table ({problem})")
+    problem = _cross_source_table_problem(text, ids, quotes, by_id, allow_weed_subset=allow_weed_subset)
+    if problem:
+        raise ValueError(f"Claim inconsistent with cited tables ({problem})")
     return Claim(text.strip(), tuple(dict.fromkeys(ids)), tuple(zip(ids, quotes)))
 
 
@@ -259,7 +296,9 @@ def _is_aviation_regulation(text: str) -> bool:
     return "ประกัน" in text and bool(re.search(r"วงเงิน|คุ้มครอง", text))
 
 
-def parse_grounded_result(raw: str, evidence: list[Evidence]) -> GroundedResult:
+def parse_grounded_result(raw: str, evidence: list[Evidence], *, max_claims: int = MAX_CLAIMS,
+                           allow_weed_subset=False, max_body_chars: int = MAX_BODY_CHARS,
+                           max_evidence_per_claim: int = 4) -> GroundedResult:
     """Reject invalid IDs/quotes/numbers and incomplete JSON; never repair facts."""
     try:
         cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip())
@@ -272,20 +311,25 @@ def parse_grounded_result(raw: str, evidence: list[Evidence]) -> GroundedResult:
         if not isinstance(missing, list) or any(not isinstance(x, str) or not x.strip() or len(x) > 200 for x in missing) or len(missing) > 8:
             raise ValueError("Invalid missing aspects")
         items = data.get("claims", [])
-        if not isinstance(items, list) or len(items) > MAX_CLAIMS:
+        if not 1 <= max_claims <= 32 or not isinstance(items, list) or len(items) > max_claims:
             raise ValueError("Invalid claims")
+        if type(max_evidence_per_claim) is not int or not 1 <= max_evidence_per_claim <= 20:
+            raise ValueError('Invalid claim evidence budget')
         by_id = {e.id: e for e in evidence}
         if len(by_id) != len(evidence) or any(e.url and not valid_web_url(e.url) for e in evidence):
             raise ValueError("Invalid evidence metadata")
         claims, rejected = [], []
         for item in items:
             try:
-                claims.append(_parse_claim(item, by_id))
+                claims.append(_parse_claim(item, by_id, allow_weed_subset=allow_weed_subset,
+                                           max_evidence_per_claim=max_evidence_per_claim))
             except (ValueError, TypeError, AttributeError, KeyError) as exc:
                 rejected.append(str(exc))
         if rejected and not claims:
             raise ValueError("; ".join(rejected)[:250])
-        if sum(len(c.text) + 4 for c in claims) > MAX_BODY_CHARS:
+        if type(max_body_chars) is not int or not 1 <= max_body_chars <= MAX_ANSWER_CHARS:
+            raise ValueError('Invalid answer body budget')
+        if sum(len(c.text) + 4 for c in claims) > max_body_chars:
             raise ValueError("Answer exceeds concise body limit")
         status = data["status"]
         if status == "sufficient" and (not claims or missing):

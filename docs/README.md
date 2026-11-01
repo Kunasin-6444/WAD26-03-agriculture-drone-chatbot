@@ -9,8 +9,9 @@
 | ผลลัพธ์ที่ระบบต้องทำได้ | [PROJECT_REQUIREMENTS](PROJECT_REQUIREMENTS.md) |
 | สิ่งที่ทำแล้วและข้อจำกัดที่ยังเปิด | [CURRENT_STATE](CURRENT_STATE.md) |
 | สิ่งที่จะลงมือต่อ | [NEXT_STEPS_PLAN](NEXT_STEPS_PLAN.md) |
+| ใบงาน Antigravity รื้อ RAG ตามคำสั่งเจ้าของ 25 ต.ค. | [ANTIGRAVITY_HANDOFF](ANTIGRAVITY_HANDOFF.md) (สถานะหลักอยู่ CURRENT_STATE) |
 | เลือกการตรวจให้เหมาะกับงาน | [TEST_PLAN](TEST_PLAN.md) |
-| โครงสร้างโค้ดที่มีอยู่ | [ARCHITECTURE](ARCHITECTURE.md) (ของ 2026-10-17 — ฉบับล่าสุดดูแผนผังใน CURRENT_STATE) |
+| โครงสร้างโค้ดที่มีอยู่ | [ARCHITECTURE](ARCHITECTURE.md) (เส้นทาง LINE ตรวจล่าสุด 2026-11-01) |
 | จัดเตรียมข้อมูล PDF | [INGESTION](INGESTION.md) |
 | เตรียม host, volumes และ backup | [DEPLOYMENT](DEPLOYMENT.md) |
 | การทดลองเสริมที่ยังไม่จำเป็น | [DIRECT_PDF](DIRECT_PDF.md) |

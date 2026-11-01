@@ -1,0 +1,16 @@
+# Use existing/restored data instead of empty named volumes.
+# Stop the native app and ingestion before starting this deployment.
+# Run: docker compose -f compose.yaml -f compose.storage.yaml up -d --build
+services:
+  chatbot:
+    volumes:
+      - type: bind
+        source: ${CHATBOT_DATA_ROOT:-.}/chroma_db
+        target: /app/chroma_db
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHATBOT_DATA_ROOT:-.}/cache
+        target: /app/cache
+        bind:
+          create_host_path: false

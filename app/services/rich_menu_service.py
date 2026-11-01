@@ -117,7 +117,6 @@ RICH_MENU_ITEMS: list[dict[str, Any]] = [
         "color": (142, 68, 173),
         "aliases": [
             "โดรนฉีดพ่นและหัวฉีด",
-            "แนะนำการเลือกใช้หัวฉีดโดรนเกษตรและอัตราการไหล",
             "คู่มือโดรนฉีดพ่นทางการเกษตร",
             "5. โดรนฉีดพ่นและหัวฉีด",
             "richmenu_5",
@@ -351,12 +350,17 @@ def setup_rich_menu(
 # every client (LINE developer docs, checked 2026-10-21). Typing "เมนู", or adding the bot as a friend,
 # sends a card whose buttons send the same texts as the rich menu, so they reach the same cited guides.
 MENU_ANSWER = "[[FLEX_MENU]]"   # what ask_ai returns; line_service turns it into the Flex message
-_MENU_TRIGGERS = {"เมนู", "เมนูหลัก", "ดูเมนู", "เปิดเมนู", "หัวข้อ", "menu"}
+_MENU_TRIGGERS = {
+    "เมนู", "เมนูหลัก", "ดูเมนู", "เปิดเมนู", "หัวข้อ", "menu",
+    "/", "/menu", "/help", "/start", "/เมนู", "/หัวข้อ", "/?",
+    "help", "?", "วิธีใช้", "วิธีใช้งาน",
+}
 HELP_TEXT = "วิธีใช้งานบอท"      # a BOT_USAGE_KEYWORDS phrase: the help text with example questions
 
 
 def is_menu_request(text: str | None) -> bool:
-    return re.sub(r"\s+", " ", text or "").strip().casefold() in _MENU_TRIGGERS
+    clean = re.sub(r"\s+", " ", text or "").strip().casefold()
+    return clean in _MENU_TRIGGERS
 
 
 def menu_card() -> dict[str, Any]:

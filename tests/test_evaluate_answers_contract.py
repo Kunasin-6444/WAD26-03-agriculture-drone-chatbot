@@ -89,6 +89,10 @@ class PinnedRun(unittest.TestCase):
         self.assertEqual(report["rows"][0]["diagnostics"], [{"stage": "kb", "status": "partial"}])
         self.assertEqual(judge.chat.completions.create.call_args.kwargs["model"], "model-b")
         self.assertEqual(report["summary"]["pass_rate"], 1.0)
+        self.assertIsNone(report["summary"]["quality_review"]["pass_rate"])
+        self.assertEqual(report["summary"]["quality_review"]["pending"], 1)
+        self.assertIn("trace", report["rows"][0])
+        self.assertIn("retrieval_diagnostics", report["rows"][0])
 
     def test_a_run_whose_fallbacks_are_still_active_is_refused(self):
         args = SimpleNamespace(model="model-a", prompt="full", judge_model="model-b", skip_judge=True, split="dev",

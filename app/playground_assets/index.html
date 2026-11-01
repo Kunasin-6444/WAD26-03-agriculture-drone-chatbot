@@ -18,7 +18,7 @@
     <section class="intro">
       <p class="eyebrow">AGRICULTURE KNOWLEDGE</p>
       <h1>ถามเรื่องโดรนเกษตร<br><span>พร้อมที่มาของคำตอบ</span></h1>
-      <p>ความรู้จากเอกสาร ค้นเว็บเติมส่วนที่ขาด<br class="mobile-break"> และอ้างอิงให้ย้อนตรวจได้</p>
+      <p>ความรู้จากเอกสารหรือข้อมูลจากเว็บ<br class="mobile-break"> พร้อมอ้างอิงให้ย้อนตรวจได้</p>
     </section>
 
     <div class="workspace">
@@ -33,11 +33,21 @@
             </div>
           </fieldset>
           <p id="mode-note" class="mode-note">คำตอบและแหล่งอ้างอิงเป็นตัวอย่าง ยังไม่ได้ค้นเอกสารหรือเว็บจริง</p>
+          <div id="source-options" hidden>
+            <label for="answer-source">เลือกแหล่งข้อมูล</label>
+            <select id="answer-source" name="source">
+              <option value="auto">ตามคำถาม — ข้อมูลปัจจุบัน/กฎการบินใช้เว็บ</option>
+              <option value="kb">เอกสารในโครงการ</option>
+              <option value="web">ค้นเว็บ</option>
+            </select>
+            <p class="hint">ใช้แหล่งที่เลือกต่อคำตอบ หากข้อมูลไม่พอจะแจ้งให้ทราบ</p>
+          </div>
           <div id="demo-options">
             <label for="scenario">สถานการณ์จำลอง</label>
             <select id="scenario" name="scenario">
               <option value="mixed">รวมคำตอบจาก KB + web</option>
               <option value="kb">ตอบจากเอกสาร KB</option>
+              <option value="web">ตอบจากเว็บ</option>
               <option value="unverified">หลักฐานไม่เพียงพอ</option>
               <option value="quota">quota หมด / บริการไม่พร้อม</option>
             </select>
@@ -52,7 +62,7 @@
 
       <section class="answer-panel" aria-labelledby="answer-heading" aria-busy="false">
         <div class="section-heading"><span class="step">02</span><h2 id="answer-heading">คำตอบและแหล่งที่มา</h2><button id="copy-button" class="text-button" type="button" hidden>คัดลอก</button></div>
-        <div id="empty-state" class="empty-state"><span class="empty-symbol" aria-hidden="true">✳</span><h3>เริ่มจากคำถามของคุณ</h3><p>ลองหน้าจอได้แม้ quota หมด<br>เมื่อพร้อม ค่อยเปลี่ยนเป็นถามระบบจริง</p><span class="empty-tag">KB + WEB · พร้อมอ้างอิง</span></div>
+        <div id="empty-state" class="empty-state"><span class="empty-symbol" aria-hidden="true">✳</span><h3>เริ่มจากคำถามของคุณ</h3><p>ลองหน้าจอได้แม้ quota หมด<br>เมื่อพร้อม ค่อยเปลี่ยนเป็นถามระบบจริง</p><span class="empty-tag">เอกสารหรือเว็บ · พร้อมอ้างอิง</span></div>
         <div id="loading-state" class="loading-state" hidden><span class="spinner" aria-hidden="true"></span><p>กำลังตอบคำถาม…</p><small>กำลังใช้ระบบจริง ครั้งแรกอาจใช้เวลาโหลดเพิ่มเติม</small><p id="waiting-time">0 วินาที</p></div>
         <article id="result" hidden>
           <div class="result-meta"><span id="result-mode" class="result-badge"></span><span id="elapsed-time"></span></div>

@@ -81,6 +81,17 @@ _EVIDENCE_UNIT = {unit: re.compile("|".join(_alias_pattern(a) for a in aliases),
                   for unit, aliases in _UNITS.items()}
 
 _LATIN_TERM = re.compile(r"[A-Za-z][A-Za-z0-9\-]{2,}")
+_LATIN_HYPHEN_LAYOUT = re.compile(r"(?<=[A-Za-z0-9])(?:[-‐‑][ \t\r\n]*|[ \t\r\n]+[-‐‑])(?=[A-Za-z])")
+
+
+def _latin_terms(text: str) -> set[str]:
+    # PDF layout can insert whitespace around an identifier's hyphen. Keep the
+    # hyphen/prefix, letter spelling and cell boundaries; this is not fuzzy matching.
+    # Note: Delimiter dashes with whitespace before them (" - ") must not glue words together.
+    normalized = _LATIN_HYPHEN_LAYOUT.sub('-', text or "")
+    return {word.casefold() for word in _LATIN_TERM.findall(normalized)}
+
+
 _NOZZLE = re.compile(r"พัด(?:อัด)?(?:น้ำเงิน|น้ำตาล|ส้ม|แดง|เหลือง|ฟ้า|เขียว|ม่วง|ขาว|เทา|ดำ)")
 # ISO nozzle colour codes are often printed in English ("01 | Orange"); a Thai claim of the
 # same colour is a translation, not an addition.
@@ -89,7 +100,28 @@ _NOZZLE_ENGLISH = {"ส้ม": "orange", "แดง": "red", "เหลือ�
 _NOZZLE_ENGLISH_RE = {th: re.compile(rf"(?<![a-z]){en}(?![a-z])") for th, en in _NOZZLE_ENGLISH.items()}
 _WEED_CLASS = re.compile(r"ใบ(?:แคบ|กว้าง)(?:(?:และ|หรือ|,|/|-)(?:ประเภท)?(?:ใบ)?(?:แคบ|กว้าง))*")
 _CROPS_LONGEST_FIRST = sorted(SUPPORTED_CROPS, key=len, reverse=True)
-_EMERGENCE = re.compile(r"(ก่อน|หลัง)(วัชพืช|" + "|".join(map(re.escape, _CROPS_LONGEST_FIRST)) + r")งอก")
+_EMERGENCE_SUBJECT = r"(?:วัชพืช|" + "|".join(map(re.escape, _CROPS_LONGEST_FIRST)) + r")"
+_EMERGENCE = re.compile(
+    r"(?P<phases>(?:ก่อน|หลัง)(?:(?:และ|หรือ)(?:ก่อน|หลัง))*)"
+    r"(?P<subjects>" + _EMERGENCE_SUBJECT + r"(?:(?:และ|หรือ)" + _EMERGENCE_SUBJECT + r")*)งอก")
+_SUBJECT_FIRST_EMERGENCE = re.compile(
+    r"(?P<subjects>" + _EMERGENCE_SUBJECT + r"(?:(?:และ|หรือ)" + _EMERGENCE_SUBJECT + r")*)"
+    r"(?P<phases>(?:ก่อน|หลัง)(?:(?:และ|หรือ)(?:ก่อน|หลัง))*)งอก")
+
+
+def emergence_states(text):
+    """Expand explicitly coordinated phases/subjects without merging other clauses.
+
+    'Before weeds emerge' never entails 'before cane or weeds emerge'.
+    'Before and after weeds emerge' supports either phase individually.
+    """
+    states = set()
+    for pattern in (_EMERGENCE, _SUBJECT_FIRST_EMERGENCE):
+        for match in pattern.finditer(_flat(text)):
+            phases = re.findall(r'ก่อน|หลัง', match['phases'])
+            subjects = re.findall(_EMERGENCE_SUBJECT, match['subjects'])
+            states.update((phase, subject) for phase in phases for subject in subjects)
+    return states
 
 
 def _flat(text: str) -> str:
@@ -163,13 +195,29 @@ def comparison_conflict(claim_text: str, evidence_text: str) -> str:
     return ""
 
 
-def claim_inconsistency(claim_text: str, quotes: list[str] | tuple[str, ...], cited_content: str) -> str:
+def weed_class_supported(group, supported, claim_text, *, allow_subset=False):
+    """Positive coverage entails a subset; an exclusive or negative claim does not.
+
+    Exact legacy classification stays the default. Subset entailment is opt-in
+    and requires an affirmative control statement, not merely a list heading.
+    """
+    if group in supported:
+        return True
+    if not allow_subset or not re.search(r'คุม|ควบคุม|กำจัด', claim_text):
+        return False
+    if any(term in claim_text for term in ('เฉพาะ', 'เท่านั้น', 'อย่างเดียว', 'ไม่', 'ห้าม')):
+        return False
+    return any(group < other for other in supported)
+
+
+def claim_inconsistency(claim_text: str, quotes: list[str] | tuple[str, ...], cited_content: str,
+                        *, allow_weed_subset=False) -> str:
     """Return a short reason when the claim states a label its evidence contradicts, else ''."""
     quote_text = " ".join(quotes)
     evidence_text = f"{cited_content} {quote_text}"
     claim_flat, quote_flat, evidence_flat = _flat(claim_text), _flat(quote_text), _flat(evidence_text)
-    stated_emergence = set(_EMERGENCE.findall(claim_flat))
-    supported_emergence = set(_EMERGENCE.findall(quote_flat)) or set(_EMERGENCE.findall(evidence_flat))
+    stated_emergence = emergence_states(claim_flat)
+    supported_emergence = emergence_states(quote_flat) or emergence_states(evidence_flat)
     if stated_emergence and supported_emergence and stated_emergence - supported_emergence:
         return "emergence timing or subject conflicts with evidence"
     if rate_units(claim_text) - rate_units(evidence_text):
@@ -185,9 +233,9 @@ def claim_inconsistency(claim_text: str, quotes: list[str] | tuple[str, ...], ci
         if stated and present and not stated & present:
             return f"unit conflicts with evidence: claim {sorted(stated)}, evidence {sorted(present)}"
 
-    evidence_words = {w.lower() for w in _LATIN_TERM.findall(evidence_text)}
-    for word in _LATIN_TERM.findall(claim_text):
-        if word.lower() not in evidence_words and word.lower() not in _ALIAS_TO_UNIT:
+    evidence_words = _latin_terms(evidence_text)
+    for word in sorted(_latin_terms(claim_text)):
+        if word not in evidence_words and word not in _ALIAS_TO_UNIT:
             return f"term not in evidence: {word}"
 
     claimed_nozzles = {_canonical_nozzle(label) for label in _NOZZLE.findall(claim_flat)}
@@ -210,13 +258,13 @@ def claim_inconsistency(claim_text: str, quotes: list[str] | tuple[str, ...], ci
     # "ใบแคบและกว้าง" is one class; a claim for only ใบแคบ (or the reverse) is a different claim.
     quote_groups, evidence_groups = _weed_groups(quote_flat), _weed_groups(evidence_flat)
     for group in _weed_groups(claim_flat):
-        if group in quote_groups:
+        if weed_class_supported(group, quote_groups, claim_text, allow_subset=allow_weed_subset):
             continue
         if any(group < other for other in quote_groups):
             return f"weed class narrowed from combined class: {sorted(group)}"
         if quote_groups and all(not group & other for other in quote_groups):
             return f"weed class contradicts cited quote: {sorted(group)}"
-        if group in evidence_groups:
+        if weed_class_supported(group, evidence_groups, claim_text, allow_subset=allow_weed_subset):
             continue
         if any(group < other for other in evidence_groups):
             return f"weed class narrowed from combined class: {sorted(group)}"

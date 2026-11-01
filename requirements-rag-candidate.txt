@@ -1,0 +1,13 @@
+# Candidate RAG Pipeline Dependencies
+#
+# The candidate pipeline is designed to be lean, fast, and completely free of
+# heavy runtime orchestration framework bloat (e.g. LangChain / LlamaIndex version conflicts).
+# It uses Python standard library + existing project dependencies pinned in requirements.txt.
+#
+# Existing core dependencies utilized:
+# - python >= 3.11
+# - openai >= 1.0.0
+# - chromadb
+# - pydantic
+#
+# No extra third-party packages are required.

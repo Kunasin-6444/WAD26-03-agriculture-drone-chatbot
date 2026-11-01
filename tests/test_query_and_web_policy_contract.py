@@ -27,9 +27,9 @@ class QueryAndWebPolicyContract(unittest.TestCase):
         client.search.return_value = {"results": []}
         web_fallback.search_web_fallback("ราคาน้ำมันดีเซล", tavily_client=client)
         kwargs = client.search.call_args.kwargs
-        self.assertEqual(kwargs["include_domains_mode"], "restrict")
-        self.assertEqual(set(kwargs["include_domains"]), set(web_fallback.WEB_ALLOWED_DOMAINS))
-        self.assertNotIn("it24hrs.com", kwargs["include_domains"])
+        self.assertEqual(set(kwargs["exclude_domains"]), set(web_fallback.EXCLUDED_WEB_DOMAINS))
+
+
         self.assertEqual(kwargs["search_depth"], "basic")   # 1 credit; only CAAT needs passages
 
     def test_dead_fallback_model_removed(self):

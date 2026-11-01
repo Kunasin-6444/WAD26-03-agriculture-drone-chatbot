@@ -3,7 +3,6 @@ import os
 import time
 import unittest
 from unittest.mock import MagicMock, patch
-from concurrent.futures import TimeoutError as FutureTimeout
 
 from fastapi.testclient import TestClient
 
@@ -75,8 +74,6 @@ class AvailabilityPipelineContract(unittest.TestCase):
             mocks.append(patcher.start())
             self.addCleanup(patcher.stop)
         self.retrieve, self.web = mocks[-2:]
-        ai_service.clear_answer_cache()
-        self.addCleanup(ai_service.clear_answer_cache)
 
     def quota(self, *keys):
         for key in keys or (MODEL,):
@@ -143,27 +140,19 @@ class AvailabilityPipelineContract(unittest.TestCase):
         self.assertEqual(response.error_code, "provider_unavailable")
         self.retrieve.assert_not_called()
 
-    def test_cached_grounded_answer_and_bot_usage_still_work_during_quota_outage(self):
+    def test_repeat_reports_current_quota_outage_but_bot_usage_still_works(self):
         client = llm_client(result_json())
         with patch.object(rag_service, "get_llm_client", return_value=client):
             first = ai_service.ask_ai(QUESTION)
             self.quota()
-            self.assertEqual(ai_service.ask_ai(QUESTION), first)
+            self.assertNotEqual(ai_service.ask_ai(QUESTION), first)
+            self.assertEqual(ai_service.ask_ai(QUESTION), ERROR_MESSAGES["quota_exhausted"])
         self.assertEqual(client.chat.completions.create.call_count, 1)
         self.retrieve.reset_mock()
         response = run_crag_pipeline("บอททำอะไรได้บ้าง")
         self.assertEqual(response.source_type, "bot_usage")
         self.retrieve.assert_not_called()
         self.web.assert_not_called()
-
-    def test_waiting_on_an_identical_question_reports_timeout_without_an_extra_pipeline_call(self):
-        pending = MagicMock()
-        pending.result.side_effect = FutureTimeout()
-        key = ai_service._key(QUESTION)
-        with patch.dict(ai_service._inflight, {key: pending}, clear=True), \
-             patch("app.services.ai_service.run_crag_pipeline") as run:
-            self.assertEqual(ai_service.ask_ai(QUESTION), ERROR_MESSAGES["timeout"])
-        run.assert_not_called()
 
     def test_retrieval_failure_is_not_reported_as_absent_evidence(self):
         self.retrieve.side_effect = TimeoutError("private-provider-detail")

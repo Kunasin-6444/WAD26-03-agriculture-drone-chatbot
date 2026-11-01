@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from app.rag import slide_retriever as sr
+from app.rag.application_scope import ApplicationScope
 from app.rag.evidence import Evidence, document_page_evidence, parse_grounded_result
 from tests.helpers import result_json
 
@@ -25,6 +26,32 @@ class DocumentScopeTests(unittest.TestCase):
             result = sr.search_slides_pipeline("ตามเอกสารUAV07 พัดส้มมีปริมาณต่อหัวเท่าไร")
         self.assertEqual([p["source_file"] for p in result["top_pages"]], ["UAV07.pdf"])
         self.assertEqual(collection.query.call_args.kwargs["where"], {"source_file": {"$in": ["UAV07.pdf"]}})
+
+    def test_application_scope_applies_before_dense_and_bm25_selection(self):
+        index = self.index()
+        index['metas'][0]['source_file'] = 'UAV06 การบินทั่วไป.pdf'
+        index['metas'][1]['source_file'] = 'UAV07 โดรนสำรวจ.pdf'
+        collection = MagicMock()
+        collection.query.return_value = {'documents': [index['docs']], 'metadatas': [index['metas']], 'distances': [[.1, .2]]}
+        collection.get.return_value = {'documents': index['docs'], 'metadatas': index['metas']}
+        scope = ApplicationScope('ก่อนบินโดรนตรวจอะไร')
+        with patch.object(sr, 'collection', collection), patch.object(sr, '_bm25_index', return_value=index), \
+             patch.object(sr, 'embed_text', return_value=[1]), patch.object(sr, 'RETRIEVER_BM25', 'global'):
+            result = sr.search_slides_pipeline('ก่อนบินโดรนตรวจอะไร', source_scope=scope)
+        self.assertEqual(collection.query.call_args.kwargs['where'],
+                         {'source_file': {'$in': ['UAV06 การบินทั่วไป.pdf']}})
+        self.assertTrue(result['top_pages'])
+        self.assertTrue(all(page['source_file'] == 'UAV06 การบินทั่วไป.pdf' for page in result['top_pages']))
+        self.assertIn('UAV07 โดรนสำรวจ.pdf', scope.excluded)
+
+    def test_no_eligible_document_stops_before_embedding(self):
+        index = self.index()
+        for m in index['metas']:
+            m['source_file'] = 'UAV07 โดรนสำรวจ.pdf'
+        with patch.object(sr, '_bm25_index', return_value=index), patch.object(sr, 'embed_text') as embed:
+            result = sr.search_slides_pipeline('ก่อนบินโดรนตรวจอะไร', source_scope=ApplicationScope('ก่อนบินโดรนตรวจอะไร'))
+        self.assertEqual(result['top_pages'], [])
+        embed.assert_not_called()
 
     def test_missing_named_document_does_not_silently_broaden_scope(self):
         with patch.object(sr, "_bm25_index", return_value=self.index()), patch.object(sr, "embed_text") as embed:
